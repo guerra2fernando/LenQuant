@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
+from api.routes.trade import get_order_manager
 from data_ingest.config import IngestConfig
 from data_ingest.fetcher import fetch_symbol_interval
 from db.client import get_database_name, mongo_client
@@ -107,6 +108,20 @@ class BootstrapRequest(BaseModel):
     lookback_days: Optional[int] = None
 
 
+class KillSwitchPayload(BaseModel):
+    action: Literal["arm", "release"] = "arm"
+    reason: Optional[str] = None
+    actor: Optional[str] = None
+    mode: Optional[str] = None
+
+    @validator("reason")
+    def validate_reason(cls, value: Optional[str], values: Dict[str, Any]) -> Optional[str]:
+        action = values.get("action")
+        if action == "arm" and not value:
+            raise ValueError("Reason is required when arming the kill switch.")
+        return value
+
+
 @router.post("/bootstrap")
 def bootstrap_data(payload: BootstrapRequest) -> Dict[str, Any]:
     config = IngestConfig.from_env()
@@ -159,6 +174,27 @@ def bootstrap_data(payload: BootstrapRequest) -> Dict[str, Any]:
     results["inventory"] = _inventory_snapshot(config, symbols, intervals)
 
     return results
+
+
+@router.post("/kill-switch")
+def kill_switch(payload: KillSwitchPayload) -> Dict[str, Any]:
+    manager = get_order_manager()
+    risk_manager = manager.risk_manager
+    if payload.action == "arm":
+        risk_manager.trigger_kill_switch(reason=payload.reason or "manual trigger", actor=payload.actor)
+        cancelled = manager.cancel_all_orders(mode=payload.mode, actor=payload.actor)
+        summary = risk_manager.get_summary()
+        return {
+            "status": "armed",
+            "cancelled_orders": cancelled,
+            "kill_switch": summary.get("kill_switch"),
+        }
+    risk_manager.release_kill_switch(actor=payload.actor)
+    summary = risk_manager.get_summary()
+    return {
+        "status": "released",
+        "kill_switch": summary.get("kill_switch"),
+    }
 
 
 @router.get("/overview")

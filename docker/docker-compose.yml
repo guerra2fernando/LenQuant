@@ -1,4 +1,10 @@
 services:
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
   mongo:
     image: mongo:6.0
     restart: unless-stopped
@@ -13,10 +19,14 @@ services:
       dockerfile: docker/Dockerfile.python
     environment:
       - MONGO_URI=mongodb://mongo:27017/lenxys-trader
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_EXPERIMENT_QUEUE=experiments
     ports:
       - "8000:8000"
     depends_on:
       - mongo
+      - redis
 
   web:
     build:
@@ -28,6 +38,21 @@ services:
       - "3000:3000"
     depends_on:
       - api
+      - redis
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    command: celery -A manager.tasks worker --loglevel=info
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/lenxys-trader
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_EXPERIMENT_QUEUE=experiments
+    depends_on:
+      - mongo
+      - redis
 
 volumes:
   mongo-data:

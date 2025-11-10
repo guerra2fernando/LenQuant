@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from backtester.execution_model import ExecutionModel
+from evaluation.metrics import compute_experiment_metrics
 
 
 @dataclass
@@ -41,6 +42,8 @@ class Backtester:
         initial_capital: float = 10_000.0,
         position_size_pct: float = 0.95,
         execution_model: Optional[ExecutionModel] = None,
+        take_profit_pct: Optional[float] = None,
+        stop_loss_pct: Optional[float] = None,
     ) -> None:
         self.initial_capital = initial_capital
         self.cash = initial_capital
@@ -50,6 +53,8 @@ class Backtester:
         self.trades: List[Trade] = []
         self.equity_curve: List[Dict[str, float]] = []
         self.last_prediction: Dict[str, Optional[float]] = {"predicted_return": None, "confidence": None}
+        self.take_profit_pct = take_profit_pct
+        self.stop_loss_pct = stop_loss_pct
 
     def on_signal(
         self,
@@ -61,6 +66,7 @@ class Backtester:
     ) -> None:
         self.last_prediction = {"predicted_return": predicted_return, "confidence": confidence}
         signal = signal.lower()
+        self._apply_risk_management(ts, price)
         if signal == "buy":
             self._handle_buy(ts, price)
         elif signal == "sell":
@@ -105,6 +111,15 @@ class Backtester:
             last_trade.realized_return = (exec_price - last_trade.entry_price) / last_trade.entry_price
         self.position = None
 
+    def _apply_risk_management(self, ts: pd.Timestamp, price: float) -> None:
+        if not self.position:
+            return
+        change = (price - self.position.entry_price) / self.position.entry_price if self.position.entry_price else 0.0
+        if self.take_profit_pct is not None and change >= self.take_profit_pct:
+            self._handle_sell(ts, price)
+        elif self.stop_loss_pct is not None and change <= -self.stop_loss_pct:
+            self._handle_sell(ts, price)
+
     def _mark_equity(self, ts: pd.Timestamp, price: float) -> None:
         position_value = 0.0
         if self.position:
@@ -120,25 +135,9 @@ class Backtester:
         )
 
     def finalize(self) -> BacktestResult:
-        metrics = {}
+        metrics: Dict[str, float] = {}
         if self.equity_curve:
             series = pd.Series([point["equity"] for point in self.equity_curve])
-            returns = series.pct_change().dropna()
-            metrics = {
-                "pnl": series.iloc[-1] - self.initial_capital,
-                "max_drawdown": (series.cummax() - series).max() / series.cummax().max(),
-                "sharpe": (returns.mean() / returns.std()) * (252 ** 0.5)
-                if returns.std() != 0
-                else 0.0,
-            }
-            preds = pd.Series(
-                [point.get("predicted_return") for point in self.equity_curve if point.get("predicted_return") is not None]
-            )
-            realized = pd.Series(
-                [trade.realized_return for trade in self.trades if trade.realized_return is not None]
-            )
-            if not preds.empty and not realized.empty:
-                aligned = realized.iloc[-len(preds) :]
-                metrics["prediction_bias"] = float(aligned.mean() - preds.mean())
+            metrics = compute_experiment_metrics(series, self.trades, self.initial_capital)
         return BacktestResult(trades=self.trades, equity_curve=self.equity_curve, metrics=metrics)
 

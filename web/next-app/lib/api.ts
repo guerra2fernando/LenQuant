@@ -58,3 +58,21 @@ export async function postJson<T>(path: string, body: unknown, init?: RequestIni
   return res.json();
 }
 
+export async function putJson<T>(path: string, body: unknown, init?: RequestInit): Promise<T> {
+  const url = buildApiUrl(path);
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    body: JSON.stringify(body),
+    ...init,
+  });
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || `API request failed: ${res.status}`);
+  }
+  return res.json();
+}
+

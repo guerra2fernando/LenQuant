@@ -108,7 +108,9 @@ def time_based_split(X: pd.DataFrame, y: pd.Series, val_ratio: float = 0.1, test
 def evaluate_predictions(y_true: pd.Series, y_pred: np.ndarray) -> Dict[str, float]:
     rmse = mean_squared_error(y_true, y_pred, squared=False)
     mae = mean_absolute_error(y_true, y_pred)
-    directional_accuracy = float((np.sign(y_true) == np.sign(y_pred)).mean())
+    true_direction = np.asarray(y_true) >= 0
+    pred_direction = np.asarray(y_pred) >= 0
+    directional_accuracy = float((true_direction == pred_direction).mean())
     return {
         "rmse": float(rmse),
         "mae": float(mae),

@@ -29,20 +29,43 @@ def _load_feature_frame(symbol: str, interval: str) -> pd.DataFrame:
     return merged
 
 
-def _decide_signal(predicted_return: float | None, confidence: float | None, horizon: str) -> str:
-    if predicted_return is None or confidence is None:
+def _strategy_param(strategy_config: dict[str, float], key: str, default: float) -> float:
+    value = strategy_config.get(key, default)
+    return float(value)
+
+
+def _decide_signal(
+    predicted_return: float | None,
+    confidence: float | None,
+    horizon: str,
+    strategy_config: dict[str, float],
+) -> str:
+    uses_forecast = bool(strategy_config.get("uses_forecast", True))
+    if not uses_forecast or predicted_return is None or confidence is None:
         return "hold"
-    min_ret = MIN_RET_THRESHOLDS.get(horizon, 0.001)
-    min_conf = MIN_CONF_THRESHOLDS.get(horizon, 0.55)
-    if predicted_return > min_ret and confidence >= min_conf:
+
+    weight = float(strategy_config.get("forecast_weight", 1.0))
+    adjusted_return = predicted_return * weight
+    min_ret = float(strategy_config.get("min_return_threshold", MIN_RET_THRESHOLDS.get(horizon, 0.001)))
+    min_conf = float(strategy_config.get("min_confidence", MIN_CONF_THRESHOLDS.get(horizon, 0.55)))
+
+    if adjusted_return > min_ret and confidence >= min_conf:
         return "buy"
-    if predicted_return < -min_ret and confidence >= min_conf:
+    if adjusted_return < -min_ret and confidence >= min_conf:
         return "sell"
     return "hold"
 
 
-def run_simulation(symbol: str, interval: str, strategy_name: str, horizon: str | None = None) -> str:
+def run_simulation(
+    symbol: str,
+    interval: str,
+    strategy_name: str,
+    horizon: str | None = None,
+    strategy_config: dict[str, float] | None = None,
+    genome: dict | None = None,
+) -> str:
     horizon = horizon or interval
+    strategy_config = strategy_config or {}
     feature_count = generate_for_symbol(symbol, interval)
     if feature_count == 0:
         logger.warning("No features generated. Aborting simulation.")
@@ -53,7 +76,12 @@ def run_simulation(symbol: str, interval: str, strategy_name: str, horizon: str 
         logger.warning("No features available for %s %s", symbol, interval)
         return ""
 
-    backtester = Backtester()
+    backtester = Backtester(
+        initial_capital=strategy_config.get("initial_capital", 10_000.0),
+        position_size_pct=min(max(strategy_config.get("risk_pct", 0.1), 0.01), 0.99),
+        take_profit_pct=strategy_config.get("take_profit_pct"),
+        stop_loss_pct=strategy_config.get("stop_loss_pct"),
+    )
 
     for ts, row in features.iterrows():
         price = float(row["price"])
@@ -66,7 +94,7 @@ def run_simulation(symbol: str, interval: str, strategy_name: str, horizon: str 
             predicted_return = None
             confidence = None
 
-        signal = _decide_signal(predicted_return, confidence, horizon)
+        signal = _decide_signal(predicted_return, confidence, horizon, strategy_config)
         backtester.on_signal(ts, price, signal, predicted_return, confidence)
 
     result = backtester.finalize()
@@ -84,6 +112,8 @@ def run_simulation(symbol: str, interval: str, strategy_name: str, horizon: str 
                 "trades": [trade.__dict__ for trade in result.trades],
                 "equity_curve": result.equity_curve,
                 "created_at": datetime.utcnow(),
+                "strategy_config": strategy_config,
+                "genome": genome,
             }
         )
     logger.info("Completed simulation %s", run_id)

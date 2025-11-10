@@ -64,7 +64,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <span>Symbol • <strong>{symbol}</strong></span>
         <span>Horizon • <strong>{horizon}</strong></span>
       </p>
-      <p class="label">Training window • {train_start} → {train_end}</p>
+      <p class="label">Training window • {train_start} &rarr; {train_end}</p>
       <p class="label">Generated • {generated_at}</p>
     </div>
 

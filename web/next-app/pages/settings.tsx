@@ -1,5 +1,6 @@
 /* eslint-disable */
 // @ts-nocheck
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
@@ -369,6 +370,20 @@ export default function SettingsPage(): JSX.Element {
         <p className="mt-1 text-sm text-muted-foreground">
           Preferences are stored locally for now and will sync with backend settings in Phase 2.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/settings/experiments">Open experiment settings</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/settings/learning">Learning engine settings</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/settings/assistant">Assistant settings</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/settings/autonomy">Autonomy guard rails</Link>
+          </Button>
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
