@@ -1,11 +1,13 @@
 /* eslint-disable */
 // @ts-nocheck
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
 import useSWR from "swr";
 
 import { AccountSelector } from "@/components/AccountSelector";
 import { AlertStream } from "@/components/AlertStream";
 import { ApprovalWizard } from "@/components/ApprovalWizard";
+import { DayThreePromotionModal } from "@/components/DayThreePromotionModal";
 import { ExecutionLatencyChart } from "@/components/ExecutionLatencyChart";
 import { FillsFeed } from "@/components/FillsFeed";
 import { GuidedTradingFlow } from "@/components/GuidedTradingFlow";
@@ -16,10 +18,14 @@ import { PositionsTable } from "@/components/PositionsTable";
 import { RiskGaugeCard } from "@/components/RiskGaugeCard";
 import { TradingTabs } from "@/components/TradingTabs";
 import { useToast } from "@/components/ToastProvider";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useMode } from "@/lib/mode-context";
 import { fetcher, postJson } from "@/lib/api";
 import { useWebSocket } from "@/lib/hooks";
+import { formatNumber, formatPercent } from "@/lib/utils";
+import type { CohortListItem } from "@/types/cohorts";
 
 const MODES = [
   { key: "paper", label: "Paper", description: "Virtual ledger and fills — safest place to start." },
@@ -27,10 +33,23 @@ const MODES = [
   { key: "live", label: "Live", description: "Guarded live trading. MFA + permissions required." },
 ];
 
+type CohortListResponse = {
+  cohorts: CohortListItem[];
+  pagination?: {
+    page: number;
+    page_size: number;
+    total_pages: number;
+    total: number;
+  };
+};
+
 export default function TradingControlCenterPage() {
   const { isEasyMode } = useMode();
+  const router = useRouter();
   const [mode, setMode] = useState("paper");
   const [editingOrder, setEditingOrder] = useState(null);
+  const [promotionModalOpen, setPromotionModalOpen] = useState(false);
+  const [promotionCohortId, setPromotionCohortId] = useState<string | null>(null);
   const { pushToast } = useToast();
 
   // Use WebSocket for real-time updates, fallback to polling
@@ -42,6 +61,73 @@ export default function TradingControlCenterPage() {
   } = useSWR("/api/trading/summary", fetcher, { 
     refreshInterval: wsConnected ? 0 : 15_000, // Disable polling if WebSocket is connected
   });
+
+  const {
+    data: cohortsData,
+    mutate: mutateCohorts,
+  } = useSWR<CohortListResponse>("/api/experiments/cohorts?page=1&page_size=5", fetcher, {
+    refreshInterval: 20_000,
+  });
+
+  const cohortsList = cohortsData?.cohorts ?? [];
+  const latestCohort = cohortsList.length ? cohortsList[0] : null;
+
+  useEffect(() => {
+    if (promotionCohortId || !latestCohort) {
+      return;
+    }
+    setPromotionCohortId(latestCohort.cohort_id);
+  }, [latestCohort, promotionCohortId]);
+
+  useEffect(() => {
+    const promoParamRaw = router.query?.promo;
+    if (!promoParamRaw) {
+      return;
+    }
+    const promoParam = Array.isArray(promoParamRaw) ? promoParamRaw[0] : promoParamRaw;
+    let targetId: string | null = null;
+    if (promoParam === "latest") {
+      targetId = latestCohort?.cohort_id ?? null;
+    } else if (typeof promoParam === "string") {
+      targetId = promoParam;
+    }
+    if (targetId) {
+      setPromotionCohortId(targetId);
+      setPromotionModalOpen(true);
+    }
+    if (promoParam) {
+      const { promo, ...rest } = router.query;
+      void router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+    }
+  }, [router, latestCohort]);
+
+  const selectedPromotionCohort =
+    cohortsList.find((cohort) => cohort.cohort_id === (promotionCohortId ?? latestCohort?.cohort_id)) ?? latestCohort;
+
+  const promotionConfidence = selectedPromotionCohort?.summary?.confidence_score ?? 0;
+  const promotionRoi = selectedPromotionCohort?.summary?.total_roi ?? 0;
+  const promotionPnl = selectedPromotionCohort?.summary?.total_pnl ?? 0;
+
+  const formatCurrency = useCallback(
+    (value?: number | null) => `$${formatNumber(value ?? 0, 2)}`,
+    [],
+  );
+
+  const handleOpenPromotionModal = useCallback(
+    (cohortId?: string | null) => {
+      const targetId = cohortId ?? promotionCohortId ?? latestCohort?.cohort_id ?? null;
+      if (targetId) {
+        setPromotionCohortId(targetId);
+        setPromotionModalOpen(true);
+      }
+    },
+    [latestCohort?.cohort_id, promotionCohortId],
+  );
+
+  const handlePromotionSuccess = useCallback(async () => {
+    await mutateCohorts();
+    await refreshSummary();
+  }, [mutateCohorts, refreshSummary]);
 
   // Merge WebSocket data with summary data
   const mergedSummary = useMemo(() => {
@@ -149,7 +235,8 @@ export default function TradingControlCenterPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="flex-1 space-y-4">
           <TradingTabs mode={mode} onModeChange={setMode} modes={MODES} />
@@ -176,6 +263,62 @@ export default function TradingControlCenterPage() {
             onArm={handleKillSwitchArm}
             onRelease={handleKillSwitchRelease}
           />
+          <Card className="space-y-3 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-semibold text-foreground">Day-3 Promotion</div>
+                <p className="text-xs text-muted-foreground">
+                  Review intraday cohorts before enabling live promotion.
+                </p>
+              </div>
+              <Badge variant={promotionConfidence >= 0.6 ? "success" : "secondary"}>
+                {selectedPromotionCohort ? `Confidence ${formatPercent(promotionConfidence ?? 0)}` : "No cohort"}
+              </Badge>
+            </div>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Cohort
+                <select
+                  className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground shadow-sm"
+                  value={promotionCohortId ?? latestCohort?.cohort_id ?? ""}
+                  onChange={(event) => setPromotionCohortId(event.target.value || null)}
+                >
+                  {cohortsList.length ? (
+                    cohortsList.map((cohort) => (
+                      <option key={cohort.cohort_id} value={cohort.cohort_id}>
+                        {cohort.cohort_id}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No intraday cohorts</option>
+                  )}
+                </select>
+              </label>
+              {selectedPromotionCohort ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    ROI{" "}
+                    <span className="font-semibold text-foreground">
+                      {formatPercent(promotionRoi ?? 0)}
+                    </span>
+                  </div>
+                  <div>
+                    PnL{" "}
+                    <span className="font-semibold text-foreground">
+                      {formatCurrency(promotionPnl ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <Button
+              size="sm"
+              onClick={() => handleOpenPromotionModal(promotionCohortId ?? latestCohort?.cohort_id ?? null)}
+              disabled={!cohortsList.length}
+            >
+              Review Day-3 Promotion
+            </Button>
+          </Card>
           <ExecutionLatencyChart samples={latencies} />
           <AlertStream alerts={alerts} />
         </div>
@@ -205,7 +348,14 @@ export default function TradingControlCenterPage() {
         <FillsFeed fills={fills} />
         <ExecutionLatencyChart samples={latencies} />
       </div>
-    </div>
+      </div>
+      <DayThreePromotionModal
+        open={promotionModalOpen}
+        cohortId={promotionCohortId}
+        onClose={() => setPromotionModalOpen(false)}
+        onPromoted={handlePromotionSuccess}
+      />
+    </>
   );
 }
 

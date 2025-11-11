@@ -170,3 +170,123 @@ def get_evidence(namespace: str, identifier: str) -> Dict[str, Any]:
         raise HTTPException(status_code=404, detail="Evidence not found.")
     return {"reference": reference, "document": doc}
 
+
+@router.get("/cohorts/status")
+def get_cohorts_status(limit: int = Query(default=3, ge=1, le=10)) -> Dict[str, Any]:
+    """Lightweight endpoint for assistant to poll cohort status."""
+    from db.client import get_database_name, mongo_client
+
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        cohorts_cursor = (
+            db["sim_runs_intraday"]
+            .find({}, {"cohort_id": 1, "created_at": 1, "bankroll": 1, "agent_count": 1})
+            .sort("created_at", -1)
+            .limit(limit)
+        )
+        cohorts = list(cohorts_cursor)
+        cohort_ids = [doc.get("cohort_id") for doc in cohorts if doc.get("cohort_id")]
+        summaries_cursor = db["cohort_summaries"].find(
+            {"cohort_id": {"$in": cohort_ids}},
+            {"cohort_id": 1, "total_roi": 1, "total_pnl": 1, "confidence_score": 1, "generated_at": 1},
+        )
+        summaries_map = {doc.get("cohort_id"): doc for doc in summaries_cursor}
+
+    status_list = []
+    for cohort in cohorts:
+        cohort_id = cohort.get("cohort_id")
+        summary = summaries_map.get(cohort_id, {})
+        status_list.append(
+            {
+                "cohort_id": cohort_id,
+                "created_at": cohort.get("created_at").isoformat() if cohort.get("created_at") else None,
+                "bankroll": cohort.get("bankroll"),
+                "agent_count": cohort.get("agent_count"),
+                "total_roi": summary.get("total_roi"),
+                "total_pnl": summary.get("total_pnl"),
+                "confidence_score": summary.get("confidence_score"),
+            }
+        )
+
+    return {"cohorts": status_list, "count": len(status_list)}
+
+
+@router.get("/cohorts/{cohort_id}/promotion-readiness")
+def get_promotion_readiness(cohort_id: str) -> Dict[str, Any]:
+    """Check if a cohort is ready for Day-3 promotion (assistant-friendly endpoint)."""
+    from db.client import get_database_name, mongo_client
+
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        cohort_doc = db["sim_runs_intraday"].find_one({"cohort_id": cohort_id})
+        summary_doc = db["cohort_summaries"].find_one({"cohort_id": cohort_id})
+
+    if not cohort_doc or not summary_doc:
+        raise HTTPException(status_code=404, detail="Cohort not found.")
+
+    # Reuse promotion preview logic from experiments route
+    from api.routes.experiments import (
+        _build_promotion_preview,
+        _serialise_parent_snapshot,
+    )
+
+    parent_snapshot = _serialise_parent_snapshot(cohort_doc.get("parent_wallet") or {})
+    promotion_preview = _build_promotion_preview(cohort_doc, summary_doc, parent_snapshot)
+
+    return {
+        "cohort_id": cohort_id,
+        "ready": promotion_preview.get("ready", False),
+        "passed_checks": sum(1 for check in promotion_preview.get("checks", []) if check.get("status")),
+        "total_checks": len(promotion_preview.get("checks", [])),
+        "recommended_allocation": promotion_preview.get("recommended_allocation"),
+        "best_candidate_id": promotion_preview.get("best_candidate", {}).get("strategy_id"),
+        "leverage_breaches": len(promotion_preview.get("leverage_breaches", [])),
+        "high_severity_alerts": len(promotion_preview.get("high_severity_alerts", [])),
+    }
+
+
+@router.get("/cohorts/bankroll-summary")
+def get_bankroll_summary() -> Dict[str, Any]:
+    """Summarize bankroll usage across recent cohorts (assistant-friendly)."""
+    from datetime import datetime, timedelta
+    from db.client import get_database_name, mongo_client
+
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        cohorts_cursor = db["sim_runs_intraday"].find(
+            {"created_at": {"$gte": cutoff}},
+            {"cohort_id": 1, "bankroll": 1, "created_at": 1, "agent_count": 1},
+        )
+        cohorts = list(cohorts_cursor)
+        cohort_ids = [doc.get("cohort_id") for doc in cohorts if doc.get("cohort_id")]
+        summaries_cursor = db["cohort_summaries"].find(
+            {"cohort_id": {"$in": cohort_ids}}, {"cohort_id": 1, "total_pnl": 1, "bankroll_utilization_pct": 1}
+        )
+        summaries_map = {doc.get("cohort_id"): doc for doc in summaries_cursor}
+
+    total_bankroll = 0.0
+    total_pnl = 0.0
+    utilization_samples = []
+    cohort_count = len(cohorts)
+
+    for cohort in cohorts:
+        cohort_id = cohort.get("cohort_id")
+        bankroll = float(cohort.get("bankroll") or 0.0)
+        total_bankroll += bankroll
+        summary = summaries_map.get(cohort_id, {})
+        pnl = float(summary.get("total_pnl") or 0.0)
+        total_pnl += pnl
+        utilization = float(summary.get("bankroll_utilization_pct") or 0.0)
+        if utilization > 0:
+            utilization_samples.append(utilization)
+
+    avg_utilization = sum(utilization_samples) / len(utilization_samples) if utilization_samples else 0.0
+
+    return {
+        "cohort_count": cohort_count,
+        "total_bankroll_allocated": total_bankroll,
+        "total_pnl": total_pnl,
+        "avg_utilization_pct": avg_utilization,
+        "lookback_days": 7,
+    }

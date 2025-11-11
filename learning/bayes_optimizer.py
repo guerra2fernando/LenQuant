@@ -76,6 +76,12 @@ def optimise_genomes(
 ) -> List[OptimizedGenome]:
     settings = settings or get_learning_settings().get("optimizer", DEFAULT_LEARNING_SETTINGS["optimizer"])
     champions = list(champions) if champions is not None else _champion_pool()
+    family_filter = settings.get("families")
+    if family_filter:
+        champions = [champ for champ in champions if champ.family in family_filter]
+        if not champions:
+            fallback_docs = list_genomes(status="champion", limit=16)
+            champions = [create_genome_from_dict(doc) for doc in fallback_docs if doc.get("family") in family_filter]
     if not champions:
         return []
     bundle = bundle or load_latest_meta_model()
@@ -87,6 +93,10 @@ def optimise_genomes(
         parent = random.choice(champions)
         mutated_params = _mutate_params(parent, trial, exploration_weight)
         candidate = _make_candidate(parent, mutated_params)
+        lookback_hours = settings.get("lookback_hours")
+        if lookback_hours:
+            candidate.metadata["lookback_hours"] = lookback_hours
+            candidate.tags = list({*candidate.tags, "intraday"})
         feature_vector = build_feature_vector(
             candidate.document(), parent.fitness.to_dict(), feature_columns=bundle.feature_columns
         )

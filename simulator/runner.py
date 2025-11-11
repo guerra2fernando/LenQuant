@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 import pandas as pd
 
 from backtester.engine import Backtester
 from db.client import get_database_name, get_feature_df, get_ohlcv_df, mongo_client
+from features.cache import GLOBAL_FEATURE_CACHE
 from features.features import generate_for_symbol
 from models.ensemble import EnsembleError, ensemble_predict
 
@@ -20,12 +22,20 @@ MIN_CONF_THRESHOLDS = {"1m": 0.55, "1h": 0.6, "1d": 0.65}
 
 
 def _load_feature_frame(symbol: str, interval: str) -> pd.DataFrame:
+    cached_frame = None
+    if interval in {"1m", "3m", "5m", "15m"}:
+        cached_frame = GLOBAL_FEATURE_CACHE.get_frame(symbol, interval)
+    if cached_frame is not None and not cached_frame.empty:
+        return cached_frame.copy()
+
     feature_df = get_feature_df(symbol, interval)
     price_df = get_ohlcv_df(symbol, interval)
     if feature_df.empty or price_df.empty:
         return pd.DataFrame()
     merged = feature_df.join(price_df["close"], how="inner")
     merged.rename(columns={"close": "price"}, inplace=True)
+    if interval in {"1m", "3m", "5m", "15m"} and not merged.empty:
+        GLOBAL_FEATURE_CACHE.set_frame(symbol, interval, merged)
     return merged
 
 
@@ -56,6 +66,17 @@ def _decide_signal(
     return "hold"
 
 
+def _filter_window(features: pd.DataFrame, *, start_time: Optional[datetime], end_time: Optional[datetime]) -> pd.DataFrame:
+    if features.empty:
+        return features
+    frame = features.copy()
+    if start_time:
+        frame = frame.loc[pd.to_datetime(frame.index) >= pd.Timestamp(start_time)]
+    if end_time:
+        frame = frame.loc[pd.to_datetime(frame.index) <= pd.Timestamp(end_time)]
+    return frame
+
+
 def run_simulation(
     symbol: str,
     interval: str,
@@ -63,6 +84,10 @@ def run_simulation(
     horizon: str | None = None,
     strategy_config: dict[str, float] | None = None,
     genome: dict | None = None,
+    *,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> str:
     horizon = horizon or interval
     strategy_config = strategy_config or {}
@@ -74,6 +99,11 @@ def run_simulation(
     features = _load_feature_frame(symbol, interval)
     if features.empty:
         logger.warning("No features available for %s %s", symbol, interval)
+        return ""
+
+    features = _filter_window(features, start_time=start_time, end_time=end_time)
+    if features.empty:
+        logger.warning("No features fall within requested window for %s %s", symbol, interval)
         return ""
 
     backtester = Backtester(
@@ -114,6 +144,8 @@ def run_simulation(
                 "created_at": datetime.utcnow(),
                 "strategy_config": strategy_config,
                 "genome": genome,
+                "window": {"start": start_time, "end": end_time},
+                "context": context or {},
             }
         )
     logger.info("Completed simulation %s", run_id)

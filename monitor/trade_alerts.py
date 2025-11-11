@@ -43,6 +43,74 @@ class TradeAlertClient:
             except Exception as exc:  # pylint: disable=broad-except
                 self.logger.warning("Failed to dispatch %s alert: %s", channel, exc)
 
+    def send_cohort_alert(
+        self,
+        *,
+        cohort_id: str,
+        title: str,
+        message: str,
+        severity: str = "warning",
+        metrics: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        extra = {"cohort_id": cohort_id}
+        if metrics:
+            extra["metrics"] = metrics
+        self.send_alert(title=title, message=message, severity=severity, extra=extra)
+
+    def notify_parent_drawdown(self, cohort_id: str, drawdown_pct: float, threshold_pct: float) -> None:
+        message = (
+            f"Parent wallet drawdown {drawdown_pct:.2%} exceeded threshold {threshold_pct:.2%}."
+        )
+        self.send_cohort_alert(
+            cohort_id=cohort_id,
+            title="Parent Wallet Drawdown Breach",
+            message=message,
+            severity="critical" if drawdown_pct >= threshold_pct * 1.5 else "warning",
+            metrics={"drawdown_pct": drawdown_pct, "threshold_pct": threshold_pct},
+        )
+
+    def notify_leverage_breach(
+        self,
+        cohort_id: str,
+        strategy_id: str,
+        leverage_multiple: float,
+        ceiling: float,
+    ) -> None:
+        message = (
+            f"Agent {strategy_id} leverage {leverage_multiple:.2f}× breached ceiling {ceiling:.2f}×."
+        )
+        self.send_cohort_alert(
+            cohort_id=cohort_id,
+            title="Agent Leverage Breach",
+            message=message,
+            severity="warning",
+            metrics={
+                "strategy_id": strategy_id,
+                "leverage": leverage_multiple,
+                "ceiling": ceiling,
+            },
+        )
+
+    def notify_bankroll_utilisation(
+        self,
+        cohort_id: str,
+        utilisation_pct: float,
+        threshold_pct: float,
+    ) -> None:
+        message = (
+            f"Cohort bankroll utilisation {utilisation_pct:.2%} surpassed threshold {threshold_pct:.2%}."
+        )
+        self.send_cohort_alert(
+            cohort_id=cohort_id,
+            title="Bankroll Utilisation Alert",
+            message=message,
+            severity="warning" if utilisation_pct < threshold_pct * 1.2 else "critical",
+            metrics={
+                "utilisation_pct": utilisation_pct,
+                "threshold_pct": threshold_pct,
+            },
+        )
+
     # ------------------------------------------------------------------ #
     # Channels
     # ------------------------------------------------------------------ #

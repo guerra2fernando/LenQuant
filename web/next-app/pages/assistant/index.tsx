@@ -30,6 +30,7 @@ export default function AssistantWorkspacePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLaunchingCohort, setIsLaunchingCohort] = useState(false);
 
   const { pushToast } = useToast();
   const { addNotification } = useNotificationCenter();
@@ -137,6 +138,47 @@ export default function AssistantWorkspacePage() {
     }
   };
 
+  const handleLaunchIntraday = async ({ bankroll }: { bankroll: number }) => {
+    setIsLaunchingCohort(true);
+    try {
+      const response = await postJson("/api/experiments/cohorts/launch", {
+        bankroll,
+        agent_count: 30,
+        allocation_policy: "equal",
+        leverage_ceiling: 5,
+      });
+      const launchedId = response?.cohort?.cohort_id ?? "cohort";
+      pushToast({
+        title: "Intraday cohort launched",
+        description: `30 agents allocated across $${bankroll.toLocaleString()} (${launchedId}).`,
+        variant: "success",
+      });
+      addNotification({
+        title: "Intraday cohort launched",
+        message: `Assistant launched cohort ${launchedId} with $${bankroll.toLocaleString()} bankroll.`,
+        kind: "success",
+      });
+    } catch (launchError) {
+      const message = launchError instanceof Error ? launchError.message : "Unable to launch cohort.";
+      pushToast({
+        title: "Launch failed",
+        description: message,
+        variant: "destructive",
+      });
+      addNotification({
+        title: "Intraday launch failed",
+        message,
+        kind: "warning",
+      });
+    } finally {
+      setIsLaunchingCohort(false);
+    }
+  };
+
+  const handleReviewPromotion = () => {
+    router.push("/trading?promo=latest");
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -147,21 +189,26 @@ export default function AssistantWorkspacePage() {
       </div>
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="space-y-6">
-        <AssistantToolbar
-          query={query}
-          onQueryChange={setQuery}
-          symbol={symbol}
-          onSymbolChange={setSymbol}
-          strategyId={strategyId}
-          onStrategyIdChange={setStrategyId}
-          date={date}
-          onDateChange={setDate}
-          horizon={horizon}
-          onHorizonChange={setHorizon}
-          isLoading={isLoading}
-          onSubmit={handleSubmit}
-        />
-        <QuickActions onSelect={(prompt) => setQuery(prompt)} />
+          <AssistantToolbar
+            query={query}
+            onQueryChange={setQuery}
+            symbol={symbol}
+            onSymbolChange={setSymbol}
+            strategyId={strategyId}
+            onStrategyIdChange={setStrategyId}
+            date={date}
+            onDateChange={setDate}
+            horizon={horizon}
+            onHorizonChange={setHorizon}
+            isLoading={isLoading}
+            onSubmit={handleSubmit}
+          />
+          <QuickActions
+            onSelect={(prompt) => setQuery(prompt)}
+            onLaunchIntraday={handleLaunchIntraday}
+            onReviewPromotion={handleReviewPromotion}
+            isLaunching={isLaunchingCohort}
+          />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Conversation</CardTitle>

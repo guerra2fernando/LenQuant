@@ -235,3 +235,43 @@ def run_learning_cycle(
         created_at=datetime.utcnow(),
     )
 
+
+def run_intraday_learning_cycle(
+    *,
+    lookback_hours: Optional[List[int]] = None,
+    families: Optional[List[str]] = None,
+    settings_override: Optional[Dict[str, Any]] = None,
+) -> LearningCycleSummary:
+    """Convenience wrapper for short-horizon intraday optimisation cycles."""
+    lookback = lookback_hours or [6, 12, 24]
+    family_filter = families or ["scalper", "ema-cross"]
+    base_override: Dict[str, Any] = {
+        "meta_model": {
+            **DEFAULT_LEARNING_SETTINGS["meta_model"],
+            "train_window_runs": min(200, DEFAULT_LEARNING_SETTINGS["meta_model"].get("train_window_runs", 500)),
+        },
+        "optimizer": {
+            **DEFAULT_LEARNING_SETTINGS["optimizer"],
+            "trials": min(30, DEFAULT_LEARNING_SETTINGS["optimizer"].get("trials", 60)),
+            "top_k": min(5, DEFAULT_LEARNING_SETTINGS["optimizer"].get("top_k", 8)),
+            "families": family_filter,
+            "lookback_hours": lookback,
+        },
+    }
+    override_payload: Dict[str, Any]
+    if settings_override:
+        merged_override = {**base_override, **settings_override}
+        for key, value in base_override.items():
+            if key in settings_override and isinstance(value, dict) and isinstance(settings_override[key], dict):
+                merged_override[key] = {**value, **settings_override[key]}
+        override_payload = merged_override
+    else:
+        override_payload = base_override
+
+    return run_learning_cycle(
+        train_meta=True,
+        generate_candidates=True,
+        rebalance=False,
+        evaluate_overfit=True,
+        settings_override=override_payload,
+    )
