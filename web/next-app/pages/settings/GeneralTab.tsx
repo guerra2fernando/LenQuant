@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { TooltipExplainer } from "@/components/TooltipExplainer";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -580,8 +581,8 @@ export default function GeneralTab(): JSX.Element {
                 <div className="flex flex-wrap gap-2">
                   {overview?.available_symbols?.length ? (
                     overview.available_symbols.map((symbol) => (
-                      <Badge key={symbol} variant="secondary" className="text-sm">
-                        {symbol}
+                      <Badge key={symbol} variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5 text-sm">
+                        <SymbolDisplay symbol={symbol} logoSize={14} showText={true} />
                       </Badge>
                     ))
                   ) : (
@@ -958,7 +959,7 @@ export default function GeneralTab(): JSX.Element {
               <CardTitle>
                 API Endpoint Status
                 <TooltipExplainer 
-                  term="API Endpoint Status" 
+                  term="API endpoint status" 
                   explanation="Real-time health checks of the backend API services that power the trading system. Green (OK) means the service is responding correctly. Yellow (Check) means data is available but may need attention. Red (Error) indicates a service is down or failing. Use this to diagnose issues with data, reports, or trading functionality."
                 />
               </CardTitle>

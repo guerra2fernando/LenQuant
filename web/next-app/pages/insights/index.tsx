@@ -7,6 +7,7 @@ import { TrendingUp, BarChart3, MessageSquare, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { type ForecastRow } from "@/components/ForecastTable";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -139,7 +140,7 @@ export default function InsightsPage() {
                 return (
                   <div key={forecast.symbol} className="flex items-center justify-between rounded-lg border bg-muted/30 p-4">
                     <div>
-                      <p className="font-medium text-foreground">{forecast.symbol}</p>
+                      <SymbolDisplay symbol={forecast.symbol} />
                       <p className="text-xs text-muted-foreground">
                         {isPositive ? "Expected to go up" : predReturn < 0 ? "Expected to go down" : "Expected to stay flat"}
                       </p>

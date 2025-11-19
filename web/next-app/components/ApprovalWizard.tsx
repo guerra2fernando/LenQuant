@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -225,10 +226,10 @@ export function ApprovalWizard({
                       type="button"
                       size="sm"
                       variant={normalizeSymbol(option) === symbol ? "default" : "outline"}
-                      className="text-xs"
+                      className="text-xs flex items-center gap-1.5 px-3 py-1.5"
                       onClick={() => setSymbol(normalizeSymbol(option))}
                     >
-                      {normalizeSymbol(option)}
+                      <SymbolDisplay symbol={normalizeSymbol(option)} logoSize={12} showText={true} />
                     </Button>
                   ))}
                 </div>

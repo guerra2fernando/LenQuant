@@ -5,6 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { ArrowRight, TrendingUp, MessageSquare, BarChart3, Settings, Sparkles, Database } from "lucide-react";
 
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -529,7 +530,7 @@ export default function Home(): JSX.Element {
                     <TableRow key={key}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">{row.symbol}</span>
+                          <SymbolDisplay symbol={row.symbol} />
                           <Badge variant="secondary">{row.interval}</Badge>
                         </div>
                       </TableCell>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowRight, CheckCircle2, TrendingUp, TrendingDown, Eye } from "lucide-react";
 
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -89,9 +90,11 @@ export function GuidedTradingFlow({ onActionSelect, onSubmitOrder }: GuidedTradi
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-emerald-500" />
               <span className="font-semibold">Buy Cryptocurrency</span>
-              <TooltipExplainer 
-                term="Buy Cryptocurrency" 
-                explanation="This guides you through buying crypto step by step. You'll enter which cryptocurrency you want (like BTC or ETH) and how much money you want to spend. The system will walk you through confirming the details before placing the order."
+              <TooltipExplainer
+                term="Buy Cryptocurrency"
+                explanation="This guides you through buying crypto step by step.
+
+You'll enter which cryptocurrency you want (like BTC or ETH) and how much money you want to spend. The system will walk you through confirming the details before placing the order."
                 size="sm"
               />
             </div>
@@ -105,9 +108,11 @@ export function GuidedTradingFlow({ onActionSelect, onSubmitOrder }: GuidedTradi
             <div className="flex items-center gap-2">
               <TrendingDown className="h-5 w-5 text-red-500" />
               <span className="font-semibold">Sell Cryptocurrency</span>
-              <TooltipExplainer 
-                term="Sell Cryptocurrency" 
-                explanation="This guides you through selling crypto you already own. You'll specify what you want to sell and how much. Selling converts your cryptocurrency back to cash (or stablecoin), locking in any profit or loss."
+              <TooltipExplainer
+                term="Sell Cryptocurrency"
+                explanation="This guides you through selling crypto you already own.
+
+You'll specify what you want to sell and how much. Selling converts your cryptocurrency back to cash (or stablecoin), locking in any profit or loss."
                 size="sm"
               />
             </div>
@@ -121,9 +126,11 @@ export function GuidedTradingFlow({ onActionSelect, onSubmitOrder }: GuidedTradi
             <div className="flex items-center gap-2">
               <Eye className="h-5 w-5 text-blue-500" />
               <span className="font-semibold">Check My Positions</span>
-              <TooltipExplainer 
-                term="Check Positions" 
-                explanation="View all the cryptocurrencies you currently own, how much you paid for them, and what they're worth now. This shows your profit/loss and helps you decide what to do next."
+              <TooltipExplainer
+                term="Check Positions"
+                explanation="View all the cryptocurrencies you currently own, how much you paid for them, and what they're worth now.
+
+This shows your profit/loss and helps you decide what to do next."
                 size="sm"
               />
             </div>
@@ -137,9 +144,11 @@ export function GuidedTradingFlow({ onActionSelect, onSubmitOrder }: GuidedTradi
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-primary" />
               <span className="font-semibold">See Recommendations</span>
-              <TooltipExplainer 
-                term="Trading Recommendations" 
-                explanation="Get AI-powered suggestions based on current market conditions and the system's predictions. The assistant analyzes data from all your strategies and forecasts to suggest the best trading opportunities right now."
+              <TooltipExplainer
+                term="Trading Recommendations"
+                explanation="Get AI-powered suggestions based on current market conditions and the system's predictions.
+
+The assistant analyzes data from all your strategies and forecasts to suggest the best trading opportunities right now."
                 size="sm"
               />
             </div>
@@ -163,8 +172,9 @@ export function GuidedTradingFlow({ onActionSelect, onSubmitOrder }: GuidedTradi
           </CardHeader>
           <CardContent>
             <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-semibold">Symbol:</span> {orderData.symbol}
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">Symbol:</span>
+                <SymbolDisplay symbol={orderData.symbol} logoSize={16} />
               </div>
               <div>
                 <span className="font-semibold">Side:</span> {orderData.side === "buy" ? "Buy" : "Sell"}
@@ -238,9 +248,9 @@ export function GuidedTradingFlow({ onActionSelect, onSubmitOrder }: GuidedTradi
                     <span className="text-muted-foreground">Action:</span>
                     <span className="font-medium">{selectedAction === "buy" ? "Buy" : "Sell"}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Symbol:</span>
-                    <span className="font-medium">{orderData.symbol}</span>
+                    <SymbolDisplay symbol={orderData.symbol} logoSize={16} />
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Amount:</span>

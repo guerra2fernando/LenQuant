@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Settings, Sparkles } from "lucide-react";
+import { BarChart3, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useMode } from "@/lib/mode-context";
@@ -28,10 +28,9 @@ export function ModeToggle(): JSX.Element | null {
         )}
         onClick={() => setMode("easy")}
         aria-label="Switch to Normal Mode"
-        title="Normal Mode - Guided experience with explanations"
+        title="Normal mode - platform more easy to follow"
       >
         <Sparkles className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Normal</span>
       </Button>
       <Button
         variant="ghost"
@@ -42,10 +41,9 @@ export function ModeToggle(): JSX.Element | null {
         )}
         onClick={() => setMode("advanced")}
         aria-label="Switch to Advanced Mode"
-        title="Advanced Mode - Full access to all features"
+        title="Advanced mode - platform for more experienced users"
       >
-        <Settings className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Advanced</span>
+        <BarChart3 className="h-3.5 w-3.5" />
       </Button>
     </div>
   );

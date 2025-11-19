@@ -1,9 +1,10 @@
 /* eslint-disable */
 // @ts-nocheck
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import useSWR from "swr";
 
 import { TooltipExplainer } from "@/components/TooltipExplainer";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -227,7 +228,7 @@ export default function ExperimentsTab(): JSX.Element {
           <CardDescription>Snapshot of values used for experiment orchestration.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2 md:grid-cols-3">
-          <Snapshot label="Symbol" value={form.symbol} />
+          <Snapshot label="Symbol" value={<SymbolDisplay symbol={form.symbol} logoSize={16} />} />
           <Snapshot label="Interval" value={form.interval} />
           <Snapshot label="Accounts" value={String(form.accounts)} />
           <Snapshot label="Mutations" value={String(form.mutations_per_parent)} />
@@ -269,7 +270,7 @@ function Field({ label, value, onChange, type = "text", min, max, step, explanat
 
 type SnapshotProps = {
   label: string;
-  value: string;
+  value: React.ReactNode;
 };
 
 function Snapshot({ label, value }: SnapshotProps) {

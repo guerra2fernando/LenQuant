@@ -1,6 +1,7 @@
 /* eslint-disable */
 // @ts-nocheck
 import { EmptyState } from "@/components/EmptyState";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMode } from "@/lib/mode-context";
 import { formatNumber } from "@/lib/utils";
@@ -48,7 +49,7 @@ export function FillsFeed({ fills }: FillsFeedProps) {
                 className="flex flex-col gap-1 rounded-lg border border-border/60 bg-muted/40 p-3"
               >
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{fill.symbol}</span>
+                  <SymbolDisplay symbol={fill.symbol} />
                   <span className="text-xs text-muted-foreground">{timestamp}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">

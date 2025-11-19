@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { useState } from "react";
 
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +42,7 @@ export function ApprovalModal({ open, onClose, onConfirm, isLoading, recommendat
       <div className="w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-2xl">
         <h2 className="text-lg font-semibold text-foreground">Approve recommendation</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Confirm approval for <span className="font-medium text-foreground">{recommendation.symbol}</span> sized{" "}
+          Confirm approval for <SymbolDisplay symbol={recommendation.symbol} logoSize={14} showText={true} /> sized{" "}
           <span className="font-semibold text-foreground">${recommendation.recommended_size_usd.toFixed(2)}</span>.
         </p>
         <div className="mt-4 space-y-2">
