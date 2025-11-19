@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Settings, TrendingUp, MessageSquare, Shield, FlaskConical, Brain } from "lucide-react";
+import { Settings, TrendingUp, MessageSquare, Shield, FlaskConical, Brain, Database } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useMode } from "@/lib/mode-context";
@@ -12,6 +12,7 @@ import AssistantTab from "./settings/AssistantTab";
 import AutonomyTab from "./settings/AutonomyTab";
 import ExperimentsTab from "./settings/ExperimentsTab";
 import LearningTab from "./settings/LearningTab";
+import DataRetentionTab from "./settings/DataRetentionTab";
 
 import { Bell } from "lucide-react";
 import NotificationTab from "./settings/NotificationTab";
@@ -33,6 +34,7 @@ const ADVANCED_MODE_TABS = [
   { id: "autonomy", label: "Autonomy", icon: Shield },
   { id: "experiments", label: "Experiments", icon: FlaskConical },
   { id: "learning", label: "Learning", icon: Brain },
+  { id: "data-retention", label: "Data Retention", icon: Database },
 ] as const;
 
 type EasyTabId = (typeof EASY_MODE_TABS)[number]["id"];
@@ -101,6 +103,7 @@ export default function SettingsPage(): JSX.Element {
         {!isEasyMode && activeTab === "autonomy" && <AutonomyTab />}
         {!isEasyMode && activeTab === "experiments" && <ExperimentsTab />}
         {!isEasyMode && activeTab === "learning" && <LearningTab />}
+        {!isEasyMode && activeTab === "data-retention" && <DataRetentionTab />}
       </div>
     </div>
   );

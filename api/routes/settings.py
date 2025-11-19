@@ -8,6 +8,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, validator
 
 from ai import HypothesisAgent
+from data_ingest.retention import DataRetentionConfig
 from assistant import (
     AssistantSettings,
     get_settings as get_assistant_settings,
@@ -198,6 +199,44 @@ class MacroSettingsPayload(BaseModel):
     regime_cache_ttl_seconds: Optional[int] = Field(None, ge=60)
     alert_on_significant_reduction: Optional[bool] = None
     significant_reduction_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+
+class DataRetentionSettingsPayload(BaseModel):
+    """Payload for updating data retention settings."""
+    tier1_days: Optional[int] = Field(None, ge=30, le=365, description="Days to keep full-resolution data (1m, 1h, 1d)")
+    tier2_days: Optional[int] = Field(None, ge=180, le=3650, description="Days to keep medium-resolution data (1h, 1d)")
+    tier3_days: Optional[int] = Field(None, ge=365, le=36500, description="Days to keep low-resolution data (1d only)")
+    cleanup_interval_hours: Optional[int] = Field(None, ge=1, le=168, description="How often to run cleanup (hours)")
+
+
+def _fetch_data_retention_settings() -> Dict[str, Any]:
+    """Get current data retention settings."""
+    config = DataRetentionConfig.from_env()
+    return {
+        "tier1_days": config.tier1_days,
+        "tier2_days": config.tier2_days,
+        "tier3_days": config.tier3_days,
+        "cleanup_interval_hours": config.cleanup_interval_hours,
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+
+
+def _update_data_retention_settings(payload: DataRetentionSettingsPayload) -> Dict[str, Any]:
+    """Update data retention settings in environment/database."""
+    # For now, store in database settings collection
+    # In production, these would be environment variables
+    document = payload.dict(exclude_none=True)
+    document["updated_at"] = datetime.utcnow()
+
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        db[COLLECTION_NAME].update_one(
+            {"_id": "data_retention_settings"},
+            {"$set": document},
+            upsert=True,
+        )
+
+    return _fetch_data_retention_settings()
 
 
 @router.get("/learning")
@@ -427,3 +466,15 @@ def put_macro_settings_route(payload: MacroSettingsPayload) -> Dict[str, Any]:
     
     updated = save_macro_settings(data)
     return _serialise_macro(updated)
+
+
+@router.get("/data-retention")
+def get_data_retention_settings_route() -> Dict[str, Any]:
+    """Get current data retention settings."""
+    return _fetch_data_retention_settings()
+
+
+@router.put("/data-retention")
+def put_data_retention_settings_route(payload: DataRetentionSettingsPayload) -> Dict[str, Any]:
+    """Update data retention settings."""
+    return _update_data_retention_settings(payload)
