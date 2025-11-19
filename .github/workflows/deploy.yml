@@ -26,7 +26,9 @@ jobs:
             # Pull latest changes
             echo "📥 Pulling latest changes..."
             git pull origin main
-            
+
+            cd docker || { echo "❌ Docker directory not found"; exit 1; }
+                        
             # Rebuild and restart Docker services
             echo "🐳 Rebuilding Docker containers..."
             docker compose down
