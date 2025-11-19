@@ -197,7 +197,7 @@ export default function Home(): JSX.Element {
 
   // Easy Mode Dashboard
   if (isEasyMode) {
-    const hasData = inventory.length > 0;
+    const hasData = inventory.some(row => row.ohlcv_count > 0 || row.features_count > 0);
     const hasReports = reportItems.length > 0;
 
     return (
@@ -353,7 +353,7 @@ export default function Home(): JSX.Element {
   }
 
   // Advanced Mode Dashboard - Similar to Easy Mode
-  const hasData = inventory.length > 0;
+  const hasData = inventory.some(row => row.ohlcv_count > 0 || row.features_count > 0);
   const hasReports = reportItems.length > 0;
 
   return (
