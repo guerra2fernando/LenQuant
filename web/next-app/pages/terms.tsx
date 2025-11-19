@@ -10,7 +10,7 @@ export default function TermsPage() {
         <div className="mb-8 text-center">
           <Link href="/login" className="inline-flex items-center gap-2 mb-6">
             <Image
-              src="/logo.png"
+              src="images/logo.png"
               alt="LenQuant Logo"
               width={48}
               height={48}

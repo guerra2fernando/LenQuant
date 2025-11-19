@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
       
       try {
         // Call our backend to verify and get JWT
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/google`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/auth/google`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -37,7 +37,8 @@ app.add_middleware(
 )
 
 # Auth router (PUBLIC - no authentication required)
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+# Note: Using /api/v1/auth to avoid conflict with NextAuth's /api/auth routes
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
 # Existing routers
 app.include_router(runs.router, prefix="/api/run")

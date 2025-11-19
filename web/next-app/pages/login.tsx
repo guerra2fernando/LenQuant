@@ -37,7 +37,7 @@ export default function LoginPage() {
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <Image
-              src="/logo.png"
+              src="images/logo.png"
               alt="LenQuant Logo"
               width={80}
               height={80}
