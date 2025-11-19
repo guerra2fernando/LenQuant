@@ -9,53 +9,51 @@ from db.client import get_database_name, mongo_client
 
 class NotificationPreferencesRepository:
     """Repository for notification preferences database operations."""
-    
+
     def __init__(self):
         self.collection_name = "notification_preferences"
     
-    def _get_collection(self):
-        """Get the notification_preferences collection."""
-        with mongo_client() as client:
-            db = client[get_database_name()]
-            return db[self.collection_name]
-    
     def get_preferences(self, user_id: str) -> Dict:
         """Get user notification preferences, creating defaults if not found."""
-        collection = self._get_collection()
-        doc = collection.find_one({"user_id": user_id})
-        
-        if not doc:
-            # Return default preferences
-            return self._get_default_preferences()
-        
-        # Remove _id for JSON serialization
-        doc.pop("_id", None)
-        return doc
+        with mongo_client() as client:
+            db = client[get_database_name()]
+            collection = db[self.collection_name]
+            doc = collection.find_one({"user_id": user_id})
+
+            if not doc:
+                # Return default preferences
+                return self._get_default_preferences()
+
+            # Remove _id for JSON serialization
+            doc.pop("_id", None)
+            return doc
     
     def update_preferences(self, user_id: str, preferences: Dict) -> Dict:
         """Update user notification preferences."""
-        collection = self._get_collection()
-        
-        # Merge with existing preferences
-        existing = self.get_preferences(user_id)
-        merged_preferences = self._merge_preferences(existing.get("preferences", {}), preferences.get("preferences", {}))
-        merged_quiet_hours = {**existing.get("quiet_hours", {}), **preferences.get("quiet_hours", {})}
-        
-        doc = {
-            "user_id": user_id,
-            "preferences": merged_preferences,
-            "quiet_hours": merged_quiet_hours,
-            "updated_at": datetime.utcnow(),
-        }
-        
-        collection.update_one(
-            {"user_id": user_id},
-            {"$set": doc},
-            upsert=True,
-        )
-        
-        doc.pop("_id", None)
-        return doc
+        with mongo_client() as client:
+            db = client[get_database_name()]
+            collection = db[self.collection_name]
+
+            # Merge with existing preferences
+            existing = self.get_preferences(user_id)
+            merged_preferences = self._merge_preferences(existing.get("preferences", {}), preferences.get("preferences", {}))
+            merged_quiet_hours = {**existing.get("quiet_hours", {}), **preferences.get("quiet_hours", {})}
+
+            doc = {
+                "user_id": user_id,
+                "preferences": merged_preferences,
+                "quiet_hours": merged_quiet_hours,
+                "updated_at": datetime.utcnow(),
+            }
+
+            collection.update_one(
+                {"user_id": user_id},
+                {"$set": doc},
+                upsert=True,
+            )
+
+            doc.pop("_id", None)
+            return doc
     
     def _get_default_preferences(self) -> Dict:
         """Get default notification preferences."""
