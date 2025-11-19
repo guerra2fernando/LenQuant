@@ -95,7 +95,7 @@ git fetch origin
 **Send a message to your team with these instructions:**
 
 ```
-📢 Repository Renamed: CryptoTrader → LenQuant
+📢 Repository Renamed: LenQuant → LenQuant
 
 The GitHub repository has been renamed. Please update your local clone:
 

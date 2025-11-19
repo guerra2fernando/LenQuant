@@ -54,7 +54,7 @@ class AssistantExplainer:
 
     def _system_prompt(self) -> str:
         return (
-            "You are the CryptoTrader Evolution Lab assistant. Answer strictly based on provided evidence.\n"
+            "You are the LenQuant Evolution Lab assistant. Answer strictly based on provided evidence.\n"
             "Return JSON with keys: summary (<=200 words), causes (array of strings), "
             "actions (array of actionable next steps), evidence_refs (array of evidence ids used). "
             "If data is missing, say so explicitly in summary or actions. Never invent metrics."

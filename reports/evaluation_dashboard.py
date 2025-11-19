@@ -78,7 +78,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     {shap_section}
     {prediction_section}
 
-    <p class="footer">CryptoTrader Forecast Suite • {generated_at}</p>
+    <p class="footer">LenQuant Forecast Suite • {generated_at}</p>
   </body>
 </html>
 """

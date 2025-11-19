@@ -1,4 +1,4 @@
-# CryptoTrader – Customer Q&A
+# LenQuant – Customer Q&A
 
 ## Can I see the charts and analysis of each crypto? Where?
 

@@ -191,7 +191,7 @@ export default function AssistantWorkspacePage() {
           />
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Chat with the CryptoTrader assistant, review evidence, and approve grounded trade recommendations.
+          Chat with the LenQuant assistant, review evidence, and approve grounded trade recommendations.
         </p>
       </div>
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">

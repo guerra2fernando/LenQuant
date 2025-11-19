@@ -136,7 +136,7 @@ export default function GetStarted(): JSX.Element {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight">Welcome to CryptoTrader</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Welcome to LenQuant</h1>
         <p className="mt-4 text-lg text-muted-foreground">
           {isEasyMode 
             ? "Let's get you set up in just a few steps. We'll guide you through everything."
@@ -182,7 +182,7 @@ export default function GetStarted(): JSX.Element {
       <Card>
         <CardHeader>
           <CardTitle>
-            {currentStep === "intro" && "What is CryptoTrader?"}
+            {currentStep === "intro" && "What is LenQuant?"}
             {currentStep === "data" && "Understanding Your Data"}
             {currentStep === "setup" && "Setting Up Your Data"}
             {currentStep === "complete" && "You're All Set!"}

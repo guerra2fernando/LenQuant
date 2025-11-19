@@ -51,7 +51,7 @@ export function Layout({ children }: Props) {
         <div className="container flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-8">
             <Link href="/" className="text-lg font-semibold text-foreground">
-              CryptoTrader
+              LenQuant
             </Link>
             <nav className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               {navItems.map((item) => (
