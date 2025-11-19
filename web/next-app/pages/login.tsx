@@ -1,6 +1,7 @@
 /* eslint-disable */
 // @ts-nocheck
 import { signIn, useSession } from "next-auth/react";
+import Image from "next/image";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 
@@ -34,6 +35,15 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-md w-full space-y-8 p-8 bg-card rounded-xl shadow-2xl border border-border">
         <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/logo.png"
+              alt="LenQuant Logo"
+              width={80}
+              height={80}
+              className="object-contain"
+            />
+          </div>
           <h1 className="text-4xl font-bold text-foreground mb-2">
             LenQuant
           </h1>
