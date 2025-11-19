@@ -35,7 +35,7 @@ echo ""
 
 # Test 2: Regime endpoint exists
 echo "2. Checking regime endpoint..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE/api/macro/regime/BTC%2FUSDT?interval=1h")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE/api/macro/regime?symbol=BTC%2FUSDT&interval=1h")
 if [ "$HTTP_CODE" = "200" ]; then
     echo -e "${GREEN}✓ Regime endpoint is accessible${NC}"
 elif [ "$HTTP_CODE" = "404" ]; then
@@ -48,7 +48,7 @@ echo ""
 
 # Test 3: Regime data structure
 echo "3. Fetching regime data for BTC/USDT..."
-REGIME_DATA=$(curl -s "$API_BASE/api/macro/regime/BTC%2FUSDT?interval=1h")
+REGIME_DATA=$(curl -s "$API_BASE/api/macro/regime?symbol=BTC%2FUSDT&interval=1h")
 
 if echo "$REGIME_DATA" | grep -q "trend_regime"; then
     echo -e "${GREEN}✓ Regime data structure is correct${NC}"

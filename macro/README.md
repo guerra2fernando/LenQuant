@@ -19,7 +19,7 @@ The macro analysis package provides market regime detection, sentiment analysis,
    - MongoDB integration for regime storage and retrieval
 
 2. **API Endpoints (`api/routes/macro.py`)**
-   - `GET /api/macro/regime/{symbol}` - Get current/historical regime with smart caching
+   - `GET /api/macro/regime?symbol={symbol}` - Get current/historical regime with smart caching
    - `GET /api/macro/regimes/batch` - Batch queries for multiple symbols
    - `GET /api/macro/regimes/history/{symbol}` - Historical regime transitions
 
@@ -40,7 +40,7 @@ The macro analysis package provides market regime detection, sentiment analysis,
 
 ```bash
 # Get current regime for a symbol
-curl "http://localhost:8000/api/macro/regime/BTC/USDT?interval=1h"
+curl "http://localhost:8000/api/macro/regime?symbol=BTC/USDT&interval=1h"
 
 # Response:
 {

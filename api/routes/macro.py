@@ -24,9 +24,9 @@ class RegimeResponse(BaseModel):
     features: Dict[str, float]
 
 
-@router.get("/regime/{symbol}")
+@router.get("/regime")
 def get_regime(
-    symbol: str,
+    symbol: str = Query(..., description="Trading pair symbol (e.g., 'BTC/USDT')"),
     interval: str = Query("1h", description="Timeframe for regime detection"),
     timestamp: Optional[datetime] = Query(None, description="Optional timestamp for historical regime"),
 ) -> RegimeResponse:
@@ -41,7 +41,7 @@ def get_regime(
         RegimeResponse with trend regime, volatility regime, and confidence
         
     Example:
-        GET /api/macro/regime/BTC/USDT?interval=1h
+        GET /api/macro/regime?symbol=BTC/USDT&interval=1h
     """
     try:
         detector = RegimeDetector()

@@ -181,7 +181,7 @@ export function buildWebSocketUrl(path: string): string {
 
 // Macro/Regime API hooks
 export function buildRegimeUrl(symbol: string, interval: string = "1h"): string {
-  return `/api/macro/regime/${encodeURIComponent(symbol)}?interval=${interval}`;
+  return `/api/macro/regime?symbol=${encodeURIComponent(symbol)}&interval=${interval}`;
 }
 
 export function buildRegimeHistoryUrl(symbol: string, limit: number = 100): string {
