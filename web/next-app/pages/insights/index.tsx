@@ -251,3 +251,12 @@ export default function InsightsPage() {
   );
 }
 
+export async function getStaticProps() {
+  return {
+    props: {
+      title: "Market Insights - LenQuant",
+      description: "View AI-generated forecasts, market analysis, and strategy recommendations powered by machine learning models.",
+    },
+  };
+}
+

@@ -322,3 +322,12 @@ export default function AssistantWorkspacePage() {
   );
 }
 
+export async function getStaticProps() {
+  return {
+    props: {
+      title: "AI Assistant - LenQuant",
+      description: "Chat with your AI trading assistant for market insights, strategy advice, and personalized trading recommendations.",
+    },
+  };
+}
+

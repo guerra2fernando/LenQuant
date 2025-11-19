@@ -99,3 +99,12 @@ export default function SettingsPage(): JSX.Element {
     </div>
   );
 }
+
+export async function getStaticProps() {
+  return {
+    props: {
+      title: "Settings - LenQuant",
+      description: "Configure your trading preferences, system settings, and platform options for an optimized experience.",
+    },
+  };
+}

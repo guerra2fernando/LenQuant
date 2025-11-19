@@ -2,10 +2,16 @@
 // @ts-nocheck
 import Image from "next/image";
 import Link from "next/link";
+import { SEO } from "@/components/SEO";
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <>
+      <SEO 
+        title="Terms of Service - LenQuant"
+        description="Review the terms and conditions for using the LenQuant AI-powered cryptocurrency trading platform."
+      />
+      <div className="min-h-screen bg-background text-foreground">
       <div className="container max-w-4xl py-12 px-4">
         <div className="mb-8 text-center">
           <Link href="/login" className="inline-flex items-center gap-2 mb-6">
@@ -163,6 +169,7 @@ export default function TermsPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

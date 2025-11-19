@@ -390,3 +390,12 @@ export default function TradingControlCenterPage() {
   );
 }
 
+export async function getStaticProps() {
+  return {
+    props: {
+      title: "Trading Dashboard - LenQuant",
+      description: "Execute cryptocurrency trades with AI-powered insights. Monitor positions, manage orders, and optimize your trading strategy in real-time.",
+    },
+  };
+}
+

@@ -54,7 +54,7 @@ export default function App({ Component, pageProps }: AppProps) {
                 <Component {...pageProps} />
               ) : (
                 <Auth>
-                  <Layout>
+                  <Layout title={pageProps.title} description={pageProps.description}>
                     <Component {...pageProps} />
                   </Layout>
                 </Auth>

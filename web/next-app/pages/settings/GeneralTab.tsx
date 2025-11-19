@@ -277,7 +277,43 @@ export default function GeneralTab(): JSX.Element {
     default_symbols: string[];
     default_intervals: string[];
     default_lookback_days: number;
+    inventory?: Array<{
+      symbol: string;
+      interval: string;
+      ohlcv_count: number;
+      features_count: number;
+      latest_candle: string | null;
+      latest_feature: string | null;
+    }>;
   }>("/api/admin/overview", fetcher);
+
+  const { data: systemStatus } = useSWR<{ status: string }>("/api/status", fetcher, {
+    refreshInterval: refreshIntervalMs,
+  });
+
+  const { data: recentReports } = useSWR<{ reports: Array<{ date: string; summary?: string }> }>("/api/reports?limit=3", fetcher, {
+    refreshInterval: refreshIntervalMs,
+  });
+
+  const inventory = overview?.inventory ?? [];
+  const uniqueSymbolsCount = useMemo(() => {
+    const set = new Set<string>();
+    inventory.forEach((row) => set.add(row.symbol));
+    return set.size;
+  }, [inventory]);
+
+  const latestCandleTimestamp = useMemo(() => {
+    return inventory.reduce((latest, row) => {
+      if (!row.latest_candle) {
+        return latest;
+      }
+      const timestamp = new Date(row.latest_candle).getTime();
+      return Number.isNaN(timestamp) ? latest : Math.max(latest, timestamp);
+    }, 0);
+  }, [inventory]);
+
+  const latestCandleDisplay = latestCandleTimestamp ? new Date(latestCandleTimestamp).toLocaleString() : null;
+  const latestReport = recentReports?.reports?.[0] ?? null;
 
   useEffect(() => {
     if (modelSettings?.horizons?.length) {
@@ -856,6 +892,61 @@ export default function GeneralTab(): JSX.Element {
             ) : (
               <p className="text-sm text-muted-foreground">No retraining jobs scheduled yet.</p>
             )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section>
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              System Status
+              <TooltipExplainer 
+                term="System Status" 
+                explanation="Overview of platform health and data pipeline status. Shows the current state of your trading system including tracked pairs, latest market data, and recent reports."
+              />
+            </CardTitle>
+            <CardDescription>Current platform health and data pipeline status</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Platform Status</p>
+                <p className="text-xs text-muted-foreground">Overall system health</p>
+              </div>
+              <Badge variant={systemStatus?.status === "ok" ? "default" : "destructive"}>
+                {systemStatus ? (systemStatus.status === "ok" ? "Healthy" : systemStatus.status) : "Loading"}
+              </Badge>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Tracked Pairs</p>
+                <p className="text-lg font-semibold text-foreground">{uniqueSymbolsCount}</p>
+                <p className="text-xs text-muted-foreground">{inventory.length} datasets ingested</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Latest Market Data</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {latestCandleDisplay ?? "Awaiting sync"}
+                </p>
+                <p className="text-xs text-muted-foreground">Most recent candle timestamp</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Latest Report</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {latestReport?.date ?? "No reports yet"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {latestReport?.summary ? latestReport.summary : "Generate a report to see insights"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Available Symbols</p>
+                <p className="text-lg font-semibold text-foreground">{overview?.available_symbols?.length ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Configured for data ingestion</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </section>

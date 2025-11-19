@@ -10,11 +10,14 @@ import { LogOut, User } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ModeToggle } from "@/components/ModeToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SEO } from "@/components/SEO";
 import { useMode } from "@/lib/mode-context";
 import { cn } from "@/lib/utils";
 
 type Props = {
   children: ReactNode;
+  title?: string;
+  description?: string;
 };
 
 const EASY_MODE_NAV_ITEMS = [
@@ -34,7 +37,7 @@ const ADVANCED_MODE_NAV_ITEMS = [
   { href: "/settings", label: "Settings" },
 ] as const;
 
-export function Layout({ children }: Props) {
+export function Layout({ children, title, description }: Props) {
   const router = useRouter();
   const pathname = router.pathname;
   const { isEasyMode } = useMode();
@@ -55,8 +58,10 @@ export function Layout({ children }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b bg-card">
+    <>
+      <SEO title={title} description={description} />
+      <div className="min-h-screen bg-background text-foreground">
+        <header className="border-b bg-card">
         <div className="container flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -124,9 +129,10 @@ export function Layout({ children }: Props) {
             )}
           </div>
         </div>
-      </header>
-      <main className="container py-8">{children}</main>
-    </div>
+        </header>
+        <main className="container py-8">{children}</main>
+      </div>
+    </>
   );
 }
 

@@ -202,17 +202,17 @@ export default function Home(): JSX.Element {
 
     return (
       <div className="space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold text-foreground md:text-5xl">LenQuant</h1>
-          <p className="mt-2 text-lg text-muted-foreground md:text-xl">
-            Run AI-assisted crypto strategies with guided workflows.
-          </p>
-        </div>
+          <div>
+            <h1 className="text-4xl font-bold text-foreground md:text-5xl">LenQuant</h1>
+            <p className="mt-2 mb-8 text-lg text-muted-foreground md:text-xl">
+              Run AI-assisted crypto strategies with guided workflows.
+            </p>
+          </div>
 
         {/* Getting Started Banner */}
         {!hasData && (
           <Link href="/get-started">
-            <div className="cursor-pointer rounded-lg border-2 border-blue-500/30 bg-gradient-to-r from-blue-600 to-blue-500 p-6 shadow-lg transition-all hover:border-blue-400/50 hover:shadow-xl">
+            <div className="cursor-pointer rounded-lg border-2 border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-600 to-purple-500 p-6 shadow-lg transition-all hover:border-fuchsia-400/50 hover:shadow-xl">
               <div className="flex flex-col items-center gap-4 md:flex-row md:justify-between">
                 <div className="flex items-center gap-4">
                   <div className="rounded-full bg-white/20 p-3">
@@ -298,53 +298,28 @@ export default function Home(): JSX.Element {
           </Link>
         </div>
 
-        {/* System Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle>System Status</CardTitle>
-            <CardDescription>Current platform health and data status</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">Platform Status</p>
-                <p className="text-xs text-muted-foreground">Overall system health</p>
-              </div>
-              <Badge variant={status?.status === "ok" ? "default" : "destructive"}>
-                {status ? (status.status === "ok" ? "Healthy" : status.status) : "Loading"}
-              </Badge>
+        {/* System Status Indicator */}
+        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "h-2 w-2 rounded-full",
+              status?.status === "ok" ? "bg-green-500 animate-pulse" : "bg-amber-500"
+            )} />
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                System {status ? (status.status === "ok" ? "Online" : status.status) : "Loading..."}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {uniqueSymbolsCount} pairs tracked • {inventory.length} datasets
+              </p>
             </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Tracked Pairs</p>
-                <p className="text-lg font-semibold text-foreground">{uniqueSymbolsCount}</p>
-                <p className="text-xs text-muted-foreground">{inventory.length} datasets ingested</p>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Latest Market Data</p>
-                <p className="text-lg font-semibold text-foreground">
-                  {latestCandleDisplay ?? "Awaiting sync"}
-                </p>
-                <p className="text-xs text-muted-foreground">Most recent candle timestamp</p>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Latest Report</p>
-                <p className="text-lg font-semibold text-foreground">
-                  {latestReport?.date ?? "No reports yet"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {latestReport?.summary ? latestReport.summary : "Generate a report to see insights"}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                <p className="text-xs font-medium text-muted-foreground">Default Symbols</p>
-                <p className="text-lg font-semibold text-foreground">{overview?.default_symbols?.length ?? 0}</p>
-                <p className="text-xs text-muted-foreground">Configured for guided workflows</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <Link href="/settings?tab=general">
+            <Button variant="ghost" size="sm">
+              View Details
+            </Button>
+          </Link>
+        </div>
 
         {/* Market Regime */}
         <MacroRegimeCard 
@@ -373,27 +348,6 @@ export default function Home(): JSX.Element {
             </CardContent>
           </Card>
         )}
-
-        {/* Data Setup Prompt */}
-        {!hasData && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Initial Setup</CardTitle>
-              <CardDescription>Set up your trading data to get started</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Before you can start trading, we need to fetch historical market data. This helps the system make better predictions.
-              </p>
-              <Link href="/get-started">
-                <Button>
-                  Complete Setup
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
       </div>
     );
   }
@@ -404,17 +358,17 @@ export default function Home(): JSX.Element {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold text-foreground md:text-5xl">LenQuant</h1>
-        <p className="mt-2 text-lg text-muted-foreground md:text-xl">
-          Advanced control center with full access to data pipelines, models, and system configuration.
-        </p>
-      </div>
+        <div>
+          <h1 className="text-4xl font-bold text-foreground md:text-5xl">LenQuant</h1>
+          <p className="mt-2 text-lg text-muted-foreground md:text-xl">
+            Advanced control center with full access to data pipelines, models, and system configuration.
+          </p>
+        </div>
 
       {/* Getting Started Banner */}
       {!hasData && (
         <Link href="/get-started">
-          <div className="cursor-pointer rounded-lg border-2 border-blue-500/30 bg-gradient-to-r from-blue-600 to-blue-500 p-6 shadow-lg transition-all hover:border-blue-400/50 hover:shadow-xl">
+          <div className="cursor-pointer rounded-lg border-2 border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-600 to-purple-500 p-6 shadow-lg transition-all hover:border-fuchsia-400/50 hover:shadow-xl">
             <div className="flex flex-col items-center gap-4 md:flex-row md:justify-between">
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-white/20 p-3">
@@ -500,53 +454,28 @@ export default function Home(): JSX.Element {
         </Link>
       </div>
 
-      {/* System Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle>System Status</CardTitle>
-          <CardDescription>Current platform health and data pipeline status</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">Platform Status</p>
-              <p className="text-xs text-muted-foreground">Overall system health</p>
-            </div>
-            <Badge variant={status?.status === "ok" ? "default" : "destructive"}>
-              {status ? (status.status === "ok" ? "Healthy" : status.status) : "Loading"}
-            </Badge>
+      {/* System Status Indicator */}
+      <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "h-2 w-2 rounded-full",
+            status?.status === "ok" ? "bg-green-500 animate-pulse" : "bg-amber-500"
+          )} />
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              System {status ? (status.status === "ok" ? "Online" : status.status) : "Loading..."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {uniqueSymbolsCount} pairs tracked • {availableSymbols.length} available • {inventory.length} datasets
+            </p>
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Tracked Pairs</p>
-              <p className="text-lg font-semibold text-foreground">{uniqueSymbolsCount}</p>
-              <p className="text-xs text-muted-foreground">{inventory.length} datasets ingested</p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Latest Market Data</p>
-              <p className="text-lg font-semibold text-foreground">
-                {latestCandleDisplay ?? "Awaiting sync"}
-              </p>
-              <p className="text-xs text-muted-foreground">Most recent candle timestamp</p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Latest Report</p>
-              <p className="text-lg font-semibold text-foreground">
-                {latestReport?.date ?? "No reports yet"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {latestReport?.summary ? latestReport.summary : "Generate a report to see insights"}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Available Symbols</p>
-              <p className="text-lg font-semibold text-foreground">{availableSymbols.length}</p>
-              <p className="text-xs text-muted-foreground">Configured for data ingestion</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <Link href="/settings?tab=general">
+          <Button variant="ghost" size="sm">
+            View Details
+          </Button>
+        </Link>
+      </div>
 
       {/* Market Regime */}
       <MacroRegimeCard 
@@ -619,4 +548,13 @@ export default function Home(): JSX.Element {
       )}
     </div>
   );
+}
+
+export async function getStaticProps() {
+  return {
+    props: {
+      title: "LenQuant - AI-Powered Crypto Trading Platform",
+      description: "Advanced AI-assisted cryptocurrency trading platform with predictive analytics, automated strategies, and real-time market insights.",
+    },
+  };
 }

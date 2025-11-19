@@ -178,3 +178,12 @@ export default function KnowledgePage() {
   );
 }
 
+export async function getStaticProps() {
+  return {
+    props: {
+      title: "Knowledge Base - LenQuant",
+      description: "Access trading knowledge, market research, and AI-generated insights to enhance your trading decisions.",
+    },
+  };
+}
+

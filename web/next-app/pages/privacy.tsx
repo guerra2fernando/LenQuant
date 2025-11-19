@@ -2,10 +2,16 @@
 // @ts-nocheck
 import Image from "next/image";
 import Link from "next/link";
+import { SEO } from "@/components/SEO";
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <>
+      <SEO 
+        title="Privacy Policy - LenQuant"
+        description="Learn how LenQuant collects, uses, and protects your personal information and trading data."
+      />
+      <div className="min-h-screen bg-background text-foreground">
       <div className="container max-w-4xl py-12 px-4">
         <div className="mb-8 text-center">
           <Link href="/login" className="inline-flex items-center gap-2 mb-6">
@@ -230,6 +236,7 @@ export default function PrivacyPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

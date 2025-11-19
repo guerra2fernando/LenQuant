@@ -84,3 +84,12 @@ export default function AnalyticsPage(): JSX.Element {
   );
 }
 
+export async function getStaticProps() {
+  return {
+    props: {
+      title: "Analytics Dashboard - LenQuant",
+      description: "Deep dive into market analytics, performance metrics, and trading data with advanced visualization tools.",
+    },
+  };
+}
+
