@@ -1,4 +1,4 @@
-# Starting the CryptoTrader System
+# Starting the LenQuant System
 
 Complete guide to starting the backend, frontend, pulling crypto data, and beginning trading operations.
 
@@ -6,12 +6,13 @@ Complete guide to starting the backend, frontend, pulling crypto data, and begin
 
 1. [Prerequisites](#prerequisites)
 2. [Initial Setup](#initial-setup)
-3. [Starting the Backend](#starting-the-backend)
-4. [Starting the Frontend](#starting-the-frontend)
-5. [Pulling Crypto Data](#pulling-crypto-data)
-6. [Starting Trading Operations](#starting-trading-operations)
-7. [Verification & Testing](#verification--testing)
-8. [Common Issues & Solutions](#common-issues--solutions)
+3. [Authentication Setup](#authentication-setup) ⭐ **NEW**
+4. [Starting the Backend](#starting-the-backend)
+5. [Starting the Frontend](#starting-the-frontend)
+6. [Pulling Crypto Data](#pulling-crypto-data)
+7. [Starting Trading Operations](#starting-trading-operations)
+8. [Verification & Testing](#verification--testing)
+9. [Common Issues & Solutions](#common-issues--solutions)
 
 ---
 
@@ -47,7 +48,7 @@ node --version
 **Option A: Docker (Easiest)**
 ```bash
 docker pull mongo:8.2
-docker run -d -p 27017:27017 --name cryptotrader-mongo mongo:8.2
+docker run -d -p 27017:27017 --name lenquant-mongo mongo:8.2
 ```
 
 **Option B: Local Installation**
@@ -58,14 +59,14 @@ docker run -d -p 27017:27017 --name cryptotrader-mongo mongo:8.2
 **Option C: MongoDB Atlas (Cloud)**
 1. Create free account at [mongodb.com/atlas](https://www.mongodb.com/cloud/atlas)
 2. Create a free cluster (M0)
-3. Get connection string (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/cryptotrader`)
+3. Get connection string (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/lenquant`)
 
 #### 4. Redis 6+
 
 **Option A: Docker (Easiest)**
 ```bash
 docker pull redis:7.2-alpine
-docker run -d -p 6379:6379 --name cryptotrader-redis redis:7.2-alpine
+docker run -d -p 6379:6379 --name lenquant-redis redis:7.2-alpine
 ```
 
 **Option B: Local Installation**
@@ -108,8 +109,8 @@ nano .env           # Linux/macOS
 
 ```env
 # Database
-MONGO_URI=mongodb://localhost:27017/cryptotrader
-# If using Atlas: mongodb+srv://user:password@cluster.mongodb.net/cryptotrader
+MONGO_URI=mongodb://localhost:27017/lenquant
+# If using Atlas: mongodb+srv://user:password@cluster.mongodb.net/lenquant
 
 # Background Workers
 CELERY_BROKER_URL=redis://localhost:6379/0
@@ -172,7 +173,7 @@ cd ../..
 **Check MongoDB:**
 ```bash
 # Try to connect
-mongosh mongodb://localhost:27017/cryptotrader
+mongosh mongodb://localhost:27017/lenquant
 # Or if using Atlas, use your connection string
 ```
 
@@ -185,6 +186,98 @@ redis-cli ping
 # Or test connection with Python
 python -c "import redis; r = redis.Redis(host='localhost', port=6379); print(r.ping())"
 ```
+
+---
+
+## Authentication Setup
+
+> ⚠️ **Important for Public Deployment**: If you plan to deploy this system on a public domain (even if only you will access it initially), you should set up authentication **before** starting the system for the first time.
+
+### Quick Decision Guide
+
+**Skip Authentication Setup If:**
+- ✅ Running only on localhost (development)
+- ✅ Running on private network (not internet-accessible)
+- ✅ Testing/learning the system
+
+**Set Up Authentication If:**
+- 🔒 Deploying to public domain (e.g., lenquant.yourdomain.com)
+- 🔒 System will be internet-accessible
+- 🔒 Want to secure your trading system
+- 🔒 Planning to allow multiple users in future
+
+### Authentication Options
+
+The system supports **Google OAuth 2.0** authentication in two phases:
+
+#### Phase 1: Single User (You Only)
+- Protects system with Google login
+- Only whitelisted email(s) can access
+- Quick setup: ~4-6 hours
+- **[→ See Phase 1 Implementation Guide](./AUTHENTICATION_PHASE1.md)**
+
+#### Phase 2: Multi-User (Future)
+- Allow others to sign up and trade
+- Full data isolation per user
+- Shared market data (OHLCV, features)
+- User-specific strategies, models, trades
+- Admin panel for user management
+- **[→ See Phase 2 Implementation Guide](./AUTHENTICATION_PHASE2.md)**
+
+### When to Set Up Authentication
+
+**Option A: Set Up Now (Recommended for Public Deployment)**
+1. Complete [Google Cloud Setup](./AUTHENTICATION.md#google-cloud-setup)
+2. Follow [Phase 1 Implementation](./AUTHENTICATION_PHASE1.md)
+3. Then continue with the rest of this guide
+
+**Option B: Set Up Later (Local Development)**
+1. Complete this guide first (start system without auth)
+2. Get familiar with the system
+3. Add authentication later when ready to deploy
+
+### Key Points About Authentication
+
+**What Gets Protected:**
+- ✅ All API endpoints (except `/api/status` and `/api/auth/*`)
+- ✅ All frontend pages (except `/login`)
+- ✅ WebSocket connections
+- ✅ Trading operations
+- ✅ Strategy management
+- ✅ Model training
+
+**What Doesn't Change:**
+- ✅ Data ingestion scripts (use system admin token)
+- ✅ Scheduled jobs (use admin token)
+- ✅ Database structure (Phase 1 only)
+- ✅ Core functionality
+- ✅ Shared market data (OHLCV, features, macro analysis)
+
+**Scripts & Automation:**
+- Scripts use a special `SYSTEM_ADMIN_TOKEN`
+- Cron jobs source environment variables
+- Tests mock authentication
+- Everything continues to work seamlessly
+
+### Complete Authentication Documentation
+
+📚 **[AUTHENTICATION.md](./AUTHENTICATION.md)** - Main overview and architecture
+- Google Cloud setup (step-by-step)
+- Security model
+- Data segregation strategy
+- Troubleshooting
+
+📚 **[AUTHENTICATION_PHASE1.md](./AUTHENTICATION_PHASE1.md)** - Single user implementation
+- Backend implementation (code examples)
+- Frontend implementation (code examples)
+- Testing procedures
+- Deployment guide
+
+📚 **[AUTHENTICATION_PHASE2.md](./AUTHENTICATION_PHASE2.md)** - Multi-user implementation
+- Database migration
+- User isolation
+- Admin panel
+- Quotas and rate limiting
 
 ---
 
@@ -260,7 +353,7 @@ celery -A manager.tasks:celery_app worker --loglevel=info --pool=solo
 --- * ***  * -- Windows-10.0.26100 2024-11-19 10:00:00
 -- * - **** ---
 - ** ---------- [config]
-- ** ---------- .> app:         cryptotrader:0x...
+- ** ---------- .> app:         lenquant:0x...
 - ** ---------- .> transport:   redis://localhost:6379/0
 - ** ---------- .> results:     redis://localhost:6379/0
 - *** --- * --- .> concurrency: 4 (solo)
@@ -349,7 +442,7 @@ event - compiled client and server successfully in 2.5s (565 modules)
 **Access the Dashboard:**
 1. Open browser
 2. Navigate to `http://localhost:3000`
-3. You should see the CryptoTrader dashboard
+3. You should see the LenQuant dashboard
 
 **For Production Build:**
 ```bash
@@ -448,7 +541,7 @@ crontab -e
 **Option B: Using Task Scheduler (Windows)**
 1. Open Task Scheduler
 2. Create Basic Task
-3. Name: "CryptoTrader Data Fetch"
+3. Name: "LenQuant Data Fetch"
 4. Trigger: Daily, repeat every 1 hour
 5. Action: Start a program
    - Program: `C:\path\to\.venv\Scripts\python.exe`
@@ -477,7 +570,7 @@ curl -X POST http://localhost:8000/api/admin/ingest \
 
 **Using MongoDB Shell:**
 ```bash
-mongosh mongodb://localhost:27017/cryptotrader
+mongosh mongodb://localhost:27017/lenquant
 
 # Count total candles
 db.ohlcv.countDocuments()
@@ -783,7 +876,7 @@ curl http://localhost:3000
 **3. Database Health:**
 ```bash
 # Check MongoDB
-mongosh --eval "db.serverStatus().ok" mongodb://localhost:27017/cryptotrader
+mongosh --eval "db.serverStatus().ok" mongodb://localhost:27017/lenquant
 
 # Check Redis
 redis-cli ping
@@ -803,7 +896,7 @@ celery -A manager.tasks:celery_app inspect active
 python -m data_ingest.fetcher --symbol BTC/USDT --interval 1h --lookback-days 1
 
 # Verify in database
-mongosh mongodb://localhost:27017/cryptotrader --eval "db.ohlcv.countDocuments({symbol:'BTC/USDT'})"
+mongosh mongodb://localhost:27017/lenquant --eval "db.ohlcv.countDocuments({symbol:'BTC/USDT'})"
 ```
 
 **2. Model Training Test:**
@@ -916,7 +1009,7 @@ brew services start mongodb-community  # macOS
 
 # For Docker:
 docker ps | grep mongo
-docker start cryptotrader-mongo
+docker start lenquant-mongo
 ```
 
 ### Issue 4: Redis Connection Failed
@@ -931,7 +1024,7 @@ redis-cli ping
 # If not running, start it:
 sudo systemctl start redis  # Linux
 brew services start redis  # macOS
-docker start cryptotrader-redis  # Docker
+docker start lenquant-redis  # Docker
 ```
 
 ### Issue 5: No Data Being Fetched
@@ -1137,13 +1230,19 @@ curl -X POST http://localhost:8000/api/risk/kill-switch
 - **Deploy**: Move to testnet, then eventually live trading
 
 **Recommended Reading:**
+- `docs/AUTHENTICATION.md` - Set up Google OAuth before public deployment ⭐
 - `docs/INFRASTRUCTURE.md` - Deploy for 24/7 operation
 - `docs/TESTING_REGIME_UI.md` - Test market regime features
 - `docs/macro_analysis_integration.md` - Advanced macro analysis
 
 ---
 
-**🎉 Congratulations! Your CryptoTrader system is now fully operational.**
+**🎉 Congratulations! Your LenQuant system is now fully operational.**
 
-For deployment and 24/7 operation, see [INFRASTRUCTURE.md](./INFRASTRUCTURE.md).
+**Before Public Deployment:**
+- 🔒 Set up authentication: [AUTHENTICATION.md](./AUTHENTICATION.md)
+- 🚀 Configure infrastructure: [INFRASTRUCTURE.md](./INFRASTRUCTURE.md)
+- ✅ Enable SSL/HTTPS
+- ✅ Set up monitoring
+- ✅ Configure backups
 

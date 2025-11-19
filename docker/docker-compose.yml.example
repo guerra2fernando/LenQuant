@@ -18,7 +18,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.python
     environment:
-      - MONGO_URI=mongodb://mongo:27017/cryptotrader
+      - MONGO_URI=mongodb://mongo:27017/lenquant
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CELERY_EXPERIMENT_QUEUE=experiments
@@ -46,7 +46,7 @@ services:
       dockerfile: docker/Dockerfile.python
     command: celery -A manager.tasks:celery_app worker --loglevel=info
     environment:
-      - MONGO_URI=mongodb://mongo:27017/cryptotrader
+      - MONGO_URI=mongodb://mongo:27017/lenquant
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CELERY_EXPERIMENT_QUEUE=experiments

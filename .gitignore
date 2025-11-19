@@ -21,6 +21,10 @@ web/next-app/node_modules/
 web/next-app/.env.local
 web/next-app/.vercel
 
+# Docker (keep local configurations private)
+docker/docker-compose.yml
+docker-compose.yml
+
 # OS
 .DS_Store
 Thumbs.db

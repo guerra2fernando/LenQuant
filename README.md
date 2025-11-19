@@ -1,11 +1,11 @@
-# CryptoTrader — Autonomous Crypto Trading Platform
+# LenQuant — Autonomous Crypto Trading Platform
 
 An intelligent, self-learning cryptocurrency trading system that uses machine learning to predict market movements, automatically execute trades, and continuously improve its strategies.
 
 ## 🎯 What This System Does
 
 ### Simple Explanation
-CryptoTrader is like having an AI assistant that watches the crypto markets 24/7, learns from past price movements, predicts where prices might go, and can automatically buy or sell cryptocurrencies for you. It starts in "practice mode" (paper trading) so you can test it safely before using real money.
+LenQuant is like having an AI assistant that watches the crypto markets 24/7, learns from past price movements, predicts where prices might go, and can automatically buy or sell cryptocurrencies for you. It starts in "practice mode" (paper trading) so you can test it safely before using real money.
 
 ### Advanced Explanation
 A production-ready autonomous trading platform featuring:
@@ -105,7 +105,7 @@ You can connect to any exchange that ccxt supports by configuring your API crede
 ```bash
 # Clone repository
 git clone <repo-url>
-cd CrypTrader
+cd lenxys-trader
 
 # Set up environment
 cp .env.example .env
@@ -175,6 +175,14 @@ Switch between modes anytime using the toggle in the header.
 
 ## 📚 Documentation
 
+### Getting Started
+- **`docs/STARTING_SYSTEM.md`** — Complete guide to starting the system ⭐
+- **`docs/AUTHENTICATION.md`** — Google OAuth setup for public deployment 🔒
+- **`docs/AUTHENTICATION_PHASE1.md`** — Single-user authentication implementation
+- **`docs/AUTHENTICATION_PHASE2.md`** — Multi-user authentication implementation
+- **`docs/INFRASTRUCTURE.md`** — Production deployment and 24/7 operation
+
+### System Documentation
 - **`docs/full.md`** — Complete system overview
 - **`docs/ux.md`** — User experience improvements and dual-mode interface
 - **`docs/p0.md` through `docs/p6.md`** — Detailed feature documentation

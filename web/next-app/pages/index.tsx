@@ -203,7 +203,7 @@ export default function Home(): JSX.Element {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-4xl font-bold text-foreground md:text-5xl">CryptoTrader</h1>
+          <h1 className="text-4xl font-bold text-foreground md:text-5xl">LenQuant</h1>
           <p className="mt-2 text-lg text-muted-foreground md:text-xl">
             Your command center for running AI-assisted crypto strategies with guided workflows.
           </p>

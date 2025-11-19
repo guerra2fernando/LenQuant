@@ -1,6 +1,6 @@
 # Infrastructure Deployment Guide
 
-Complete guide to deploying CryptoTrader for 24/7 operation with three deployment strategies: Almost Free, Budget-Friendly, and Enterprise (AWS).
+Complete guide to deploying LenQuant for 24/7 operation with three deployment strategies: Almost Free, Budget-Friendly, and Enterprise (AWS).
 
 ## Table of Contents
 
@@ -129,7 +129,7 @@ This option uses free tier services from multiple providers to create a fully fu
 
 2. **Configure Instance**:
    ```
-   Name: cryptotrader-prod
+   Name: lenquant-prod
    
    Placement:
    - Availability Domain: Any available
@@ -147,7 +147,7 @@ This option uses free tier services from multiple providers to create a fully fu
 3. **Configure Networking**:
    ```
    Create new virtual cloud network (VCN):
-   Name: cryptotrader-vcn
+   Name: lenquant-vcn
    
    Create new subnet:
    Name: public-subnet
@@ -158,7 +158,7 @@ This option uses free tier services from multiple providers to create a fully fu
 4. **Add SSH Keys**:
    - **Option A**: Generate new key pair (OCI will create and download)
      - Click "Generate SSH key pair"
-     - Click "Save Private Key" (save as `cryptotrader.key`)
+     - Click "Save Private Key" (save as `lenquant.key`)
      - Click "Save Public Key" (optional)
    
    - **Option B**: Use existing SSH key
@@ -178,7 +178,7 @@ This option uses free tier services from multiple providers to create a fully fu
 
 1. **Configure VCN Security List**:
    - Go to "Networking" → "Virtual Cloud Networks"
-   - Click your VCN (cryptotrader-vcn)
+   - Click your VCN (lenquant-vcn)
    - Click "Security Lists" → "Default Security List"
    - Click "Add Ingress Rules"
 
@@ -225,20 +225,20 @@ This option uses free tier services from multiple providers to create a fully fu
 # Or use native OpenSSH in PowerShell:
 
 # Set correct permissions
-icacls cryptotrader.key /inheritance:r
-icacls cryptotrader.key /grant:r "%username%:R"
+icacls lenquant.key /inheritance:r
+icacls lenquant.key /grant:r "%username%:R"
 
 # Connect
-ssh -i cryptotrader.key ubuntu@150.136.245.123
+ssh -i lenquant.key ubuntu@150.136.245.123
 ```
 
 **On macOS/Linux:**
 ```bash
 # Set correct permissions
-chmod 400 cryptotrader.key
+chmod 400 lenquant.key
 
 # Connect
-ssh -i cryptotrader.key ubuntu@150.136.245.123
+ssh -i lenquant.key ubuntu@150.136.245.123
 ```
 
 **Note**: Replace `150.136.245.123` with your actual public IP.
@@ -314,14 +314,14 @@ redis-cli ping  # Should return PONG
    - Select "M0 Free" tier
    - Choose provider: AWS
    - Choose region: Closest to your Oracle Cloud region
-   - Cluster name: `cryptotrader-cluster`
+   - Cluster name: `lenquant-cluster`
    - Click "Create"
 
 3. **Setup Database Access**:
    - Click "Database Access" in left menu
    - Click "Add New Database User"
    - Authentication Method: Password
-   - Username: `cryptotrader`
+   - Username: `lenquant`
    - Password: Generate secure password (save it!)
    - Database User Privileges: "Read and write to any database"
    - Click "Add User"
@@ -340,7 +340,7 @@ redis-cli ping  # Should return PONG
    - Driver: Python, Version: 3.12 or later
    - Copy connection string:
      ```
-     mongodb+srv://cryptotrader:<password>@cryptotrader-cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority
+     mongodb+srv://lenquant:<password>@lenquant-cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority
      ```
    - Replace `<password>` with your actual password
 
@@ -373,7 +373,7 @@ nano .env
 **Configure .env**:
 ```env
 # MongoDB Atlas connection
-MONGO_URI=mongodb+srv://cryptotrader:YOUR_PASSWORD@cryptotrader-cluster.xxxxx.mongodb.net/cryptotrader?retryWrites=true&w=majority
+MONGO_URI=mongodb+srv://lenquant:YOUR_PASSWORD@lenquant-cluster.xxxxx.mongodb.net/lenquant?retryWrites=true&w=majority
 
 # Redis (local)
 CELERY_BROKER_URL=redis://localhost:6379/0
@@ -403,12 +403,12 @@ Save: `Ctrl+X`, then `Y`, then `Enter`
 
 **Create Backend Service:**
 ```bash
-sudo nano /etc/systemd/system/cryptotrader-api.service
+sudo nano /etc/systemd/system/lenquant-api.service
 ```
 
 ```ini
 [Unit]
-Description=CryptoTrader FastAPI Backend
+Description=LenQuant FastAPI Backend
 After=network.target redis-server.service
 
 [Service]
@@ -426,12 +426,12 @@ WantedBy=multi-user.target
 
 **Create Worker Service:**
 ```bash
-sudo nano /etc/systemd/system/cryptotrader-worker.service
+sudo nano /etc/systemd/system/lenquant-worker.service
 ```
 
 ```ini
 [Unit]
-Description=CryptoTrader Celery Worker
+Description=LenQuant Celery Worker
 After=network.target redis-server.service
 
 [Service]
@@ -449,12 +449,12 @@ WantedBy=multi-user.target
 
 **Create Frontend Service:**
 ```bash
-sudo nano /etc/systemd/system/cryptotrader-frontend.service
+sudo nano /etc/systemd/system/lenquant-frontend.service
 ```
 
 ```ini
 [Unit]
-Description=CryptoTrader Next.js Frontend
+Description=LenQuant Next.js Frontend
 After=network.target
 
 [Service]
@@ -478,22 +478,22 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 
 # Enable services (start on boot)
-sudo systemctl enable cryptotrader-api
-sudo systemctl enable cryptotrader-worker
-sudo systemctl enable cryptotrader-frontend
+sudo systemctl enable lenquant-api
+sudo systemctl enable lenquant-worker
+sudo systemctl enable lenquant-frontend
 
 # Start services
-sudo systemctl start cryptotrader-api
-sudo systemctl start cryptotrader-worker
-sudo systemctl start cryptotrader-frontend
+sudo systemctl start lenquant-api
+sudo systemctl start lenquant-worker
+sudo systemctl start lenquant-frontend
 
 # Check status
-sudo systemctl status cryptotrader-api
-sudo systemctl status cryptotrader-worker
-sudo systemctl status cryptotrader-frontend
+sudo systemctl status lenquant-api
+sudo systemctl status lenquant-worker
+sudo systemctl status lenquant-frontend
 
 # View logs
-sudo journalctl -u cryptotrader-api -f
+sudo journalctl -u lenquant-api -f
 ```
 
 #### Part 10: Setup Nginx Reverse Proxy (Optional but Recommended)
@@ -509,7 +509,7 @@ sudo journalctl -u cryptotrader-api -f
 sudo apt install -y nginx
 
 # Create configuration
-sudo nano /etc/nginx/sites-available/cryptotrader
+sudo nano /etc/nginx/sites-available/lenquant
 ```
 
 ```nginx
@@ -562,7 +562,7 @@ server {
 
 ```bash
 # Enable site
-sudo ln -s /etc/nginx/sites-available/cryptotrader /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/lenquant /etc/nginx/sites-enabled/
 
 # Remove default site
 sudo rm /etc/nginx/sites-enabled/default
@@ -699,9 +699,9 @@ df -h
 free -h
 
 # View service logs
-sudo journalctl -u cryptotrader-api -f
-sudo journalctl -u cryptotrader-worker -f
-sudo journalctl -u cryptotrader-frontend -f
+sudo journalctl -u lenquant-api -f
+sudo journalctl -u lenquant-worker -f
+sudo journalctl -u lenquant-frontend -f
 
 # Check MongoDB Atlas usage
 # Login to cloud.mongodb.com → Clusters → Metrics
@@ -799,17 +799,17 @@ This option provides better performance and easier management using affordable c
      - On your computer:
        ```bash
        # Generate key
-       ssh-keygen -t ed25519 -C "cryptotrader"
-       # Save to: ~/.ssh/cryptotrader_ed25519
+       ssh-keygen -t ed25519 -C "lenquant"
+       # Save to: ~/.ssh/lenquant_ed25519
        
        # Copy public key
        # Windows:
-       type %USERPROFILE%\.ssh\cryptotrader_ed25519.pub
+       type %USERPROFILE%\.ssh\lenquant_ed25519.pub
        # macOS/Linux:
-       cat ~/.ssh/cryptotrader_ed25519.pub
+       cat ~/.ssh/lenquant_ed25519.pub
        ```
      - Paste public key into DigitalOcean
-     - Name: "CryptoTrader Key"
+     - Name: "LenQuant Key"
    
    - **Alternative**: Password (less secure)
 
@@ -819,7 +819,7 @@ This option provides better performance and easier management using affordable c
    - User data: Leave blank
 
 7. **Finalize**:
-   - Hostname: `cryptotrader-prod`
+   - Hostname: `lenquant-prod`
    - Tags: `production`, `trading`
    - Backups: ❌ (costs extra $2.40/mo, optional)
    - Click "Create Droplet"
@@ -837,14 +837,14 @@ ssh root@142.93.123.45
 apt update && apt upgrade -y
 
 # Create non-root user
-adduser cryptotrader
-usermod -aG sudo cryptotrader
+adduser lenquant
+usermod -aG sudo lenquant
 
 # Setup SSH for new user
-rsync --archive --chown=cryptotrader:cryptotrader ~/.ssh /home/cryptotrader
+rsync --archive --chown=lenquant:lenquant ~/.ssh /home/lenquant
 
 # Switch to new user
-su - cryptotrader
+su - lenquant
 
 # From now on, use this user
 ```
@@ -870,7 +870,7 @@ sudo systemctl enable docker
 
 # Logout and login again for group changes
 exit
-ssh cryptotrader@142.93.123.45
+ssh lenquant@142.93.123.45
 
 # Verify Docker
 docker --version
@@ -892,7 +892,7 @@ nano .env
 **Configure .env**:
 ```env
 # MongoDB (local Docker)
-MONGO_URI=mongodb://mongo:27017/cryptotrader
+MONGO_URI=mongodb://mongo:27017/lenquant
 
 # Redis (local Docker)
 CELERY_BROKER_URL=redis://redis:6379/0
@@ -943,7 +943,7 @@ services:
     volumes:
       - mongo-data:/data/db
     environment:
-      - MONGO_INITDB_DATABASE=cryptotrader
+      - MONGO_INITDB_DATABASE=lenquant
 
   api:
     build:
@@ -951,7 +951,7 @@ services:
       dockerfile: docker/Dockerfile.python
     restart: always
     environment:
-      - MONGO_URI=mongodb://mongo:27017/cryptotrader
+      - MONGO_URI=mongodb://mongo:27017/lenquant
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CELERY_EXPERIMENT_QUEUE=experiments
@@ -969,7 +969,7 @@ services:
       dockerfile: docker/Dockerfile.next
     restart: always
     environment:
-      - NEXT_PUBLIC_API_URL=http://142.93.123.45:8000
+      - NEXT_PUBLIC_API_URL=http://152.42.168.244:8000
     ports:
       - "3000:3000"
     depends_on:
@@ -982,7 +982,7 @@ services:
     restart: always
     command: celery -A manager.tasks:celery_app worker --loglevel=info
     environment:
-      - MONGO_URI=mongodb://mongo:27017/cryptotrader
+      - MONGO_URI=mongodb://mongo:27017/lenquant
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CELERY_EXPERIMENT_QUEUE=experiments
@@ -1022,7 +1022,7 @@ cd ~
 sudo apt install -y nginx certbot python3-certbot-nginx
 
 # Create Nginx config
-sudo nano /etc/nginx/sites-available/cryptotrader
+sudo nano /etc/nginx/sites-available/lenquant
 ```
 
 **Nginx configuration**:
@@ -1071,7 +1071,7 @@ server {
 
 ```bash
 # Enable site
-sudo ln -s /etc/nginx/sites-available/cryptotrader /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/lenquant /etc/nginx/sites-enabled/
 sudo rm /etc/nginx/sites-enabled/default
 
 # Test config
@@ -1095,7 +1095,7 @@ nano ~/backup.sh
 ```bash
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/home/cryptotrader/backups"
+BACKUP_DIR="/home/lenquant/backups"
 mkdir -p $BACKUP_DIR
 
 # Backup MongoDB
@@ -1124,7 +1124,7 @@ chmod +x ~/backup.sh
 crontab -e
 
 # Add this line (backup at 3 AM daily)
-0 3 * * * /home/cryptotrader/backup.sh >> /home/cryptotrader/backup.log 2>&1
+0 3 * * * /home/lenquant/backup.sh >> /home/lenquant/backup.log 2>&1
 ```
 
 #### Part 8: Setup Monitoring
@@ -1245,7 +1245,7 @@ Enterprise-grade deployment with high availability, auto-scaling, and managed se
 
 3. **Create IAM User** (Don't use root):
    - Go to IAM → Users → Add user
-   - Username: `cryptotrader-admin`
+   - Username: `lenquant-admin`
    - Access type: Both (Programmatic + Console)
    - Permissions: AdministratorAccess (for setup)
    - Download credentials CSV
@@ -1297,14 +1297,14 @@ Default output format: json
 # Create VPC
 aws ec2 create-vpc \
   --cidr-block 10.0.0.0/16 \
-  --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=cryptotrader-vpc}]'
+  --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=lenquant-vpc}]'
 
 # Note the VpcId from output
 VPC_ID=vpc-xxxxxxxxxx
 
 # Create Internet Gateway
 aws ec2 create-internet-gateway \
-  --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=cryptotrader-igw}]'
+  --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=lenquant-igw}]'
 
 IGW_ID=igw-xxxxxxxxxx
 
@@ -1318,14 +1318,14 @@ aws ec2 create-subnet \
   --vpc-id $VPC_ID \
   --cidr-block 10.0.1.0/24 \
   --availability-zone us-east-1a \
-  --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=cryptotrader-subnet}]'
+  --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=lenquant-subnet}]'
 
 SUBNET_ID=subnet-xxxxxxxxxx
 
 # Create Route Table
 aws ec2 create-route-table \
   --vpc-id $VPC_ID \
-  --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=cryptotrader-rt}]'
+  --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=lenquant-rt}]'
 
 RT_ID=rtb-xxxxxxxxxx
 
@@ -1344,8 +1344,8 @@ aws ec2 associate-route-table \
 **Create Security Group**:
 ```bash
 aws ec2 create-security-group \
-  --group-name cryptotrader-sg \
-  --description "Security group for CryptoTrader" \
+  --group-name lenquant-sg \
+  --description "Security group for LenQuant" \
   --vpc-id $VPC_ID
 
 SG_ID=sg-xxxxxxxxxx
@@ -1384,12 +1384,12 @@ aws ec2 authorize-security-group-ingress \
 **Create Key Pair**:
 ```bash
 aws ec2 create-key-pair \
-  --key-name cryptotrader-key \
+  --key-name lenquant-key \
   --query 'KeyMaterial' \
-  --output text > cryptotrader-key.pem
+  --output text > lenquant-key.pem
 
 # Set permissions
-chmod 400 cryptotrader-key.pem
+chmod 400 lenquant-key.pem
 ```
 
 **Launch EC2 Instance**:
@@ -1406,10 +1406,10 @@ AMI_ID=ami-xxxxxxxxxx  # Use latest from above
 aws ec2 run-instances \
   --image-id $AMI_ID \
   --instance-type t3.medium \
-  --key-name cryptotrader-key \
+  --key-name lenquant-key \
   --security-group-ids $SG_ID \
   --subnet-id $SUBNET_ID \
-  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=cryptotrader-prod}]' \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=lenquant-prod}]' \
   --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=100,VolumeType=gp3}' \
   --associate-public-ip-address
 
@@ -1448,35 +1448,35 @@ Use MongoDB Atlas (same as free tier option):
 ```bash
 # Create ElastiCache subnet group
 aws elasticache create-cache-subnet-group \
-  --cache-subnet-group-name cryptotrader-redis-subnet \
+  --cache-subnet-group-name lenquant-redis-subnet \
   --cache-subnet-group-description "Redis subnet group" \
   --subnet-ids $SUBNET_ID
 
 # Create ElastiCache cluster
 aws elasticache create-cache-cluster \
-  --cache-cluster-id cryptotrader-redis \
+  --cache-cluster-id lenquant-redis \
   --cache-node-type cache.t3.micro \
   --engine redis \
   --engine-version 7.0 \
   --num-cache-nodes 1 \
-  --cache-subnet-group-name cryptotrader-redis-subnet \
+  --cache-subnet-group-name lenquant-redis-subnet \
   --security-group-ids $SG_ID
 
 # Get Redis endpoint
 aws elasticache describe-cache-clusters \
-  --cache-cluster-id cryptotrader-redis \
+  --cache-cluster-id lenquant-redis \
   --show-cache-node-info \
   --query 'CacheClusters[0].CacheNodes[0].Endpoint.Address' \
   --output text
 
-REDIS_ENDPOINT=cryptotrader-redis.xxxxxx.cache.amazonaws.com
+REDIS_ENDPOINT=lenquant-redis.xxxxxx.cache.amazonaws.com
 ```
 
 #### Part 7: Deploy Application to EC2
 
 ```bash
 # Connect to EC2
-ssh -i cryptotrader-key.pem ubuntu@$PUBLIC_IP
+ssh -i lenquant-key.pem ubuntu@$PUBLIC_IP
 
 # Update system
 sudo apt update && sudo apt upgrade -y
@@ -1487,7 +1487,7 @@ sudo usermod -aG docker ubuntu
 exit
 
 # Reconnect
-ssh -i cryptotrader-key.pem ubuntu@$PUBLIC_IP
+ssh -i lenquant-key.pem ubuntu@$PUBLIC_IP
 
 # Clone repository
 git clone <your-repo-url> lenxys-trader
@@ -1499,11 +1499,11 @@ nano .env
 
 ```env
 # MongoDB Atlas
-MONGO_URI=mongodb+srv://cryptotrader:password@cluster.mongodb.net/cryptotrader
+MONGO_URI=mongodb+srv://lenquant:password@cluster.mongodb.net/lenquant
 
 # AWS ElastiCache Redis
-CELERY_BROKER_URL=redis://cryptotrader-redis.xxxxxx.cache.amazonaws.com:6379/0
-CELERY_RESULT_BACKEND=redis://cryptotrader-redis.xxxxxx.cache.amazonaws.com:6379/0
+CELERY_BROKER_URL=redis://lenquant-redis.xxxxxx.cache.amazonaws.com:6379/0
+CELERY_RESULT_BACKEND=redis://lenquant-redis.xxxxxx.cache.amazonaws.com:6379/0
 CELERY_EXPERIMENT_QUEUE=experiments
 
 # Trading
@@ -1538,7 +1538,7 @@ docker-compose ps
 ```bash
 # Create target group
 aws elbv2 create-target-group \
-  --name cryptotrader-tg \
+  --name lenquant-tg \
   --protocol HTTP \
   --port 80 \
   --vpc-id $VPC_ID \
@@ -1548,7 +1548,7 @@ TG_ARN=arn:aws:elasticloadbalancing:...
 
 # Create load balancer
 aws elbv2 create-load-balancer \
-  --name cryptotrader-alb \
+  --name lenquant-alb \
   --subnets $SUBNET_ID \
   --security-groups $SG_ID
 
@@ -1572,7 +1572,7 @@ aws elbv2 register-targets \
 ```bash
 # Create CloudWatch alarms
 aws cloudwatch put-metric-alarm \
-  --alarm-name cryptotrader-high-cpu \
+  --alarm-name lenquant-high-cpu \
   --alarm-description "Alert when CPU exceeds 80%" \
   --metric-name CPUUtilization \
   --namespace AWS/EC2 \
@@ -1584,11 +1584,11 @@ aws cloudwatch put-metric-alarm \
   --dimensions Name=InstanceId,Value=$INSTANCE_ID
 
 # Create SNS topic for alerts
-aws sns create-topic --name cryptotrader-alerts
+aws sns create-topic --name lenquant-alerts
 
 # Subscribe email
 aws sns subscribe \
-  --topic-arn arn:aws:sns:us-east-1:123456789:cryptotrader-alerts \
+  --topic-arn arn:aws:sns:us-east-1:123456789:lenquant-alerts \
   --protocol email \
   --notification-endpoint your-email@example.com
 ```
@@ -1598,20 +1598,20 @@ aws sns subscribe \
 ```bash
 # Create launch template
 aws ec2 create-launch-template \
-  --launch-template-name cryptotrader-template \
-  --version-description "CryptoTrader v1" \
+  --launch-template-name lenquant-template \
+  --version-description "LenQuant v1" \
   --launch-template-data '{
     "ImageId":"'$AMI_ID'",
     "InstanceType":"t3.medium",
-    "KeyName":"cryptotrader-key",
+    "KeyName":"lenquant-key",
     "SecurityGroupIds":["'$SG_ID'"],
     "UserData":"BASE64_ENCODED_STARTUP_SCRIPT"
   }'
 
 # Create auto-scaling group
 aws autoscaling create-auto-scaling-group \
-  --auto-scaling-group-name cryptotrader-asg \
-  --launch-template LaunchTemplateName=cryptotrader-template \
+  --auto-scaling-group-name lenquant-asg \
+  --launch-template LaunchTemplateName=lenquant-template \
   --min-size 1 \
   --max-size 3 \
   --desired-capacity 1 \
@@ -1620,7 +1620,7 @@ aws autoscaling create-auto-scaling-group \
 
 # Create scaling policies
 aws autoscaling put-scaling-policy \
-  --auto-scaling-group-name cryptotrader-asg \
+  --auto-scaling-group-name lenquant-asg \
   --policy-name scale-up \
   --scaling-adjustment 1 \
   --adjustment-type ChangeInCapacity
@@ -1630,12 +1630,12 @@ aws autoscaling put-scaling-policy \
 
 ```bash
 # Create S3 bucket
-aws s3 mb s3://cryptotrader-backups-$(date +%s)
+aws s3 mb s3://lenquant-backups-$(date +%s)
 
-BUCKET_NAME=cryptotrader-backups-1234567890
+BUCKET_NAME=lenquant-backups-1234567890
 
 # Create backup script on EC2
-ssh -i cryptotrader-key.pem ubuntu@$PUBLIC_IP
+ssh -i lenquant-key.pem ubuntu@$PUBLIC_IP
 
 # Create script
 nano ~/backup-to-s3.sh
@@ -1649,14 +1649,14 @@ DATE=$(date +%Y%m%d_%H%M%S)
 docker exec lenxys-trader-mongo-1 mongodump --archive=/tmp/backup_$DATE.archive
 
 # Upload to S3
-aws s3 cp /tmp/backup_$DATE.archive s3://cryptotrader-backups/backups/mongo_$DATE.archive
+aws s3 cp /tmp/backup_$DATE.archive s3://lenquant-backups/backups/mongo_$DATE.archive
 
 # Cleanup old backups (keep 30 days)
-aws s3 ls s3://cryptotrader-backups/backups/ | \
+aws s3 ls s3://lenquant-backups/backups/ | \
   awk '{print $4}' | \
   sort | \
   head -n -30 | \
-  xargs -I {} aws s3 rm s3://cryptotrader-backups/backups/{}
+  xargs -I {} aws s3 rm s3://lenquant-backups/backups/{}
 
 echo "Backup completed: mongo_$DATE.archive"
 ```
@@ -1679,12 +1679,12 @@ aws cloudfront create-distribution \
 
 # cloudfront-config.json:
 {
-  "CallerReference": "cryptotrader-$(date +%s)",
-  "Comment": "CryptoTrader Frontend CDN",
+  "CallerReference": "lenquant-$(date +%s)",
+  "Comment": "LenQuant Frontend CDN",
   "Enabled": true,
   "Origins": {
     "Items": [{
-      "Id": "cryptotrader-origin",
+      "Id": "lenquant-origin",
       "DomainName": "YOUR_ALB_DNS",
       "CustomOriginConfig": {
         "HTTPPort": 80,
@@ -1693,7 +1693,7 @@ aws cloudfront create-distribution \
     }]
   },
   "DefaultCacheBehavior": {
-    "TargetOriginId": "cryptotrader-origin",
+    "TargetOriginId": "lenquant-origin",
     "ViewerProtocolPolicy": "redirect-to-https",
     "AllowedMethods": {
       "Items": ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
@@ -1740,11 +1740,11 @@ df -h
 free -h
 
 # Check service status
-sudo systemctl status cryptotrader-*  # systemd
+sudo systemctl status lenquant-*  # systemd
 docker-compose ps  # Docker
 
 # Check logs for errors
-sudo journalctl -u cryptotrader-api --since "1 hour ago"
+sudo journalctl -u lenquant-api --since "1 hour ago"
 docker-compose logs --tail=100
 
 # Check database connectivity
@@ -1891,7 +1891,7 @@ PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
 Port 2222  # Use non-standard port
-AllowUsers cryptotrader
+AllowUsers lenquant
 
 # Restart SSH
 sudo systemctl restart sshd
@@ -1905,13 +1905,13 @@ echo ".env" >> .gitignore
 
 # Use AWS Secrets Manager (AWS)
 aws secretsmanager create-secret \
-  --name cryptotrader/api-keys \
+  --name lenquant/api-keys \
   --secret-string '{"binance_key":"xxx","binance_secret":"yyy"}'
 
 # Retrieve in code:
 import boto3
 client = boto3.client('secretsmanager')
-response = client.get_secret_value(SecretId='cryptotrader/api-keys')
+response = client.get_secret_value(SecretId='lenquant/api-keys')
 secrets = json.loads(response['SecretString'])
 ```
 
@@ -1994,7 +1994,7 @@ sudo ./install.sh
 
 ---
 
-**🎉 Congratulations! Your CryptoTrader system is now deployed for 24/7 operation.**
+**🎉 Congratulations! Your LenQuant system is now deployed for 24/7 operation.**
 
 For system startup instructions, see [STARTING_SYSTEM.md](./STARTING_SYSTEM.md).
 
