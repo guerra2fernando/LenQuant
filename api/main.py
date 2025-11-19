@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+import logging
 from typing import Set
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from api.auth.jwt import decode_access_token
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 from api.routes import (
     admin,
     assistant,
@@ -29,11 +38,28 @@ from api.routes import (
 
 app = FastAPI(title="LenQuant Core API")
 
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all incoming requests for debugging."""
+    logger.info(f"{request.method} {request.url.path} - Client: {request.client.host if request.client else 'unknown'}")
+    try:
+        response = await call_next(request)
+        logger.info(f"{request.method} {request.url.path} - Status: {response.status_code}")
+        return response
+    except Exception as exc:
+        logger.error(f"Error processing {request.method} {request.url.path}: {exc}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"}
+        )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://lenquant.com",  
+        "https://lenquant.com",
+        "https://www.lenquant.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -77,6 +103,7 @@ class NotificationConnectionManager:
         if user_id not in self.active_connections:
             self.active_connections[user_id] = set()
         self.active_connections[user_id].add(websocket)
+        logger.debug(f"Connected WebSocket for user {user_id}. Total connections: {len(self.active_connections[user_id])}")
     
     async def disconnect(self, user_id: str, websocket: WebSocket):
         """Disconnect a WebSocket for a user."""
@@ -92,12 +119,16 @@ class NotificationConnectionManager:
             for connection in self.active_connections[user_id]:
                 try:
                     await connection.send_json(message)
-                except Exception:
+                    logger.debug(f"Broadcasted notification to user {user_id}")
+                except Exception as exc:
+                    logger.warning(f"Failed to send notification to user {user_id}: {exc}")
                     dead_connections.add(connection)
             
             # Clean up dead connections
             for conn in dead_connections:
                 await self.disconnect(user_id, conn)
+        else:
+            logger.debug(f"No active connections for user {user_id} to broadcast to")
 
 
 notification_manager = NotificationConnectionManager()
@@ -121,26 +152,34 @@ async def websocket_evolution(websocket: WebSocket):
 @app.websocket("/ws/notifications")
 async def websocket_notifications(websocket: WebSocket):
     """WebSocket endpoint for real-time notification delivery."""
+    client_host = websocket.client.host if websocket.client else "unknown"
+    logger.info(f"WebSocket connection attempt from {client_host}")
+    
     # Get token from query parameters
     query_params = dict(websocket.query_params)
     token = query_params.get("token")
     
     # Authenticate via token (passed as query param)
     if not token:
+        logger.warning(f"WebSocket connection rejected: Missing authentication token from {client_host}")
         await websocket.close(code=1008, reason="Missing authentication token")
         return
     
     try:
         token_data = decode_access_token(token)
         if not token_data:
+            logger.warning(f"WebSocket connection rejected: Invalid token from {client_host}")
             await websocket.close(code=1008, reason="Invalid token")
             return
         user_id = token_data.user_id
-    except Exception:
+        logger.info(f"WebSocket connection authenticated for user {user_id} from {client_host}")
+    except Exception as exc:
+        logger.error(f"WebSocket authentication error from {client_host}: {exc}", exc_info=True)
         await websocket.close(code=1008, reason="Invalid token")
         return
     
     await notification_manager.connect(user_id, websocket)
+    logger.info(f"WebSocket connected for user {user_id}")
     
     try:
         # Send initial unread count
@@ -151,17 +190,20 @@ async def websocket_notifications(websocket: WebSocket):
             "type": "unread_count",
             "count": unread_count
         })
+        logger.debug(f"Sent initial unread count ({unread_count}) to user {user_id}")
         
         # Keep connection alive and handle incoming messages
         while True:
             data = await websocket.receive_text()
+            logger.debug(f"Received WebSocket message from user {user_id}: {data[:100]}")
             # Handle client requests (e.g., "get_recent", "mark_read", etc.)
             # For now, just keep connection alive
     except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for user {user_id}")
         await notification_manager.disconnect(user_id, websocket)
     except Exception as exc:
+        logger.error(f"WebSocket error for user {user_id}: {exc}", exc_info=True)
         await notification_manager.disconnect(user_id, websocket)
-        print(f"Notification WebSocket error: {exc}")
 
 
 @app.get("/api/status")

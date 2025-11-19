@@ -1,6 +1,5 @@
-/* eslint-disable */
 // @ts-nocheck
-import { useState, useCallback } from "react";
+import { useState, useCallback, createContext, useContext, ReactNode } from "react";
 import { useRouter } from "next/router";
 import { Bell, X } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -24,6 +23,19 @@ type Notification = {
   read: boolean;
   created_at: string;
 };
+
+type NotificationInput = {
+  title: string;
+  message: string;
+  kind?: "success" | "warning" | "error" | "critical" | "info";
+  metadata?: Record<string, any>;
+};
+
+type NotificationContextType = {
+  addNotification: (notification: NotificationInput) => void;
+};
+
+const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 function NotificationItem({ notification, onMarkRead, onDismiss, onAction }: {
   notification: Notification;
@@ -119,6 +131,65 @@ function NotificationItem({ notification, onMarkRead, onDismiss, onAction }: {
       </div>
     </div>
   );
+}
+
+export function NotificationProvider({ children }: { children: ReactNode }) {
+  const { notifications, setNotifications, setUnreadCount } = useNotificationSocket();
+
+  const addNotification = useCallback((input: NotificationInput) => {
+    const notification: Notification = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: "user_generated",
+      severity: input.kind || "info",
+      title: input.title,
+      message: input.message,
+      metadata: input.metadata || {},
+      read: false,
+      created_at: new Date().toISOString(),
+    };
+
+    setNotifications((prev) => {
+      // Add new notification at the beginning, keep max 50
+      return [notification, ...prev.filter((n) => n.id !== notification.id)].slice(0, 50);
+    });
+    setUnreadCount((prev) => prev + 1);
+
+    // Optionally create the notification on the server
+    postJson("/api/notifications", {
+      type: notification.type,
+      severity: notification.severity,
+      title: notification.title,
+      message: notification.message,
+      metadata: notification.metadata,
+    }).catch((error) => {
+      console.error("Failed to create notification on server:", error);
+    });
+
+    // Show browser notification if permission granted
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        new Notification(notification.title, {
+          body: notification.message,
+          icon: "/images/logo.png",
+          tag: notification.id,
+        });
+      }
+    }
+  }, [setNotifications, setUnreadCount]);
+
+  return (
+    <NotificationContext.Provider value={{ addNotification }}>
+      {children}
+    </NotificationContext.Provider>
+  );
+}
+
+export function useNotificationCenter() {
+  const context = useContext(NotificationContext);
+  if (context === undefined) {
+    throw new Error("useNotificationCenter must be used within a NotificationProvider");
+  }
+  return context;
 }
 
 export function NotificationCenter() {

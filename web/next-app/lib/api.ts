@@ -3,10 +3,12 @@ import { getSession } from "next-auth/react";
 function resolveApiBase(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
 
+  // Server-side rendering: use env URL or default
   if (typeof window === "undefined") {
     return envUrl || "http://localhost:8000";
   }
 
+  // If explicit API URL is set and it's not a Docker internal hostname, use it
   if (envUrl) {
     try {
       const parsed = new URL(envUrl);
@@ -22,15 +24,39 @@ function resolveApiBase(): string {
     }
   }
 
-  const { protocol, hostname } = window.location;
-  const port = process.env.NEXT_PUBLIC_API_PORT || "8000";
-
-  return `${protocol}//${hostname}:${port}`;
+  // Client-side: use relative URLs when behind nginx proxy
+  // This works because nginx proxies /api/* to the backend
+  // Only use absolute URLs in development (localhost)
+  const { hostname, protocol } = window.location;
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+  
+  if (isLocalhost) {
+    // Development: use explicit port
+    const port = process.env.NEXT_PUBLIC_API_PORT || "8000";
+    return `${protocol}//${hostname}:${port}`;
+  }
+  
+  // Production: use relative URLs (nginx handles routing)
+  // Return empty string to use relative paths
+  return "";
 }
 
 export function buildApiUrl(path: string): string {
+  // If path is already absolute, return as-is
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  
   const base = resolveApiBase();
-  return path.startsWith("http") ? path : `${base}${path}`;
+  
+  // If base is empty (production behind nginx), use relative URL
+  if (!base) {
+    return path;
+  }
+  
+  // Ensure path starts with / if base is provided
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
 }
 
 async function getAuthHeaders(): Promise<HeadersInit> {
@@ -131,10 +157,26 @@ export async function putJson<T>(path: string, body: unknown, init?: RequestInit
 }
 
 export function buildWebSocketUrl(path: string): string {
+  // If path is already a full WebSocket URL, return as-is
+  if (path.startsWith("ws://") || path.startsWith("wss://")) {
+    return path;
+  }
+  
   const base = resolveApiBase();
+  
+  // If base is empty (production behind nginx), construct from window.location
+  if (!base && typeof window !== "undefined") {
+    const { protocol, hostname } = window.location;
+    // Use wss:// for HTTPS, ws:// for HTTP
+    const wsProtocol = protocol === "https:" ? "wss:" : "ws:";
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${wsProtocol}//${hostname}${normalizedPath}`;
+  }
+  
   // Convert http/https to ws/wss
   const wsBase = base.replace(/^http/, "ws");
-  return path.startsWith("ws://") || path.startsWith("wss://") ? path : `${wsBase}${path}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${wsBase}${normalizedPath}`;
 }
 
 // Macro/Regime API hooks

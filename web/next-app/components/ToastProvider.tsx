@@ -34,7 +34,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       const timeout = toast.timeout ?? 4200;
       const entry: Toast = { id, ...toast };
       setToasts((prev) => [...prev, entry]);
-      if (timeout > 0) {
+      if (timeout > 0 && typeof window !== "undefined") {
         window.setTimeout(() => dismissToast(id), timeout);
       }
     },

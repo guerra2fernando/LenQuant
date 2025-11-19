@@ -7,8 +7,16 @@ export default function ExperimentSettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/settings?tab=experiments");
+    if (typeof window !== "undefined") {
+      router.replace("/settings?tab=experiments");
+    }
   }, [router]);
 
   return null;
+}
+
+export async function getStaticProps() {
+  return {
+    props: {},
+  };
 }

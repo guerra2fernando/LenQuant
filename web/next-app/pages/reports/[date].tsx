@@ -204,3 +204,18 @@ export default function ReportDetailPage(): JSX.Element {
   );
 }
 
+export async function getStaticPaths() {
+  // Return empty paths array to prevent static generation of all paths
+  // This page will be generated on-demand
+  return {
+    paths: [],
+    fallback: 'blocking',
+  };
+}
+
+export async function getStaticProps() {
+  return {
+    props: {},
+  };
+}
+
