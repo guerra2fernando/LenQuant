@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 // Comprehensive mapping for top 100+ cryptocurrencies with CoinGecko logos
-const CRYPTO_LOGOS: Record<string, string> = {
+export const CRYPTO_LOGOS: Record<string, string> = {
   // Top 10 by market cap
   'btc': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
   'eth': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
@@ -131,6 +131,11 @@ export function getCryptoLogo(symbol: string): string {
   return CRYPTO_LOGOS[baseSymbol] || `https://via.placeholder.com/24x24/gray/white?text=${baseSymbol.toUpperCase()}`;
 }
 
+// Get all predefined cryptocurrency symbols with /USD suffix
+export function getAllPredefinedSymbols(): string[] {
+  return Object.keys(CRYPTO_LOGOS).map(symbol => `${symbol.toUpperCase()}/USD`);
+}
+
 interface CryptoSelectorProps {
   availableSymbols: string[];
   selectedSymbols: string[];
@@ -153,16 +158,26 @@ export function CryptoSelector({
   const [customSymbols, setCustomSymbols] = useState<string[]>([]);
   const [newCustomSymbol, setNewCustomSymbol] = useState("");
 
-  // Combine available symbols with custom symbols
+  // Get all predefined symbols from the CRYPTO_LOGOS mapping
+  const predefinedSymbols = useMemo(() => {
+    return Object.keys(CRYPTO_LOGOS).map(symbol => `${symbol.toUpperCase()}/USD`);
+  }, []);
+
+  // Combine predefined symbols, backend symbols, and custom symbols
   const allSymbols = useMemo(() => {
-    const combined = [...availableSymbols];
-    customSymbols.forEach(symbol => {
-      if (!combined.includes(symbol)) {
-        combined.push(symbol);
-      }
-    });
-    return combined.sort();
-  }, [availableSymbols, customSymbols]);
+    const combined = new Set<string>();
+
+    // Add predefined symbols (70+ top cryptocurrencies)
+    predefinedSymbols.forEach(symbol => combined.add(symbol));
+
+    // Add backend-provided symbols (from .env and database)
+    availableSymbols.forEach(symbol => combined.add(symbol));
+
+    // Add custom symbols
+    customSymbols.forEach(symbol => combined.add(symbol));
+
+    return Array.from(combined).sort();
+  }, [predefinedSymbols, availableSymbols, customSymbols]);
 
   const filteredSymbols = useMemo(() => {
     if (!searchQuery) return allSymbols;
@@ -179,11 +194,16 @@ export function CryptoSelector({
     // Add /USD suffix if not present
     const formatted = trimmed.includes("/") ? trimmed : `${trimmed}/USD`;
 
-    // Check if already exists in available symbols or custom symbols
+    // Check if already exists in all symbols
     if (!allSymbols.includes(formatted)) {
       setCustomSymbols([...customSymbols, formatted]);
     }
     setNewCustomSymbol("");
+  };
+
+  // Determine if a symbol is custom (not in predefined or backend symbols)
+  const isCustomSymbol = (symbol: string) => {
+    return customSymbols.includes(symbol);
   };
 
   const handleToggleSymbol = (symbol: string) => {
@@ -207,7 +227,7 @@ export function CryptoSelector({
       {selectedSymbols.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {selectedSymbols.map(symbol => {
-            const isCustom = customSymbols.includes(symbol);
+            const isCustom = isCustomSymbol(symbol);
             return (
               <Badge key={symbol} variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5">
                 <img
@@ -309,7 +329,7 @@ export function CryptoSelector({
               ) : (
                 filteredSymbols.map(symbol => {
                   const isSelected = selectedSymbols.includes(symbol);
-                  const isCustom = customSymbols.includes(symbol);
+                  const isCustom = isCustomSymbol(symbol);
                   return (
                     <button
                       key={symbol}
@@ -356,11 +376,9 @@ export function CryptoSelector({
       </Dialog>
 
       {/* Available count */}
-      {(availableSymbols.length > 0 || customSymbols.length > 0) && (
-        <div className="text-xs text-muted-foreground">
-          {availableSymbols.length} predefined + {customSymbols.length} custom cryptocurrencies available
-        </div>
-      )}
+      <div className="text-xs text-muted-foreground">
+        {predefinedSymbols.length} predefined + {availableSymbols.length} configured + {customSymbols.length} custom cryptocurrencies available
+      </div>
     </div>
   );
 }

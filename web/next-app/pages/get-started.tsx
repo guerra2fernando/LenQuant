@@ -7,7 +7,7 @@ import { ArrowRight, CheckCircle2, TrendingUp, Database, Sparkles, BarChart3 } f
 
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
-import { CryptoSelector, getCryptoLogo } from "@/components/CryptoSelector";
+import { CryptoSelector, getCryptoLogo, getAllPredefinedSymbols } from "@/components/CryptoSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMode } from "@/lib/mode-context";
 import { fetcher } from "@/lib/api";
+
 
 type Step = "intro" | "data" | "setup" | "complete";
 
@@ -60,7 +61,10 @@ export default function GetStarted(): JSX.Element {
     default_lookback_days: number;
   }>("/api/admin/overview", fetcher);
 
-  const availableSymbols = overview?.available_symbols ?? [];
+  // Use all predefined symbols from CryptoSelector, plus any from API
+  const apiSymbols = overview?.available_symbols ?? [];
+  const predefinedSymbols = getAllPredefinedSymbols();
+  const availableSymbols = Array.from(new Set([...predefinedSymbols, ...apiSymbols])).sort();
 
   // Available for both Easy and Advanced modes
   const [mounted, setMounted] = useState(false);
