@@ -42,12 +42,28 @@ function Auth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function BrowserNotificationPermission() {
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        // Request permission when app loads
+        Notification.requestPermission().catch((err) => {
+          console.error("Failed to request notification permission:", err);
+        });
+      }
+    }
+  }, []);
+
+  return null;
+}
+
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <SessionProvider session={pageProps.session}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="cryptotrader-theme">
         <ModeProvider>
           <NotificationProvider>
+            <BrowserNotificationPermission />
             <ToastProvider>
               {/* @ts-ignore */}
               {Component.auth === false ? (

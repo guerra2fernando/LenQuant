@@ -13,11 +13,15 @@ import AutonomyTab from "./settings/AutonomyTab";
 import ExperimentsTab from "./settings/ExperimentsTab";
 import LearningTab from "./settings/LearningTab";
 
+import { Bell } from "lucide-react";
+import NotificationTab from "./settings/NotificationTab";
+
 // Easy Mode tabs - only essential settings
 const EASY_MODE_TABS = [
   { id: "general", label: "General", icon: Settings },
   { id: "trading", label: "Trading", icon: TrendingUp },
   { id: "assistant", label: "Assistant", icon: MessageSquare },
+  { id: "notifications", label: "Notifications", icon: Bell },
 ] as const;
 
 // Advanced Mode tabs - all settings
@@ -25,6 +29,7 @@ const ADVANCED_MODE_TABS = [
   { id: "general", label: "General", icon: Settings },
   { id: "trading", label: "Trading", icon: TrendingUp },
   { id: "assistant", label: "Assistant", icon: MessageSquare },
+  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "autonomy", label: "Autonomy", icon: Shield },
   { id: "experiments", label: "Experiments", icon: FlaskConical },
   { id: "learning", label: "Learning", icon: Brain },
@@ -92,6 +97,7 @@ export default function SettingsPage(): JSX.Element {
         {activeTab === "general" && <GeneralTab />}
         {activeTab === "trading" && <TradingTab />}
         {activeTab === "assistant" && <AssistantTab />}
+        {activeTab === "notifications" && <NotificationTab />}
         {!isEasyMode && activeTab === "autonomy" && <AutonomyTab />}
         {!isEasyMode && activeTab === "experiments" && <ExperimentsTab />}
         {!isEasyMode && activeTab === "learning" && <LearningTab />}

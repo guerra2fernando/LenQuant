@@ -20,6 +20,12 @@ class TradeAlertClient:
     def __init__(self, settings: AlertSettings) -> None:
         self.settings = settings
         self.logger = LOGGER
+        # Initialize notification service for in-app notifications
+        try:
+            from monitor.notification_service import NotificationService
+            self.notification_service = NotificationService()
+        except Exception:
+            self.notification_service = None
 
     def send_alert(
         self,
@@ -28,8 +34,11 @@ class TradeAlertClient:
         message: str,
         severity: str = "info",
         extra: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
     ) -> None:
         payload = {"title": title, "message": message, "severity": severity, "extra": extra or {}}
+        
+        # Send to external channels (Slack, Telegram, Email)
         for channel in self.settings.channels:
             try:
                 if channel == "slack":
@@ -42,6 +51,23 @@ class TradeAlertClient:
                     self.logger.info("Alert [%s] %s - %s", severity.upper(), title, message)
             except Exception as exc:  # pylint: disable=broad-except
                 self.logger.warning("Failed to dispatch %s alert: %s", channel, exc)
+        
+        # Create in-app notification if user_id is provided and notification service is available
+        if user_id and self.notification_service:
+            try:
+                # Determine notification type from extra metadata or default to system_event
+                notification_type = extra.get("notification_type", "system_event") if extra else "system_event"
+                
+                self.notification_service.create_notification(
+                    user_id=user_id,
+                    type=notification_type,
+                    severity=severity,
+                    title=title,
+                    message=message,
+                    metadata=extra or {},
+                )
+            except Exception as exc:  # pylint: disable=broad-except
+                self.logger.warning("Failed to create in-app notification: %s", exc)
 
     def send_cohort_alert(
         self,
