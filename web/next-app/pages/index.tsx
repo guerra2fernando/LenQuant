@@ -360,7 +360,7 @@ export default function Home(): JSX.Element {
     <div className="space-y-8">
         <div>
           <h1 className="text-4xl font-bold text-foreground md:text-5xl">LenQuant</h1>
-          <p className="mt-2 text-lg text-muted-foreground md:text-xl">
+          <p className="mt-2 mb-8 text-lg text-muted-foreground md:text-xl">
             Advanced control center with full access to data pipelines, models, and system configuration.
           </p>
         </div>
