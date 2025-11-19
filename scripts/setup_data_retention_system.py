@@ -10,7 +10,53 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
 
-from db.migrations.migration_003_setup_data_retention import migrate_data_retention
+try:
+    from db.migrations.003_setup_data_retention import migrate_data_retention
+except ImportError:
+    # Fallback: import the function directly
+    def migrate_data_retention():
+        from data_ingest.retention import DataRetentionConfig, cleanup_old_data, create_ttl_indexes
+        from data_ingest.config import IngestConfig
+        from db.client import get_database_name, mongo_client
+        import logging
+        from datetime import datetime
+
+        logger = logging.getLogger(__name__)
+
+        logger.info("Starting data retention migration")
+
+        # Get configurations
+        retention_config = DataRetentionConfig.from_env()
+        ingest_config = IngestConfig.from_env()
+
+        logger.info(f"Data retention config: tier1={retention_config.tier1_days}d, tier2={retention_config.tier2_days}d")
+
+        symbols = ingest_config.symbols
+        if not symbols:
+            logger.warning("No symbols configured - skipping data retention setup")
+            return
+
+        # Create TTL indexes
+        logger.info("Creating TTL indexes for automatic data expiration")
+        create_ttl_indexes(retention_config)
+
+        # Run initial cleanup on existing data
+        logger.info(f"Running initial data cleanup for {len(symbols)} symbols")
+        cleanup_results = cleanup_old_data(symbols, retention_config)
+
+        logger.info(f"Data retention migration completed: {cleanup_results}")
+
+        return {
+            "migration": "data_retention_setup",
+            "timestamp": datetime.utcnow().isoformat(),
+            "config": {
+                "tier1_days": retention_config.tier1_days,
+                "tier2_days": retention_config.tier2_days,
+                "tier3_days": retention_config.tier3_days,
+            },
+            "cleanup_results": cleanup_results,
+            "symbols_processed": len(symbols)
+        }
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
