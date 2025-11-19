@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
 import { LogOut, User } from "lucide-react";
@@ -58,7 +59,14 @@ export function Layout({ children }: Props) {
       <header className="border-b bg-card">
         <div className="container flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-8">
-            <Link href="/" className="text-lg font-semibold text-foreground">
+            <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <Image
+                src="/logo.png"
+                alt="LenQuant Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
               LenQuant
             </Link>
             <nav className="flex items-center gap-2 text-sm font-medium text-muted-foreground">

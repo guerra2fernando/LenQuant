@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="logo.png" alt="LenQuant Logo" width="120" height="120">
+</div>
+
 # LenQuant — Autonomous Crypto Trading Platform
 
 An intelligent, self-learning cryptocurrency trading system that uses machine learning to predict market movements, automatically execute trades, and continuously improve its strategies.
