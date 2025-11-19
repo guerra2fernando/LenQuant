@@ -12,6 +12,7 @@ from api.routes import (
     knowledge,
     leaderboard,
     learning,
+    macro,
     models,
     reports,
     runs,
@@ -46,6 +47,7 @@ app.include_router(knowledge.router, prefix="/api/knowledge")
 app.include_router(admin.router, prefix="/api/admin")
 app.include_router(trade.router, prefix="/api/trading")
 app.include_router(risk.router, prefix="/api/risk")
+app.include_router(macro.router, prefix="/api/macro")
 
 # WebSocket endpoints (mounted at root to match documentation)
 @app.websocket("/ws/trading")

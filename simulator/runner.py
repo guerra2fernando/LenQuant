@@ -17,6 +17,44 @@ from models.ensemble import EnsembleError, ensemble_predict
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
+
+def _get_regime_for_timestamp(symbol: str, interval: str, timestamp: datetime) -> Dict[str, Any]:
+    """Retrieve regime classification for a specific timestamp.
+    
+    Args:
+        symbol: Trading pair symbol
+        interval: Time interval
+        timestamp: Timestamp to query
+    
+    Returns:
+        Dictionary with regime data or default values if not found
+    """
+    try:
+        with mongo_client() as client:
+            db = client[get_database_name()]
+            regime_doc = db["macro_regimes"].find_one(
+                {"symbol": symbol, "interval": interval, "timestamp": {"$lte": timestamp}},
+                sort=[("timestamp", -1)],
+            )
+            
+            if regime_doc:
+                return {
+                    "trend_regime": regime_doc.get("trend_regime", "UNDEFINED"),
+                    "volatility_regime": regime_doc.get("volatility_regime", "UNDEFINED"),
+                    "confidence": regime_doc.get("confidence", 0.0),
+                    "timestamp": regime_doc.get("timestamp"),
+                }
+    except Exception as exc:
+        logger.debug("Failed to retrieve regime for %s at %s: %s", symbol, timestamp, exc)
+    
+    # Return default if not found or error
+    return {
+        "trend_regime": "UNDEFINED",
+        "volatility_regime": "UNDEFINED",
+        "confidence": 0.0,
+        "timestamp": None,
+    }
+
 MIN_RET_THRESHOLDS = {"1m": 0.0005, "1h": 0.005, "1d": 0.01}
 MIN_CONF_THRESHOLDS = {"1m": 0.55, "1h": 0.6, "1d": 0.65}
 
@@ -113,8 +151,34 @@ def run_simulation(
         stop_loss_pct=strategy_config.get("stop_loss_pct"),
     )
 
+    # Track regime transitions during simulation
+    regime_transitions = []
+    current_regime = None
+    
     for ts, row in features.iterrows():
         price = float(row["price"])
+        
+        # Get current regime for this timestamp
+        regime_info = _get_regime_for_timestamp(symbol, interval, ts.to_pydatetime())
+        
+        # Track regime transitions
+        regime_key = f"{regime_info['trend_regime']}|{regime_info['volatility_regime']}"
+        if current_regime != regime_key:
+            regime_transitions.append({
+                "timestamp": ts.to_pydatetime(),
+                "from_regime": current_regime,
+                "to_regime": regime_key,
+                "trend": regime_info["trend_regime"],
+                "volatility": regime_info["volatility_regime"],
+                "confidence": regime_info["confidence"],
+            })
+            current_regime = regime_key
+        
+        # Update context with current regime
+        if context is None:
+            context = {}
+        context["current_regime"] = regime_info
+        
         try:
             forecast = ensemble_predict(symbol, horizon, ts.to_pydatetime())
             predicted_return = forecast["predicted_return"]
@@ -128,6 +192,12 @@ def run_simulation(
         backtester.on_signal(ts, price, signal, predicted_return, confidence)
 
     result = backtester.finalize()
+    
+    # Add regime analysis to context
+    if context is None:
+        context = {}
+    context["regime_transitions"] = regime_transitions
+    context["regime_transition_count"] = len(regime_transitions)
     run_id = f"run-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
     with mongo_client() as client:
         db = client[get_database_name()]

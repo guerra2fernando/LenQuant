@@ -13,6 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { useMode } from "@/lib/mode-context";
 import { fetcher } from "@/lib/api";
+import { useRegime } from "@/lib/hooks";
+import { MacroRegimeCard } from "@/components/MacroRegimeCard";
 
 type ForecastBatchResponse = {
   forecasts: ForecastRow[];
@@ -57,6 +59,9 @@ export default function InsightsPage() {
     [forecastData],
   );
 
+  // Regime data
+  const { regime: btcRegime, isLoading: isLoadingRegime } = useRegime("BTC/USDT", "1h");
+
   // Strategies data
   const { data: strategiesData } = useSWR<StrategiesResponse>("/api/run/sim?limit=5", fetcher);
   const topStrategies = useMemo(() => {
@@ -86,6 +91,25 @@ export default function InsightsPage() {
           See what the system thinks about the markets, which strategies are performing best, and get recommendations.
         </p>
       </div>
+
+      {/* Market Conditions Banner */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Current Market Conditions</CardTitle>
+          <CardDescription>
+            The market regime affects how the system adjusts position sizes to manage risk
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MacroRegimeCard 
+            symbol="BTC/USDT" 
+            interval="1h" 
+            regimeData={btcRegime} 
+            isLoading={isLoadingRegime}
+            compact={true}
+          />
+        </CardContent>
+      </Card>
 
       {/* What the System Thinks - Forecasts */}
       <Card>

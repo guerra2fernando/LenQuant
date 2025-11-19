@@ -83,3 +83,16 @@ export function buildWebSocketUrl(path: string): string {
   return path.startsWith("ws://") || path.startsWith("wss://") ? path : `${wsBase}${path}`;
 }
 
+// Macro/Regime API hooks
+export function buildRegimeUrl(symbol: string, interval: string = "1h"): string {
+  return `/api/macro/regime/${encodeURIComponent(symbol)}?interval=${interval}`;
+}
+
+export function buildRegimeHistoryUrl(symbol: string, limit: number = 100): string {
+  return `/api/macro/regimes/history/${encodeURIComponent(symbol)}?limit=${limit}`;
+}
+
+export function buildRegimeBatchUrl(symbols: string[], interval: string = "1h"): string {
+  return `/api/macro/regimes/batch?symbols=${symbols.map(s => encodeURIComponent(s)).join(",")}&interval=${interval}`;
+}
+

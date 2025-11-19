@@ -11,6 +11,7 @@ from exec.risk_manager import (
     get_trading_settings,
     save_trading_settings,
 )
+from macro.regime import RegimeDetector
 from strategy_genome.repository import archive_strategy, get_genome, promote_strategy
 
 from .repository import load_experiment, update_experiment
@@ -42,7 +43,147 @@ def _parent_metrics(parent_id: Optional[str]) -> Dict[str, Any]:
     return parent_doc.get("fitness", {})
 
 
-def decide_promotion(experiment_id: str, policy: PromotionPolicy) -> Optional[PromotionDecision]:
+def _get_current_regime(symbol: str = "BTC/USDT", interval: str = "1h") -> Optional[str]:
+    """
+    Get the current market regime for a symbol.
+    
+    Args:
+        symbol: Trading pair symbol (default: BTC/USDT)
+        interval: Time interval (default: 1h)
+    
+    Returns:
+        Current trend regime label or None if unavailable
+    """
+    try:
+        detector = RegimeDetector()
+        regime = detector.get_latest_regime(symbol, interval)
+        
+        if regime:
+            return regime.trend_regime.value
+        
+        logger.debug("No regime data available for %s/%s", symbol, interval)
+        return None
+        
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to get current regime for %s/%s: %s", symbol, interval, exc)
+        return None
+
+
+def _get_strategy_regime_preference(strategy_id: str) -> Optional[str]:
+    """
+    Get the preferred regime for a strategy from its regime performance data.
+    
+    Args:
+        strategy_id: Strategy identifier
+    
+    Returns:
+        Preferred regime label or None if no preference
+    """
+    try:
+        with mongo_client() as client:
+            db = client[get_database_name()]
+            strategy_doc = db["strategies"].find_one({"strategy_id": strategy_id})
+            
+            if not strategy_doc:
+                return None
+            
+            return strategy_doc.get("preferred_regime")
+            
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to get regime preference for strategy %s: %s", strategy_id, exc)
+        return None
+
+
+def _calculate_regime_bonus(
+    strategy_id: str,
+    current_regime: Optional[str],
+    regime_stable: bool = True,
+) -> float:
+    """
+    Calculate promotion score bonus if strategy is a specialist for current regime.
+    
+    Args:
+        strategy_id: Strategy identifier
+        current_regime: Current market regime
+        regime_stable: Whether the current regime is stable (default: True)
+    
+    Returns:
+        Bonus multiplier (1.0 = no bonus, 1.2 = 20% bonus, etc.)
+    """
+    if not current_regime or current_regime == "UNDEFINED":
+        return 1.0
+    
+    preferred_regime = _get_strategy_regime_preference(strategy_id)
+    
+    if not preferred_regime:
+        return 1.0
+    
+    # If strategy prefers current regime and regime is stable, apply bonus
+    if preferred_regime == current_regime:
+        if regime_stable:
+            return 1.2  # 20% promotion bonus
+        else:
+            return 1.1  # 10% bonus if regime less stable
+    
+    # If strategy doesn't prefer current regime, apply slight penalty
+    return 0.95  # 5% penalty
+
+
+def _get_regime_performance_for_regime(
+    strategy_id: str,
+    regime: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Get performance metrics for a specific regime.
+    
+    Args:
+        strategy_id: Strategy identifier
+        regime: Regime label to query
+    
+    Returns:
+        Performance metrics dict or None if unavailable
+    """
+    try:
+        with mongo_client() as client:
+            db = client[get_database_name()]
+            strategy_doc = db["strategies"].find_one({"strategy_id": strategy_id})
+            
+            if not strategy_doc:
+                return None
+            
+            regime_performance = strategy_doc.get("regime_performance", {})
+            return regime_performance.get(regime)
+            
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Failed to get regime performance for strategy %s regime %s: %s",
+            strategy_id,
+            regime,
+            exc,
+        )
+        return None
+
+
+def decide_promotion(
+    experiment_id: str,
+    policy: PromotionPolicy,
+    symbol: str = "BTC/USDT",
+    interval: str = "1h",
+    enable_regime_bonus: bool = True,
+) -> Optional[PromotionDecision]:
+    """
+    Decide whether to promote a strategy, considering regime context.
+    
+    Args:
+        experiment_id: Experiment to evaluate
+        policy: Promotion policy with thresholds
+        symbol: Trading pair for regime context
+        interval: Time interval for regime context
+        enable_regime_bonus: Whether to apply regime specialist bonus
+    
+    Returns:
+        PromotionDecision with approval and reasoning
+    """
     experiment = load_experiment(experiment_id)
     if not experiment:
         return None
@@ -70,8 +211,55 @@ def decide_promotion(experiment_id: str, policy: PromotionPolicy) -> Optional[Pr
             reason="experiment_not_completed",
         )
 
+    # Get current regime context
+    current_regime = _get_current_regime(symbol, interval) if enable_regime_bonus else None
+    preferred_regime = _get_strategy_regime_preference(strategy_id)
+    regime_bonus = 1.0
+    
+    if enable_regime_bonus and current_regime:
+        regime_bonus = _calculate_regime_bonus(strategy_id, current_regime, regime_stable=True)
+        logger.info(
+            "Regime bonus for strategy %s: %.2f (current=%s, preferred=%s)",
+            strategy_id,
+            regime_bonus,
+            current_regime,
+            preferred_regime,
+        )
+    
+    # Apply regime bonus to score if strategy is regime specialist
+    base_score = float(experiment.get("score", 0.0))
+    adjusted_score = base_score * regime_bonus
+
     passed = policy.passes(metrics, parent_metrics if parent_metrics else None)
-    reason = "threshold_met" if passed else "threshold_not_met"
+    
+    # Additional check: if strategy is regime specialist and we're in that regime, favor promotion
+    if not passed and regime_bonus > 1.0:
+        # Get regime-specific performance
+        regime_perf = _get_regime_performance_for_regime(strategy_id, current_regime) if current_regime else None
+        
+        if regime_perf:
+            regime_sharpe = float(regime_perf.get("sharpe", 0.0))
+            regime_roi = float(regime_perf.get("roi", 0.0))
+            regime_win_rate = float(regime_perf.get("win_rate", 0.0))
+            
+            # If regime-specific performance is strong, override general threshold
+            if regime_sharpe >= policy.min_sharpe * 0.9 and regime_roi >= policy.min_roi * 0.9:
+                passed = True
+                reason = "regime_specialist_override"
+                logger.info(
+                    "Strategy %s promoted as regime specialist for %s (Sharpe=%.2f, ROI=%.4f, WR=%.2f)",
+                    strategy_id,
+                    current_regime,
+                    regime_sharpe,
+                    regime_roi,
+                    regime_win_rate,
+                )
+    
+    if not passed:
+        reason = "threshold_not_met"
+    elif "reason" not in locals():
+        reason = "threshold_met"
+    
     return PromotionDecision(
         strategy_id=strategy_id,
         parent_id=parent_id,
@@ -81,7 +269,11 @@ def decide_promotion(experiment_id: str, policy: PromotionPolicy) -> Optional[Pr
             "metrics": metrics,
             "parent_metrics": parent_metrics,
             "experiment_id": experiment_id,
-            "score": experiment.get("score", 0.0),
+            "score": base_score,
+            "adjusted_score": adjusted_score,
+            "regime_bonus": regime_bonus,
+            "current_regime": current_regime,
+            "preferred_regime": preferred_regime,
         },
     )
 

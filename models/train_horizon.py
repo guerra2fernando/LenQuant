@@ -71,6 +71,17 @@ def build_dataset(symbol: str, horizon: str, train_window_days: int | None) -> T
 
 
 def time_based_split(X: pd.DataFrame, y: pd.Series, val_ratio: float = 0.1, test_ratio: float = 0.1) -> Dict[str, pd.DataFrame | pd.Series]:
+    """Split data chronologically for time-series forecasting.
+    
+    Args:
+        X: Feature dataframe
+        y: Target series
+        val_ratio: Proportion of data for validation
+        test_ratio: Proportion of data for testing
+    
+    Returns:
+        Dictionary with train/val/test splits
+    """
     n = len(X)
     if n < 100:
         raise RuntimeError(f"Dataset too small for split: {n} rows")
@@ -95,6 +106,74 @@ def time_based_split(X: pd.DataFrame, y: pd.Series, val_ratio: float = 0.1, test
     X_test = X.iloc[split_points["val_end"] :]
     y_test = y.iloc[split_points["val_end"] :]
 
+    return {
+        "X_train": X_train,
+        "y_train": y_train,
+        "X_val": X_val,
+        "y_val": y_val,
+        "X_test": X_test,
+        "y_test": y_test,
+    }
+
+
+def regime_based_split(
+    X: pd.DataFrame,
+    y: pd.Series,
+    train_regimes: list[str] | None = None,
+    test_regimes: list[str] | None = None,
+    val_ratio: float = 0.15,
+) -> Dict[str, pd.DataFrame | pd.Series]:
+    """Split data based on market regime for regime-specific model training.
+    
+    Example: Train on trending periods, test on ranging periods to evaluate
+    how well the model generalizes across regime changes.
+    
+    Args:
+        X: Feature dataframe (must include 'regime_trend' column)
+        y: Target series
+        train_regimes: List of regime values for training (e.g., ['TRENDING_UP', 'TRENDING_DOWN'])
+        test_regimes: List of regime values for testing (e.g., ['SIDEWAYS'])
+        val_ratio: Proportion of training data for validation
+    
+    Returns:
+        Dictionary with train/val/test splits filtered by regime
+    
+    Raises:
+        RuntimeError: If regime column missing or insufficient data
+    """
+    if "regime_trend" not in X.columns:
+        raise RuntimeError("regime_trend column required for regime-based splits")
+    
+    # Default: train on trending, test on sideways
+    if train_regimes is None:
+        train_regimes = ["TRENDING_UP", "TRENDING_DOWN"]
+    if test_regimes is None:
+        test_regimes = ["SIDEWAYS"]
+    
+    # Filter data by regime
+    train_mask = X["regime_trend"].isin(train_regimes)
+    test_mask = X["regime_trend"].isin(test_regimes)
+    
+    X_train_full = X[train_mask]
+    y_train_full = y[train_mask]
+    X_test = X[test_mask]
+    y_test = y[test_mask]
+    
+    # Check for sufficient data
+    if len(X_train_full) < 100:
+        raise RuntimeError(f"Insufficient training data: {len(X_train_full)} rows (need >= 100)")
+    if len(X_test) < 20:
+        raise RuntimeError(f"Insufficient test data: {len(X_test)} rows (need >= 20)")
+    
+    # Split training into train/val chronologically
+    val_size = max(int(len(X_train_full) * val_ratio), 1)
+    train_size = len(X_train_full) - val_size
+    
+    X_train = X_train_full.iloc[:train_size]
+    y_train = y_train_full.iloc[:train_size]
+    X_val = X_train_full.iloc[train_size:]
+    y_val = y_train_full.iloc[train_size:]
+    
     return {
         "X_train": X_train,
         "y_train": y_train,
@@ -252,10 +331,34 @@ def main() -> None:
         action="store_true",
         help="Mark the resulting model as production in the registry",
     )
+    parser.add_argument(
+        "--regime-split",
+        action="store_true",
+        help="Use regime-based train/test split (train on trending, test on sideways)",
+    )
+    parser.add_argument(
+        "--train-regimes",
+        type=str,
+        default=None,
+        help="Comma-separated list of regimes for training (e.g., TRENDING_UP,TRENDING_DOWN)",
+    )
+    parser.add_argument(
+        "--test-regimes",
+        type=str,
+        default=None,
+        help="Comma-separated list of regimes for testing (e.g., SIDEWAYS)",
+    )
     args = parser.parse_args()
 
     X, y = build_dataset(args.symbol, args.horizon, args.train_window)
-    splits = time_based_split(X, y)
+    
+    # Choose split strategy based on arguments
+    if args.regime_split:
+        train_regimes = args.train_regimes.split(",") if args.train_regimes else None
+        test_regimes = args.test_regimes.split(",") if args.test_regimes else None
+        splits = regime_based_split(X, y, train_regimes=train_regimes, test_regimes=test_regimes)
+    else:
+        splits = time_based_split(X, y)
 
     algorithm = args.algorithm
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")

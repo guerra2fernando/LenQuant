@@ -19,6 +19,7 @@ LOGGER = logging.getLogger(__name__)
 
 SETTINGS_COLLECTION = "settings"
 SETTINGS_DOCUMENT_ID = "trading_settings"
+MACRO_SETTINGS_DOCUMENT_ID = "macro_settings"
 ORDERS_COLLECTION = "trading_orders"
 BREACHES_COLLECTION = "trading_risk_breaches"
 METRICS_COLLECTION = "trading_metrics"
@@ -74,6 +75,30 @@ class AutoModeSettings(BaseModel):
     max_trades_per_day: int = Field(default=10, ge=0)
     allow_live: bool = Field(default=False)
     default_mode: str = Field(default="paper")
+
+
+class RegimeMultipliers(BaseModel):
+    """Position size multipliers for different market regimes."""
+    TRENDING_UP: float = Field(default=1.3, ge=0.3, le=2.0)
+    TRENDING_DOWN: float = Field(default=0.6, ge=0.3, le=2.0)
+    SIDEWAYS: float = Field(default=0.8, ge=0.3, le=2.0)
+    HIGH_VOLATILITY: float = Field(default=0.5, ge=0.3, le=2.0)
+    LOW_VOLATILITY: float = Field(default=1.2, ge=0.3, le=2.0)
+    NORMAL_VOLATILITY: float = Field(default=1.0, ge=0.3, le=2.0)
+    UNDEFINED: float = Field(default=1.0, ge=0.3, le=2.0)
+
+
+class MacroSettings(BaseModel):
+    """Macro analysis risk management settings."""
+    regime_risk_enabled: bool = Field(default=False)
+    regime_multipliers: RegimeMultipliers = Field(default_factory=RegimeMultipliers)
+    regime_cache_ttl_seconds: int = Field(default=3600, ge=60)
+    alert_on_significant_reduction: bool = Field(default=True)
+    significant_reduction_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    updated_at: Optional[datetime] = Field(default=None)
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class RiskSettings(BaseModel):
@@ -160,6 +185,33 @@ def save_trading_settings(payload: Union[TradingSettings, Dict[str, Any]]) -> Tr
     return TradingSettings.parse_obj(document)
 
 
+def get_macro_settings() -> MacroSettings:
+    """Get macro analysis risk management settings."""
+    with db_client.mongo_client() as client:
+        db = client[db_client.get_database_name()]
+        doc = db[SETTINGS_COLLECTION].find_one({"_id": MACRO_SETTINGS_DOCUMENT_ID})
+    if not doc:
+        return MacroSettings()
+    payload = {key: value for key, value in doc.items() if key != "_id"}
+    baseline = MacroSettings().dict()
+    merged = {**baseline, **payload}
+    return MacroSettings.parse_obj(merged)
+
+
+def save_macro_settings(payload: Union[MacroSettings, Dict[str, Any]]) -> MacroSettings:
+    """Save macro analysis risk management settings."""
+    document = payload.dict() if isinstance(payload, MacroSettings) else payload
+    document["updated_at"] = _utcnow()
+    with db_client.mongo_client() as client:
+        db = client[db_client.get_database_name()]
+        db[SETTINGS_COLLECTION].update_one(
+            {"_id": MACRO_SETTINGS_DOCUMENT_ID},
+            {"$set": document},
+            upsert=True,
+        )
+    return MacroSettings.parse_obj(document)
+
+
 class RiskViolation(Exception):
     def __init__(self, message: str, *, code: str = "risk_violation", details: Optional[Dict[str, Any]] = None):
         super().__init__(message)
@@ -171,9 +223,16 @@ class RiskViolation(Exception):
 class RiskManager:
     """Applies guard rails and raises when trades violate policy."""
 
-    def __init__(self, settings: Optional[TradingSettings] = None) -> None:
+    def __init__(
+        self,
+        settings: Optional[TradingSettings] = None,
+        macro_settings: Optional[MacroSettings] = None,
+    ) -> None:
         self.logger = LOGGER
         self.settings = settings or get_trading_settings()
+        self.macro_settings = macro_settings or get_macro_settings()
+        self._regime_cache: Dict[str, Tuple[float, datetime]] = {}  # symbol -> (multiplier, cached_at)
+        self._regime_adjustments_count = 0  # Track number of regime risk adjustments
 
     # ------------------------------------------------------------------ #
     # Settings management
@@ -186,6 +245,181 @@ class RiskManager:
         updated = save_trading_settings(payload)
         self.settings = updated
         return updated
+
+    def refresh_macro_settings(self) -> MacroSettings:
+        """Refresh macro settings from database."""
+        self.macro_settings = get_macro_settings()
+        return self.macro_settings
+
+    def update_macro_settings(self, payload: Union[MacroSettings, Dict[str, Any]]) -> MacroSettings:
+        """Update and refresh macro settings."""
+        updated = save_macro_settings(payload)
+        self.macro_settings = updated
+        return updated
+
+    # ------------------------------------------------------------------ #
+    # Regime-based risk management
+    # ------------------------------------------------------------------ #
+    def get_regime_multiplier(self, symbol: str) -> Tuple[float, Optional[str]]:
+        """Get position size multiplier based on current market regime.
+        
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USDT')
+            
+        Returns:
+            Tuple of (multiplier, regime_description)
+            - multiplier: Float between 0.3 and 2.0
+            - regime_description: String description of regime (or None if regime risk disabled)
+            
+        The method:
+        1. Returns (1.0, None) if regime risk management is disabled
+        2. Checks cache for recent regime multiplier (TTL configured in settings)
+        3. Queries current regime from macro.regimes collection
+        4. Applies configured multipliers based on trend and volatility regime
+        5. Logs alerts when significant position reduction occurs
+        """
+        # Return neutral multiplier if regime risk disabled
+        if not self.macro_settings.regime_risk_enabled:
+            return (1.0, None)
+        
+        # Check cache
+        now = _utcnow()
+        if symbol in self._regime_cache:
+            cached_multiplier, cached_at = self._regime_cache[symbol]
+            age_seconds = (now - cached_at).total_seconds()
+            if age_seconds < self.macro_settings.regime_cache_ttl_seconds:
+                return (cached_multiplier, "cached")
+        
+        # Query current regime
+        try:
+            from macro.regime import RegimeDetector
+            
+            detector = RegimeDetector()
+            regime = detector.get_latest_regime(symbol)
+            
+            if regime is None:
+                self.logger.warning("No regime data found for %s, using neutral multiplier", symbol)
+                multiplier = 1.0
+                regime_desc = "UNDEFINED"
+            else:
+                # Get multipliers from settings
+                multipliers = self.macro_settings.regime_multipliers
+                
+                # Trend-based multiplier (primary)
+                trend_multiplier = getattr(multipliers, regime.trend_regime.value, 1.0)
+                
+                # Volatility-based multiplier (secondary)
+                volatility_multiplier = getattr(multipliers, regime.volatility_regime.value, 1.0)
+                
+                # Combined multiplier: take minimum of trend and volatility (more conservative)
+                multiplier = min(trend_multiplier, volatility_multiplier)
+                
+                # Ensure multiplier is within bounds [0.3, 2.0]
+                multiplier = max(0.3, min(2.0, multiplier))
+                
+                regime_desc = f"{regime.trend_regime.value}/{regime.volatility_regime.value}"
+                
+                # Check if this is a significant reduction
+                is_significant = multiplier < (1.0 - self.macro_settings.significant_reduction_threshold)
+                
+                # Log significant reductions
+                if self.macro_settings.alert_on_significant_reduction and is_significant:
+                    self.logger.warning(
+                        "Regime-based risk reduction for %s: multiplier=%.2f, regime=%s, confidence=%.2f",
+                        symbol,
+                        multiplier,
+                        regime_desc,
+                        regime.confidence,
+                    )
+                    self.log_breach(
+                        code="regime_risk_reduction",
+                        message=f"Position size reduced to {multiplier:.1%} due to {regime_desc} regime",
+                        context={
+                            "symbol": symbol,
+                            "multiplier": multiplier,
+                            "trend_regime": regime.trend_regime.value,
+                            "volatility_regime": regime.volatility_regime.value,
+                            "confidence": regime.confidence,
+                        },
+                        severity="info",
+                    )
+                
+                # Record metrics
+                try:
+                    from monitor.metrics import record_regime_risk_adjustment, record_regime_cache_size
+                    
+                    record_regime_risk_adjustment(
+                        symbol=symbol,
+                        regime_trend=regime.trend_regime.value,
+                        regime_volatility=regime.volatility_regime.value,
+                        multiplier=multiplier,
+                        is_significant_reduction=is_significant,
+                    )
+                except ImportError:
+                    pass  # Metrics not available
+                
+                self._regime_adjustments_count += 1
+            
+            # Cache the result
+            self._regime_cache[symbol] = (multiplier, now)
+            
+            return (multiplier, regime_desc)
+            
+        except Exception as exc:
+            self.logger.error(
+                "Error getting regime multiplier for %s: %s. Using neutral multiplier.",
+                symbol,
+                exc,
+                exc_info=True,
+            )
+            return (1.0, "error")
+
+    def calculate_position_size(
+        self,
+        *,
+        symbol: str,
+        base_size_usd: float,
+        apply_regime_multiplier: bool = True,
+    ) -> Dict[str, Any]:
+        """Calculate final position size with regime adjustments.
+        
+        Args:
+            symbol: Trading pair symbol
+            base_size_usd: Base position size in USD before adjustments
+            apply_regime_multiplier: Whether to apply regime-based multiplier (default True)
+            
+        Returns:
+            Dictionary with:
+                - final_size_usd: Adjusted position size
+                - base_size_usd: Original base size
+                - regime_multiplier: Applied multiplier
+                - regime_description: Regime state description
+                - regime_adjusted: Whether regime adjustment was applied
+        """
+        result = {
+            "symbol": symbol,
+            "base_size_usd": base_size_usd,
+            "regime_multiplier": 1.0,
+            "regime_description": None,
+            "regime_adjusted": False,
+            "final_size_usd": base_size_usd,
+        }
+        
+        if not apply_regime_multiplier:
+            return result
+        
+        multiplier, regime_desc = self.get_regime_multiplier(symbol)
+        
+        final_size = base_size_usd * multiplier
+        
+        result.update({
+            "regime_multiplier": multiplier,
+            "regime_description": regime_desc,
+            "regime_adjusted": multiplier != 1.0,
+            "final_size_usd": final_size,
+        })
+        
+        return result
 
     # ------------------------------------------------------------------ #
     # Risk calculations
@@ -401,6 +635,15 @@ class RiskManager:
         positions_count = self._positions_count()
         daily_loss = self._daily_realized_loss()
         breaches = self.get_breaches(include_acknowledged=False, limit=20)
+        
+        # Record cache size metric
+        cache_size = len(self._regime_cache)
+        try:
+            from monitor.metrics import record_regime_cache_size
+            record_regime_cache_size(cache_size=cache_size)
+        except ImportError:
+            pass  # Metrics not available
+        
         summary = {
             "generated_at": _utcnow().isoformat(),
             "settings": self._serialise_settings(self.settings),
@@ -414,6 +657,11 @@ class RiskManager:
                 "actor": self.settings.kill_switch.actor,
             },
             "breaches_open": len(breaches),
+            "macro": {
+                "regime_risk_enabled": self.macro_settings.regime_risk_enabled,
+                "regime_adjustments_count": self._regime_adjustments_count,
+                "cached_regimes": cache_size,
+            },
         }
         return summary
 

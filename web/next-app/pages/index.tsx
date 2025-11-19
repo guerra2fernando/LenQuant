@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { useMode } from "@/lib/mode-context";
 import { fetcher } from "../lib/api";
+import { useRegime } from "@/lib/hooks";
+import { MacroRegimeCard } from "@/components/MacroRegimeCard";
 
 type StatusResponse = {
   status: string;
@@ -64,6 +66,7 @@ export default function Home(): JSX.Element {
   const { data: status, mutate: refreshStatus } = useSWR<StatusResponse>("/api/status", fetcher);
   const { data: reports, mutate: refreshReports } = useSWR<ReportsResponse>("/api/reports?limit=3", fetcher);
   const { data: overview, mutate: refreshOverview } = useSWR<AdminOverviewResponse>("/api/admin/overview", fetcher);
+  const { regime: btcRegime, isLoading: isLoadingRegime } = useRegime("BTC/USDT", "1h");
   const [bootstrapResult, setBootstrapResult] = useState<BootstrapResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -343,6 +346,14 @@ export default function Home(): JSX.Element {
           </CardContent>
         </Card>
 
+        {/* Market Regime */}
+        <MacroRegimeCard 
+          symbol="BTC/USDT" 
+          interval="1h" 
+          regimeData={btcRegime} 
+          isLoading={isLoadingRegime}
+        />
+
         {/* Recent Activity */}
         {hasReports && (
           <Card>
@@ -536,6 +547,14 @@ export default function Home(): JSX.Element {
           </div>
         </CardContent>
       </Card>
+
+      {/* Market Regime */}
+      <MacroRegimeCard 
+        symbol="BTC/USDT" 
+        interval="1h" 
+        regimeData={btcRegime} 
+        isLoading={isLoadingRegime}
+      />
 
       {/* Recent Activity */}
       {hasReports && (

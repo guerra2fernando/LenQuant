@@ -58,6 +58,10 @@ class OrderRequest(BaseModel):
     stop_loss: Optional[float] = Field(default=None, ge=0.0)
     take_profit: Optional[float] = Field(default=None, ge=0.0)
     user_id: Optional[str] = Field(default=None)
+    apply_regime_sizing: bool = Field(
+        default=True,
+        description="Apply regime-based position sizing adjustment"
+    )
 
     @validator("side", "type", pre=True)
     def _lowercase(cls, value: str) -> str:
@@ -118,11 +122,32 @@ class OrderManager:
     def place_order(self, request: OrderRequest) -> OrderResponse:
         if request.preview:
             estimated_price = request.price or self.estimate_price(request.symbol, request.side, request.mode)
-            notional = float(request.quantity) * float(estimated_price or 0.0)
+            base_notional = float(request.quantity) * float(estimated_price or 0.0)
+            
+            # Apply regime sizing for preview
+            regime_sizing = None
+            adjusted_quantity = request.quantity
+            if request.apply_regime_sizing:
+                regime_sizing = self.risk_manager.calculate_position_size(
+                    symbol=request.symbol,
+                    base_size_usd=base_notional,
+                    apply_regime_multiplier=True,
+                )
+                adjusted_quantity = (regime_sizing["final_size_usd"] / float(estimated_price or 1.0))
+            
+            final_notional = adjusted_quantity * float(estimated_price or 0.0)
+            
+            # Update request with adjusted quantity for risk check
+            adjusted_request = request.copy(update={"quantity": adjusted_quantity})
             check = self.risk_manager.pre_trade_check(
-                request=request, notional_usd=notional, actor=request.user_id, source=request.source
+                request=adjusted_request, notional_usd=final_notional, actor=request.user_id, source=request.source
             )
-            return self._build_preview_response(request, notional, check)
+            
+            # Add regime info to check result
+            if regime_sizing:
+                check["regime_sizing"] = regime_sizing
+            
+            return self._build_preview_response(adjusted_request, final_notional, check)
 
         connector = self._ensure_connector(request.mode)
         price = request.price
@@ -131,10 +156,42 @@ class OrderManager:
             if price is None:
                 raise ValueError("Price unavailable for order.")
 
-        notional = float(price) * float(request.quantity)
+        base_notional = float(price) * float(request.quantity)
+        
+        # Apply regime-based position sizing
+        regime_sizing = None
+        adjusted_quantity = request.quantity
+        if request.apply_regime_sizing:
+            regime_sizing = self.risk_manager.calculate_position_size(
+                symbol=request.symbol,
+                base_size_usd=base_notional,
+                apply_regime_multiplier=True,
+            )
+            adjusted_quantity = regime_sizing["final_size_usd"] / float(price)
+            
+            # Log regime adjustment
+            if regime_sizing["regime_adjusted"]:
+                self.logger.info(
+                    "Regime sizing applied for %s: base=%.4f, adjusted=%.4f (multiplier=%.2f, regime=%s)",
+                    request.symbol,
+                    request.quantity,
+                    adjusted_quantity,
+                    regime_sizing["regime_multiplier"],
+                    regime_sizing["regime_description"],
+                )
+        
+        final_notional = float(price) * adjusted_quantity
+        
+        # Update request with adjusted quantity
+        adjusted_request = request.copy(update={"quantity": adjusted_quantity})
+        
         risk_result = self.risk_manager.pre_trade_check(
-            request=request, notional_usd=notional, actor=request.user_id, source=request.source
+            request=adjusted_request, notional_usd=final_notional, actor=request.user_id, source=request.source
         )
+        
+        # Add regime info to risk result for audit trail
+        if regime_sizing:
+            risk_result["regime_sizing"] = regime_sizing
 
         client_order_id = request.client_order_id or self._generate_client_order_id()
 
@@ -142,7 +199,7 @@ class OrderManager:
             symbol=request.symbol,
             side=request.side,
             type=request.type,
-            quantity=request.quantity,
+            quantity=adjusted_quantity,  # Use regime-adjusted quantity
             price=price if request.type != "market" else None,
             client_order_id=client_order_id,
             params={
@@ -171,7 +228,7 @@ class OrderManager:
             )
             raise
 
-        order_doc = self._persist_order(request, raw_order, client_order_id, price, risk_result)
+        order_doc = self._persist_order(adjusted_request, raw_order, client_order_id, price, risk_result, regime_sizing)
 
         if order_doc.get("filled_quantity"):
             self._process_fill(order_doc, connector, risk_result)
@@ -381,12 +438,20 @@ class OrderManager:
         client_order_id: str,
         price: float,
         risk_result: Dict[str, Any],
+        regime_sizing: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         status = self._map_status(raw_order.get("status"))
         filled_quantity = float(raw_order.get("filled") or 0.0)
         avg_price = raw_order.get("average")
         now = _utcnow()
         order_id = raw_order.get("client_order_id") or raw_order.get("id") or client_order_id or uuid.uuid4().hex
+        
+        # Merge regime sizing info into metadata
+        metadata = {**request.metadata}
+        if regime_sizing:
+            metadata["regime_sizing"] = regime_sizing
+            metadata["regime_applied"] = request.apply_regime_sizing
+        
         document = {
             "_id": ObjectId(),
             "order_id": order_id,
@@ -405,7 +470,7 @@ class OrderManager:
             "time_in_force": request.time_in_force,
             "strategy_id": request.strategy_id,
             "notes": request.notes,
-            "metadata": request.metadata,
+            "metadata": metadata,
             "tags": request.tags,
             "source": request.source,
             "allow_partial_fills": request.allow_partial_fills,

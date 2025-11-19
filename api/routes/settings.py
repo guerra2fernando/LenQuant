@@ -16,7 +16,14 @@ from assistant import (
 )
 from assistant.llm_worker import LLMWorker, LLMWorkerError
 from db.client import get_database_name, mongo_client
-from exec.risk_manager import TradingSettings, get_trading_settings, save_trading_settings
+from exec.risk_manager import (
+    MacroSettings,
+    TradingSettings,
+    get_macro_settings,
+    get_trading_settings,
+    save_macro_settings,
+    save_trading_settings,
+)
 from evolution.repository import get_autonomy_settings as get_autonomy_settings_doc
 from evolution.repository import update_autonomy_settings as update_autonomy_settings_doc
 from learning.repository import get_learning_settings, update_learning_settings
@@ -171,6 +178,26 @@ class TradingSettingsPayload(BaseModel):
     auto_mode: Optional[Dict[str, Any]] = None
     risk: Optional[Dict[str, Any]] = None
     kill_switch: Optional[Dict[str, Any]] = None
+
+
+class RegimeMultipliersPayload(BaseModel):
+    """Payload for updating regime multipliers."""
+    TRENDING_UP: Optional[float] = Field(None, ge=0.3, le=2.0)
+    TRENDING_DOWN: Optional[float] = Field(None, ge=0.3, le=2.0)
+    SIDEWAYS: Optional[float] = Field(None, ge=0.3, le=2.0)
+    HIGH_VOLATILITY: Optional[float] = Field(None, ge=0.3, le=2.0)
+    LOW_VOLATILITY: Optional[float] = Field(None, ge=0.3, le=2.0)
+    NORMAL_VOLATILITY: Optional[float] = Field(None, ge=0.3, le=2.0)
+    UNDEFINED: Optional[float] = Field(None, ge=0.3, le=2.0)
+
+
+class MacroSettingsPayload(BaseModel):
+    """Payload for updating macro analysis risk settings."""
+    regime_risk_enabled: Optional[bool] = None
+    regime_multipliers: Optional[RegimeMultipliersPayload] = None
+    regime_cache_ttl_seconds: Optional[int] = Field(None, ge=60)
+    alert_on_significant_reduction: Optional[bool] = None
+    significant_reduction_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
 
 
 @router.get("/learning")
@@ -338,3 +365,65 @@ def put_model_settings(payload: ModelSettingsPayload) -> Dict[str, Any]:
         )
 
     return _fetch_settings()
+
+
+def _serialise_macro(settings: MacroSettings) -> Dict[str, Any]:
+    """Serialize MacroSettings for JSON response."""
+    payload = settings.dict()
+    payload["updated_at"] = settings.updated_at.isoformat() if settings.updated_at else None
+    return jsonable_encoder(payload)
+
+
+@router.get("/macro")
+def get_macro_settings_route() -> Dict[str, Any]:
+    """Get current macro analysis risk settings.
+    
+    Returns:
+        Dictionary with macro settings including regime multipliers
+        
+    Example:
+        GET /api/settings/macro
+    """
+    settings = get_macro_settings()
+    return _serialise_macro(settings)
+
+
+@router.put("/macro")
+def put_macro_settings_route(payload: MacroSettingsPayload) -> Dict[str, Any]:
+    """Update macro analysis risk settings.
+    
+    Args:
+        payload: MacroSettingsPayload with fields to update
+        
+    Returns:
+        Updated macro settings dictionary
+        
+    Example:
+        PUT /api/settings/macro
+        {
+            "regime_risk_enabled": true,
+            "regime_multipliers": {
+                "TRENDING_UP": 1.3,
+                "HIGH_VOLATILITY": 0.5
+            }
+        }
+    """
+    current = get_macro_settings()
+    data = current.dict()
+    
+    # Update top-level fields
+    for field in ("regime_risk_enabled", "regime_cache_ttl_seconds", 
+                  "alert_on_significant_reduction", "significant_reduction_threshold"):
+        value = getattr(payload, field)
+        if value is not None:
+            data[field] = value
+    
+    # Update regime multipliers
+    if payload.regime_multipliers is not None:
+        multipliers_dict = data.get("regime_multipliers", {})
+        for field, value in payload.regime_multipliers.dict(exclude_none=True).items():
+            multipliers_dict[field] = value
+        data["regime_multipliers"] = multipliers_dict
+    
+    updated = save_macro_settings(data)
+    return _serialise_macro(updated)

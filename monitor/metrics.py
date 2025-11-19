@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 try:
-    from prometheus_client import Gauge, Histogram
+    from prometheus_client import Counter, Gauge, Histogram
 except ImportError:  # pragma: no cover - optional dependency
+    Counter = None
     Gauge = None
     Histogram = None
 
@@ -45,6 +46,36 @@ else:  # pragma: no cover - fallback
     INTRADAY_BANKROLL_UTIL = None
     INTRADAY_ALERT_COUNT = None
 
+# Macro regime risk metrics
+if Counter:
+    REGIME_RISK_ADJUSTMENTS = Counter(
+        "regime_risk_adjustments_total",
+        "Total number of regime-based risk adjustments applied",
+        ["symbol", "regime_trend", "regime_volatility"],
+    )
+    REGIME_SIGNIFICANT_REDUCTIONS = Counter(
+        "regime_significant_reductions_total",
+        "Total number of significant position reductions due to regime",
+        ["symbol", "regime_trend", "regime_volatility"],
+    )
+else:  # pragma: no cover - fallback
+    REGIME_RISK_ADJUSTMENTS = None
+    REGIME_SIGNIFICANT_REDUCTIONS = None
+
+if Gauge:
+    REGIME_RISK_MULTIPLIER = Gauge(
+        "regime_risk_multiplier",
+        "Current regime-based risk multiplier for a symbol",
+        ["symbol"],
+    )
+    REGIME_CACHE_SIZE = Gauge(
+        "regime_cache_size",
+        "Number of cached regime multipliers",
+    )
+else:  # pragma: no cover - fallback
+    REGIME_RISK_MULTIPLIER = None
+    REGIME_CACHE_SIZE = None
+
 
 def _record_histogram(metric: Histogram | None, *, labels: Dict[str, str], value: float) -> None:
     if metric is None:
@@ -76,3 +107,50 @@ def record_intraday_cohort_metrics(
 
 def observe_cohort_api_latency(*, route: str, latency_seconds: float) -> None:
     _record_histogram(COHORT_API_LATENCY, labels={"route": route}, value=max(latency_seconds, 0.0))
+
+
+def _record_counter(metric: Counter | None, *, labels: Dict[str, str], value: float = 1.0) -> None:
+    """Record a counter metric."""
+    if metric is None:
+        return
+    metric.labels(**labels).inc(value)
+
+
+def record_regime_risk_adjustment(
+    *,
+    symbol: str,
+    regime_trend: str,
+    regime_volatility: str,
+    multiplier: float,
+    is_significant_reduction: bool = False,
+) -> None:
+    """Record a regime-based risk adjustment.
+    
+    Args:
+        symbol: Trading pair symbol
+        regime_trend: Trend regime (e.g., 'TRENDING_UP', 'SIDEWAYS')
+        regime_volatility: Volatility regime (e.g., 'HIGH_VOLATILITY', 'LOW_VOLATILITY')
+        multiplier: Applied risk multiplier
+        is_significant_reduction: Whether this was a significant reduction (>30% default)
+    """
+    labels = {
+        "symbol": symbol,
+        "regime_trend": regime_trend,
+        "regime_volatility": regime_volatility,
+    }
+    
+    _record_counter(REGIME_RISK_ADJUSTMENTS, labels=labels)
+    
+    if is_significant_reduction:
+        _record_counter(REGIME_SIGNIFICANT_REDUCTIONS, labels=labels)
+    
+    _record_gauge(REGIME_RISK_MULTIPLIER, labels={"symbol": symbol}, value=multiplier)
+
+
+def record_regime_cache_size(*, cache_size: int) -> None:
+    """Record the current regime cache size.
+    
+    Args:
+        cache_size: Number of cached regime multipliers
+    """
+    _record_gauge(REGIME_CACHE_SIZE, labels={}, value=float(cache_size))

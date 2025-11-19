@@ -3,3 +3,9 @@ db.features.createIndex({ symbol: 1, interval: 1, timestamp: 1 }, { unique: true
 db.sim_runs.createIndex({ run_id: 1 }, { unique: true })
 db.daily_reports.createIndex({ date: 1 }, { unique: true })
 
+// Macro Analysis - Regime Detection (Phase 1)
+db.macro_regimes.createIndex({ symbol: 1, timestamp: -1 })
+db.macro_regimes.createIndex({ trend_regime: 1, timestamp: -1 })
+db.macro_regimes.createIndex({ volatility_regime: 1, timestamp: -1 })
+db.macro_regimes.createIndex({ symbol: 1, timestamp: 1 }, { unique: true })
+

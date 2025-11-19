@@ -1,7 +1,11 @@
 """Indicator utilities built on top of pandas operations."""
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def add_basic_indicators(df: pd.DataFrame) -> pd.DataFrame:
@@ -30,8 +34,62 @@ def add_basic_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_regime_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """Add regime-specific indicators to the dataframe.
+    
+    Adds:
+    - regime_stability: Measures how stable the regime has been (0-1)
+    - regime_change_flag: Binary flag indicating recent regime change
+    
+    Args:
+        df: Dataframe with regime columns (regime_trend, regime_volatility, regime_duration_bars)
+    
+    Returns:
+        Dataframe with added regime indicators
+    """
+    if df.empty:
+        return df
+    
+    df = df.copy()
+    
+    # Check if regime columns exist
+    if "regime_duration_bars" not in df.columns:
+        logger.warning("Missing regime_duration_bars column, skipping regime indicators")
+        return df
+    
+    # regime_stability: Based on regime duration and confidence
+    # Ranges from 0 (unstable, frequent changes) to 1 (stable, long duration)
+    # Uses sigmoid-like function: stability = 1 - exp(-duration/scale)
+    stability_scale = 20.0  # Bars needed to reach ~63% stability
+    df["regime_stability"] = 1.0 - pd.np.exp(-df["regime_duration_bars"] / stability_scale)
+    
+    # Boost stability by confidence if available
+    if "regime_confidence" in df.columns:
+        df["regime_stability"] = df["regime_stability"] * df["regime_confidence"]
+    
+    # regime_change_flag: 1 if regime changed in last N bars, 0 otherwise
+    lookback_bars = 5  # Flag recent regime changes in last 5 bars
+    df["regime_change_flag"] = (df["regime_duration_bars"] < lookback_bars).astype(int)
+    
+    return df
+
+
 def clean_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Clean and select feature columns for model training.
+    
+    Drops NaN values and selects relevant feature columns including:
+    - Technical indicators
+    - Regime features (if present)
+    
+    Args:
+        df: Raw feature dataframe
+    
+    Returns:
+        Cleaned dataframe with selected features
+    """
     df = df.dropna()
+    
+    # Base technical features
     feature_cols = [
         "return_1",
         "ema_9",
@@ -42,5 +100,24 @@ def clean_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
         "macd_hist",
         "volatility_1h",
     ]
-    return df[feature_cols]
+    
+    # Add regime features if present
+    regime_cols = [
+        "regime_trend",
+        "regime_volatility",
+        "regime_confidence",
+        "regime_duration_bars",
+        "regime_stability",
+        "regime_change_flag",
+    ]
+    
+    # Only include regime columns that exist in dataframe
+    for col in regime_cols:
+        if col in df.columns:
+            feature_cols.append(col)
+    
+    # Filter to available columns
+    available_cols = [col for col in feature_cols if col in df.columns]
+    
+    return df[available_cols]
 

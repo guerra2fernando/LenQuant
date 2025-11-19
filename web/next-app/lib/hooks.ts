@@ -1,7 +1,8 @@
 /* eslint-disable */
 // @ts-nocheck
 import { useEffect, useRef, useState } from "react";
-import { buildWebSocketUrl } from "./api";
+import useSWR from "swr";
+import { buildWebSocketUrl, fetcher, buildRegimeUrl, buildRegimeBatchUrl } from "./api";
 
 export function useWebSocket<T = any>(url: string | null, options?: { enabled?: boolean; onMessage?: (data: T) => void }) {
   const [data, setData] = useState<T | null>(null);
@@ -78,5 +79,38 @@ export function useWebSocket<T = any>(url: string | null, options?: { enabled?: 
   }, [url, enabled, options?.onMessage]);
 
   return { data, isConnected, error };
+}
+
+// Regime data hooks
+export function useRegime(symbol: string, interval: string = "1h") {
+  const url = symbol ? buildRegimeUrl(symbol, interval) : null;
+  const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
+    refreshInterval: 60000, // Refresh every minute
+    revalidateOnFocus: true,
+  });
+
+  return {
+    regime: data,
+    isLoading,
+    isError: !!error,
+    error,
+    refresh: mutate,
+  };
+}
+
+export function useRegimeBatch(symbols: string[], interval: string = "1h") {
+  const url = symbols.length > 0 ? buildRegimeBatchUrl(symbols, interval) : null;
+  const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
+    refreshInterval: 60000, // Refresh every minute
+    revalidateOnFocus: true,
+  });
+
+  return {
+    regimes: data?.regimes ?? [],
+    isLoading,
+    isError: !!error,
+    error,
+    refresh: mutate,
+  };
 }
 
