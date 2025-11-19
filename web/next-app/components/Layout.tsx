@@ -61,7 +61,7 @@ export function Layout({ children }: Props) {
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-foreground">
               <Image
-                src="/logo.png"
+                src="/images/logo.png"
                 alt="LenQuant Logo"
                 width={32}
                 height={32}
