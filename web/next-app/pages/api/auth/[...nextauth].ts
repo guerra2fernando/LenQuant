@@ -20,9 +20,10 @@ export const authOptions: NextAuthOptions = {
 
       try {
         // Call our backend to verify and get JWT
-        // Use environment variable or relative URL for production (nginx proxy)
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL ||
-                      (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000');
+        // NextAuth runs on server-side, so we need full URL for fetch
+        const apiUrl = process.env.NODE_ENV === 'production'
+          ? 'http://api:8000'  // Docker internal network
+          : 'http://localhost:8000';
         const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
           method: 'POST',
           headers: {
@@ -58,18 +59,20 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = user.accessToken;
         token.backendUser = user.backendUser;
         token.accessTokenExpires = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
+        token.error = undefined; // Clear any previous errors
         return token;
       }
 
       // Check if access token is expired or close to expiring (within 5 minutes)
       const expirationThreshold = 5 * 60 * 1000; // 5 minutes
-      if (token.accessTokenExpires && Date.now() > (token.accessTokenExpires - expirationThreshold)) {
+      if (token.accessTokenExpires && Date.now() > (Number(token.accessTokenExpires) - expirationThreshold)) {
         console.log('Access token expired or close to expiring, refreshing...');
 
         try {
           // Try to refresh the token
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL ||
-                        (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000');
+          const apiUrl = process.env.NODE_ENV === 'production'
+            ? 'http://api:8000'  // Docker internal network
+            : 'http://localhost:8000';
           const response = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
             method: 'POST',
             headers: {
@@ -83,14 +86,21 @@ export const authOptions: NextAuthOptions = {
             console.log('Token refreshed successfully');
             token.accessToken = data.access_token;
             token.accessTokenExpires = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
+            token.error = undefined; // Clear any errors
             return token;
           } else {
-            console.log('Token refresh failed, user needs to re-authenticate');
-            return null;
+            console.log('Token refresh failed, marking token as invalid');
+            // Mark token as invalid but still return JWT object
+            token.accessToken = undefined;
+            token.error = 'RefreshFailed';
+            return token;
           }
         } catch (error) {
           console.error('Token refresh error:', error);
-          return null;
+          // Mark token as invalid but still return JWT object
+          token.accessToken = undefined;
+          token.error = 'RefreshError';
+          return token;
         }
       }
 
@@ -98,9 +108,14 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // If token is null (expired), session will be invalidated
-      if (!token || !token.accessToken) {
-        return null;
+      // If token is invalid (no accessToken or has error), invalidate session
+      if (!token || !token.accessToken || token.error) {
+        // Return session with expired date to invalidate it
+        return {
+          ...session,
+          expires: new Date(Date.now() - 1000).toISOString(), // Already expired
+          user: session.user, // Keep user for cleanup but mark as invalid
+        };
       }
 
       // Send properties to the client - use backend JWT, not NextAuth JWT

@@ -2,7 +2,7 @@ import "next-auth";
 
 declare module "next-auth" {
   interface Session {
-    accessToken: string;
+    accessToken?: string;
     user: {
       id: string;
       email: string;
@@ -10,6 +10,7 @@ declare module "next-auth" {
       picture?: string;
       is_admin: boolean;
     };
+    expires: string;
   }
 
   interface User {
@@ -22,6 +23,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     accessToken?: string;
     backendUser?: any;
+    accessTokenExpires?: number;
+    error?: string;
   }
 }
 
