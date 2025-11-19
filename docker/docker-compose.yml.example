@@ -17,11 +17,21 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
+    env_file:
+      - ../.env
     environment:
       - MONGO_URI=mongodb://mongo:27017/lenquant
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CELERY_EXPERIMENT_QUEUE=experiments
+      # Authentication variables
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRATION_MINUTES=${JWT_EXPIRATION_MINUTES:-60}
+      - ALLOWED_GOOGLE_EMAILS=${ALLOWED_GOOGLE_EMAILS}
+      - SYSTEM_ADMIN_TOKEN=${SYSTEM_ADMIN_TOKEN}
     ports:
       - "8000:8000"
     depends_on:
@@ -32,8 +42,14 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.next
+    env_file:
+      - ../.env
     environment:
       - NEXT_PUBLIC_API_URL=http://api:8000
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://lenquant.com}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
     ports:
       - "3000:3000"
     depends_on:
@@ -45,6 +61,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.python
     command: celery -A manager.tasks:celery_app worker --loglevel=info
+    env_file:
+      - ../.env
     environment:
       - MONGO_URI=mongodb://mongo:27017/lenquant
       - CELERY_BROKER_URL=redis://redis:6379/0
