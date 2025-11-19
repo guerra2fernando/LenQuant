@@ -126,9 +126,27 @@ export const CRYPTO_LOGOS: Record<string, string> = {
   'grin': 'https://assets.coingecko.com/coins/images/10031/small/Grin.png',
 };
 
+// Generate SVG data URL for fallback placeholder
+function generatePlaceholderSVG(symbol: string, size: number = 24): string {
+  const baseSymbol = symbol.split('/')[0].toUpperCase();
+  const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
+  const colorIndex = baseSymbol.length % colors.length;
+  const bgColor = colors[colorIndex];
+  const textColor = '#ffffff';
+
+  const svg = `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="${bgColor}"/>
+      <text x="${size/2}" y="${size/2 + 3}" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="${textColor}" text-anchor="middle">${baseSymbol.slice(0, 4)}</text>
+    </svg>
+  `.trim();
+
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
 export function getCryptoLogo(symbol: string): string {
   const baseSymbol = symbol.split('/')[0].toLowerCase();
-  return CRYPTO_LOGOS[baseSymbol] || `https://via.placeholder.com/24x24/gray/white?text=${baseSymbol.toUpperCase()}`;
+  return CRYPTO_LOGOS[baseSymbol] || generatePlaceholderSVG(symbol);
 }
 
 // Get all predefined cryptocurrency symbols with /USD suffix
@@ -235,9 +253,9 @@ export function CryptoSelector({
                   alt={symbol}
                   className="w-4 h-4 rounded-full"
                   onError={(e) => {
-                    // Fallback to placeholder if image fails to load
+                    // Fallback to SVG placeholder if image fails to load
                     const target = e.target as HTMLImageElement;
-                    target.src = `https://via.placeholder.com/24x24/gray/white?text=${symbol.split('/')[0]}`;
+                    target.src = generatePlaceholderSVG(symbol, 16);
                   }}
                 />
                 <span className="flex items-center gap-1">
@@ -345,7 +363,7 @@ export function CryptoSelector({
                         className="w-6 h-6 rounded-full"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          target.src = `https://via.placeholder.com/24x24/gray/white?text=${symbol.split('/')[0]}`;
+                          target.src = generatePlaceholderSVG(symbol, 24);
                         }}
                       />
                       <span className="flex-1 truncate">{symbol}</span>
@@ -379,6 +397,33 @@ export function CryptoSelector({
       <div className="text-xs text-muted-foreground">
         {predefinedSymbols.length} predefined + {availableSymbols.length} configured + {customSymbols.length} custom cryptocurrencies available
       </div>
+    </div>
+  );
+}
+
+// Reusable component for displaying cryptocurrency symbols with logos
+interface SymbolDisplayProps {
+  symbol: string;
+  showText?: boolean;
+  logoSize?: number;
+  className?: string;
+}
+
+export function SymbolDisplay({ symbol, showText = true, logoSize = 16, className }: SymbolDisplayProps) {
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <img
+        src={getCryptoLogo(symbol)}
+        alt={symbol}
+        className={`rounded-full flex-shrink-0`}
+        style={{ width: logoSize, height: logoSize }}
+        onError={(e) => {
+          // Fallback to SVG placeholder if image fails to load
+          const target = e.target as HTMLImageElement;
+          target.src = generatePlaceholderSVG(symbol, logoSize);
+        }}
+      />
+      {showText && <span className="font-medium">{symbol}</span>}
     </div>
   );
 }

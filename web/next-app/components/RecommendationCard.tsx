@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ApprovalModal } from "@/components/ApprovalModal";
 import { Button } from "@/components/ui/button";
 import { CardDescription } from "@/components/ui/card";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { useMode } from "@/lib/mode-context";
 
 type Recommendation = {
@@ -67,8 +68,9 @@ export function RecommendationCard({ recommendation, onDecision }: Recommendatio
     <div className="rounded-lg border border-border bg-card/80 p-4 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">
-            {recommendation.symbol} {isEasyMode ? "" : `· ${recommendation.horizon}`}
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <SymbolDisplay symbol={recommendation.symbol} logoSize={18} />
+            {isEasyMode ? "" : `· ${recommendation.horizon}`}
           </h3>
           <p className="text-xs text-muted-foreground">
             {isEasyMode ? (

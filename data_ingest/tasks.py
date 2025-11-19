@@ -3,15 +3,10 @@ from __future__ import annotations
 
 from typing import Dict, Any
 
-from celery import Celery
+from celery_config import celery_app
 
 from data_ingest.config import IngestConfig
 from data_ingest.fetcher import fetch_symbol_interval
-
-# Create Celery app
-celery_app = Celery('cryptotrader')
-celery_app.conf.broker_url = 'redis://localhost:6379/0'
-celery_app.conf.result_backend = 'redis://localhost:6379/0'
 
 
 @celery_app.task(name="data_ingest.tasks.fetch_recent_data", bind=True)

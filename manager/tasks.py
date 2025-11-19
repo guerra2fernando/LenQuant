@@ -1,32 +1,14 @@
 from __future__ import annotations
 
-import os
 from typing import Any, Dict
 
-from celery import Celery
+from celery_config import celery_app
 
 from evolution.engine import EvolutionEngine
 from exec.settlement import SettlementEngine
 from knowledge.base import KnowledgeBaseService
 from manager.experiment_runner import ExperimentRequest, run_experiment_cycle
 from data_ingest.retention import run_data_retention_maintenance
-
-BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", BROKER_URL)
-EXPERIMENT_QUEUE = os.getenv("CELERY_EXPERIMENT_QUEUE", "experiments")
-
-celery_app = Celery(
-    "cryptotrader",
-    broker=BROKER_URL,
-    backend=RESULT_BACKEND,
-)
-
-celery_app.conf.task_routes = {
-    "manager.tasks.run_experiment_cycle_task": {"queue": EXPERIMENT_QUEUE},
-    "manager.tasks.run_autonomous_evolution": {"queue": EXPERIMENT_QUEUE},
-    "manager.tasks.run_daily_reconciliation": {"queue": EXPERIMENT_QUEUE},
-    "manager.tasks.run_data_retention_maintenance": {"queue": EXPERIMENT_QUEUE},
-}
 
 _evolution_engine = EvolutionEngine(knowledge_service=KnowledgeBaseService())
 

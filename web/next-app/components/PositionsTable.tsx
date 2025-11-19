@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { useMode } from "@/lib/mode-context";
 import { formatNumber } from "@/lib/utils";
 
@@ -75,7 +76,9 @@ export function PositionsTable({ positions, mode }: PositionsTableProps) {
           <TableBody>
             {positions.map((position) => (
               <TableRow key={`${position.symbol}-${position.mode ?? mode}`}>
-                <TableCell className="font-medium">{position.symbol}</TableCell>
+                <TableCell>
+                  <SymbolDisplay symbol={position.symbol} />
+                </TableCell>
                 <TableCell>{(position.side ?? "long").toUpperCase()}</TableCell>
                 <TableCell>{formatNumber(position.quantity, 4)}</TableCell>
                 <TableCell>${formatNumber(position.avg_entry_price ?? 0, 2)}</TableCell>

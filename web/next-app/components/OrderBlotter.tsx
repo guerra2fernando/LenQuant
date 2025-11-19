@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { useMode } from "@/lib/mode-context";
 import { formatNumber } from "@/lib/utils";
 
@@ -95,7 +96,9 @@ export function OrderBlotter({ orders, onCancel, onSync, onAmend }: OrderBlotter
                       <span className="text-xs text-muted-foreground">{order.client_order_id || "—"}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{order.symbol}</TableCell>
+                  <TableCell>
+                    <SymbolDisplay symbol={order.symbol} />
+                  </TableCell>
                   <TableCell className={order.side === "buy" ? "text-emerald-500" : "text-red-500"}>
                     {order.side.toUpperCase()}
                   </TableCell>

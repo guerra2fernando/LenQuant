@@ -1,6 +1,7 @@
 import { ConfidenceIndicator } from "@/components/ConfidenceIndicator";
 import { EmptyState } from "@/components/EmptyState";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Badge } from "@/components/ui/badge";
 import { ForecastSparkline } from "@/components/ForecastSparkline";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,7 +131,9 @@ export function ForecastTable({ data, isLoading, lastUpdated, history }: Props) 
 
             return (
               <TableRow key={`${row.symbol}-${row.timestamp}`} className={cn(row.error && "bg-destructive/10")}>
-                <TableCell className="font-medium">{row.symbol}</TableCell>
+                <TableCell>
+                  <SymbolDisplay symbol={row.symbol} />
+                </TableCell>
                 <TableCell>
                   {row.error ? (
                     <span className="text-sm text-destructive">{row.error}</span>

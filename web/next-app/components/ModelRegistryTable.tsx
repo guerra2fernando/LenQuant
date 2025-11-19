@@ -1,6 +1,7 @@
 import React from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -97,7 +98,9 @@ export function ModelRegistryTable({ items, isLoading, onRetrain, onSelect, sele
                   }}
                 >
                   <TableCell className="font-mono text-xs">{record.model_id}</TableCell>
-                  <TableCell>{record.symbol}</TableCell>
+                  <TableCell>
+                    <SymbolDisplay symbol={record.symbol} />
+                  </TableCell>
                   <TableCell>{record.horizon}</TableCell>
                   <TableCell>{record.status ?? "—"}</TableCell>
                   <TableCell>{record.algorithm ?? "—"}</TableCell>
