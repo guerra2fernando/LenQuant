@@ -144,14 +144,39 @@ async def get_current_user_info(
     return current_user
 
 
+@router.post("/refresh")
+async def refresh_token(current_user: User = Depends(get_current_user)) -> Token:
+    """
+    Refresh JWT token for current user.
+
+    Creates a new JWT token with extended expiration.
+    """
+    from api.auth.jwt import create_access_token
+    from datetime import timedelta
+
+    # Create new JWT token with fresh expiration
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"user_id": current_user.id, "email": current_user.email},
+        expires_delta=access_token_expires,
+    )
+
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
+        user=current_user,
+    )
+
+
 @router.post("/logout")
 async def logout() -> Dict[str, str]:
     """
     Logout current user.
-    
+
     In Phase 1, this is mostly a no-op since JWT tokens
     can't be invalidated. In Phase 2, we'll add token blacklist.
-    
+
     Frontend should delete the token from storage.
     """
     return {"message": "Logged out successfully"}
