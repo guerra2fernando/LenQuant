@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import useSWR from "swr";
-import { ArrowRight, CheckCircle2, TrendingUp, Database, Sparkles, BarChart3, X, Plus } from "lucide-react";
+import { ArrowRight, CheckCircle2, TrendingUp, Database, Sparkles, BarChart3 } from "lucide-react";
 
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
+import { CryptoSelector, getCryptoLogo } from "@/components/CryptoSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +50,6 @@ export default function GetStarted(): JSX.Element {
   // Symbol and interval management
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
   const [selectedIntervals, setSelectedIntervals] = useState<string[]>(DEFAULT_INTERVALS);
-  const [newSymbol, setNewSymbol] = useState<string>("");
   const [lookbackDays, setLookbackDays] = useState<number>(30);
 
   // Fetch available symbols from the API
@@ -75,23 +75,6 @@ export default function GetStarted(): JSX.Element {
 
   const handleStartSetup = () => {
     setCurrentStep("data");
-  };
-
-  const handleAddSymbol = () => {
-    const trimmed = newSymbol.trim().toUpperCase();
-    if (!trimmed) return;
-    
-    // Add /USD suffix if not present
-    const formatted = trimmed.includes("/") ? trimmed : `${trimmed}/USD`;
-    
-    if (!selectedSymbols.includes(formatted)) {
-      setSelectedSymbols([...selectedSymbols, formatted]);
-    }
-    setNewSymbol("");
-  };
-
-  const handleRemoveSymbol = (symbol: string) => {
-    setSelectedSymbols(selectedSymbols.filter(s => s !== symbol));
   };
 
   const handleToggleInterval = (interval: string) => {
@@ -254,50 +237,13 @@ export default function GetStarted(): JSX.Element {
                   Configure which cryptocurrencies and timeframes you want to track. You can always change these later in Settings.
                 </p>
 
-                {/* Selected Cryptocurrencies */}
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Cryptocurrencies</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedSymbols.map(symbol => (
-                      <Badge key={symbol} variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5">
-                        {symbol}
-                        <button
-                          onClick={() => handleRemoveSymbol(symbol)}
-                          className="ml-1 hover:text-destructive"
-                          type="button"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {/* Add new symbol */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Enter symbol (e.g., BTC, ETH, SOL)"
-                      value={newSymbol}
-                      onChange={(e) => setNewSymbol(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddSymbol();
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                    <Button onClick={handleAddSymbol} variant="outline" size="icon">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  {availableSymbols.length > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      Available: {availableSymbols.slice(0, 10).join(", ")}
-                      {availableSymbols.length > 10 && ` and ${availableSymbols.length - 10} more`}
-                    </div>
-                  )}
-                </div>
+                {/* Cryptocurrency Selector */}
+                <CryptoSelector
+                  availableSymbols={availableSymbols}
+                  selectedSymbols={selectedSymbols}
+                  onSelectionChange={setSelectedSymbols}
+                  placeholder="Select cryptocurrencies to track..."
+                />
 
                 {/* Timeframes */}
                 <div className="space-y-3">
@@ -370,7 +316,18 @@ export default function GetStarted(): JSX.Element {
                         <p className="text-sm font-medium mb-2">Cryptocurrencies:</p>
                         <div className="flex flex-wrap gap-2">
                           {selectedSymbols.map(symbol => (
-                            <Badge key={symbol} variant="secondary">{symbol}</Badge>
+                            <Badge key={symbol} variant="secondary" className="flex items-center gap-1.5">
+                              <img
+                                src={getCryptoLogo(symbol)}
+                                alt={symbol}
+                                className="w-4 h-4 rounded-full"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = `https://via.placeholder.com/24x24/gray/white?text=${symbol.split('/')[0]}`;
+                                }}
+                              />
+                              {symbol}
+                            </Badge>
                           ))}
                         </div>
                       </div>
