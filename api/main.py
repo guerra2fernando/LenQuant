@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes import (
     admin,
     assistant,
+    auth,
     evolution,
     experiments,
     forecast,
@@ -26,12 +27,19 @@ app = FastAPI(title="LenQuant Core API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://lenquant.com",  
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Auth router (PUBLIC - no authentication required)
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+
+# Existing routers
 app.include_router(runs.router, prefix="/api/run")
 app.include_router(reports.router, prefix="/api/reports")
 app.include_router(models.router, prefix="/api/models")

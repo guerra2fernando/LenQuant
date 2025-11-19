@@ -1,3 +1,5 @@
+import { getSession } from "next-auth/react";
+
 function resolveApiBase(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
 
@@ -31,9 +33,41 @@ export function buildApiUrl(path: string): string {
   return path.startsWith("http") ? path : `${base}${path}`;
 }
 
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const session = await getSession();
+  
+  if (!session?.accessToken) {
+    return {
+      "Content-Type": "application/json",
+    };
+  }
+  
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${session.accessToken}`,
+  };
+}
+
 export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
   const url = buildApiUrl(path);
-  const res = await fetch(url, init);
+  const headers = await getAuthHeaders();
+  
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      ...headers,
+      ...(init?.headers || {}),
+    },
+  });
+  
+  if (res.status === 401) {
+    // Token expired, redirect to login
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Unauthorized");
+  }
+  
   if (!res.ok) {
     throw new Error(`API request failed: ${res.status}`);
   }
@@ -42,15 +76,25 @@ export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function postJson<T>(path: string, body: unknown, init?: RequestInit): Promise<T> {
   const url = buildApiUrl(path);
+  const headers = await getAuthHeaders();
+  
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      ...headers,
       ...(init?.headers || {}),
     },
     body: JSON.stringify(body),
     ...init,
   });
+  
+  if (res.status === 401) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Unauthorized");
+  }
+  
   if (!res.ok) {
     const message = await res.text();
     throw new Error(message || `API request failed: ${res.status}`);
@@ -60,15 +104,25 @@ export async function postJson<T>(path: string, body: unknown, init?: RequestIni
 
 export async function putJson<T>(path: string, body: unknown, init?: RequestInit): Promise<T> {
   const url = buildApiUrl(path);
+  const headers = await getAuthHeaders();
+  
   const res = await fetch(url, {
     method: "PUT",
     headers: {
-      "Content-Type": "application/json",
+      ...headers,
       ...(init?.headers || {}),
     },
     body: JSON.stringify(body),
     ...init,
   });
+  
+  if (res.status === 401) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Unauthorized");
+  }
+  
   if (!res.ok) {
     const message = await res.text();
     throw new Error(message || `API request failed: ${res.status}`);

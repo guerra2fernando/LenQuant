@@ -1,8 +1,10 @@
 /* eslint-disable */
 // @ts-nocheck
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
+import { LogOut, User } from "lucide-react";
 
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ModeToggle } from "@/components/ModeToggle";
@@ -35,6 +37,7 @@ export function Layout({ children }: Props) {
   const router = useRouter();
   const pathname = router.pathname;
   const { isEasyMode } = useMode();
+  const { data: session } = useSession();
 
   const navItems = isEasyMode ? EASY_MODE_NAV_ITEMS : ADVANCED_MODE_NAV_ITEMS;
 
@@ -43,6 +46,11 @@ export function Layout({ children }: Props) {
       return pathname === "/";
     }
     return pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    await signOut({ redirect: false });
+    router.push("/login");
   };
 
   return (
@@ -72,6 +80,40 @@ export function Layout({ children }: Props) {
             <ModeToggle />
             <NotificationCenter />
             <ThemeToggle />
+            
+            {/* User Menu */}
+            {session?.user && (
+              <div className="flex items-center gap-3 pl-3 border-l border-border">
+                <div className="flex items-center gap-2">
+                  {session.user.picture ? (
+                    <img
+                      src={session.user.picture}
+                      alt={session.user.name}
+                      className="h-8 w-8 rounded-full"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="h-4 w-4" />
+                    </div>
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      {session.user.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {session.user.email}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-md hover:bg-accent transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>

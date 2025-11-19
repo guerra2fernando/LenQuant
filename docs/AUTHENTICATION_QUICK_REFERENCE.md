@@ -66,26 +66,26 @@ Quick links and checklist for implementing authentication in LenQuant.
 - [ ] Set `ALLOWED_GOOGLE_EMAILS` (your email)
 
 ### Backend Implementation
-- [ ] Install dependencies (`python-jose`, `google-auth`, etc.)
-- [ ] Create `db/models/user.py` (User model)
-- [ ] Create `api/auth/jwt.py` (JWT utilities)
-- [ ] Create `db/repositories/user_repository.py` (User CRUD)
-- [ ] Create `api/auth/dependencies.py` (Auth dependencies)
-- [ ] Create `api/routes/auth.py` (Auth endpoints)
-- [ ] Update `api/main.py` (add auth router)
+- [x] Install dependencies (`python-jose`, `google-auth`, etc.)
+- [x] Create `db/models/user.py` (User model)
+- [x] Create `api/auth/jwt.py` (JWT utilities)
+- [x] Create `db/repositories/user_repository.py` (User CRUD)
+- [x] Create `api/auth/dependencies.py` (Auth dependencies)
+- [x] Create `api/routes/auth.py` (Auth endpoints)
+- [x] Update `api/main.py` (add auth router)
 - [ ] Protect existing routes (add `Depends(get_current_user)`)
 - [ ] Run migration: `python db/migrations/001_add_users.py`
 
 ### Frontend Implementation
-- [ ] Install `next-auth` package
-- [ ] Create `pages/api/auth/[...nextauth].ts` (NextAuth config)
+- [x] Install `next-auth` package
+- [x] Create `pages/api/auth/[...nextauth].ts` (NextAuth config)
 - [ ] Update `.env.local` (frontend env vars)
-- [ ] Create `types/next-auth.d.ts` (TypeScript types)
-- [ ] Create `pages/login.tsx` (login page)
-- [ ] Create `middleware.ts` (route protection)
-- [ ] Update `pages/_app.tsx` (SessionProvider)
-- [ ] Update `lib/api.ts` (include JWT in requests)
-- [ ] Update `components/Layout.tsx` (user menu)
+- [x] Create `types/next-auth.d.ts` (TypeScript types)
+- [x] Create `pages/login.tsx` (login page)
+- [x] Create `middleware.ts` (route protection)
+- [x] Update `pages/_app.tsx` (SessionProvider)
+- [x] Update `lib/api.ts` (include JWT in requests)
+- [x] Update `components/Layout.tsx` (user menu)
 
 ### Testing
 - [ ] Backend starts without errors
