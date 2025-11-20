@@ -116,7 +116,8 @@ celery_app.conf.update(
     timezone='UTC',
 
     # Worker settings for better resilience
-    worker_prefetch_multiplier=1,  # Prevent task starvation
+    worker_prefetch_multiplier=8,  # Allow parallel task processing (was 1)
+    worker_concurrency=8,  # Process up to 4 tasks concurrently
     worker_max_tasks_per_child=1000,  # Restart worker processes periodically
     worker_disable_rate_limits=False,
 

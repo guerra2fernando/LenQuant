@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Save, Database, HardDrive, Clock, CheckCircle } from 'lucide-react';
+import { buildApiUrl } from '@/lib/api';
 
 interface DataRetentionSettings {
   tier1_days: number;
@@ -38,7 +39,8 @@ export default function DataRetentionTab() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/settings/data-retention');
+      const url = buildApiUrl('/api/settings/data-retention');
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch settings');
       }
@@ -63,7 +65,8 @@ export default function DataRetentionTab() {
       setError(null);
       setSuccess(false);
 
-      const response = await fetch('/api/settings/data-retention', {
+      const url = buildApiUrl('/api/settings/data-retention');
+      const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

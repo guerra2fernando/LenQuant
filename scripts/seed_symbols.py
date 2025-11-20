@@ -23,12 +23,16 @@ def seed(symbols: List[str] | None = None) -> int:
                     "symbol": symbol,
                     "base_increment": 0.0001,
                     "quote_increment": 0.01,
+                    "enabled": True,  # Enable symbols by default
                 }
             )
         for symbol_doc in bulk:
             db["symbols"].update_one(
                 {"symbol": symbol_doc["symbol"]},
-                {"$setOnInsert": symbol_doc},
+                {
+                    "$setOnInsert": symbol_doc,
+                    "$set": {"enabled": True}  # Always set enabled on seed
+                },
                 upsert=True,
             )
     return len(symbols)

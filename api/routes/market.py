@@ -25,6 +25,8 @@ def get_ohlcv(
     
     Returns data in lightweight-charts compatible format.
     """
+    print(f"[Market API] OHLCV request - Symbol: {symbol}, Interval: {interval}, Limit: {limit}")
+    
     with mongo_client() as client:
         db = client[get_database_name()]
         
@@ -36,6 +38,8 @@ def get_ohlcv(
                 query["timestamp"]["$gte"] = start_time
             if end_time:
                 query["timestamp"]["$lte"] = end_time
+        
+        print(f"[Market API] MongoDB query: {query}")
         
         # Fetch candles
         cursor = (
@@ -56,7 +60,10 @@ def get_ohlcv(
                 "volume": float(doc["volume"]),
             })
         
+        print(f"[Market API] Found {len(candles)} candles for {symbol} {interval}")
+        
         if not candles:
+            print(f"[Market API] ERROR: No data found for {symbol} {interval}")
             raise HTTPException(
                 status_code=404,
                 detail=f"No OHLCV data found for {symbol} {interval}"
@@ -109,17 +116,22 @@ def get_available_symbols() -> Dict[str, Any]:
     Get list of all symbols with available OHLCV data.
     Reuses inventory logic from admin.py.
     """
+    print("[Market API] Fetching available symbols...")
+    
     with mongo_client() as client:
         db = client[get_database_name()]
         
         # Get unique symbols from ohlcv collection
         symbols = db["ohlcv"].distinct("symbol")
+        print(f"[Market API] Found {len(symbols)} unique symbols: {symbols}")
         
         # Get intervals available per symbol
         symbol_intervals = {}
         for symbol in symbols:
             intervals = db["ohlcv"].find({"symbol": symbol}).distinct("interval")
             symbol_intervals[symbol] = sorted(intervals)
+        
+        print(f"[Market API] Symbol intervals: {symbol_intervals}")
         
         return {
             "symbols": sorted(symbols),

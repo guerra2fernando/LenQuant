@@ -529,6 +529,77 @@ def retry_batch(parent_job_id: str) -> Dict[str, Any]:
         }
 
 
+@router.post("/symbols/{symbol}/enable")
+def enable_symbol(symbol: str) -> Dict[str, Any]:
+    """
+    Enable a symbol for data ingestion.
+    
+    Enabled symbols will be included in:
+    - Scheduled data fetches (hourly)
+    - Gap detection and backfilling (daily)
+    - "Refresh All" operations
+    """
+    from urllib.parse import unquote
+    symbol = unquote(symbol)
+    
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        
+        result = db["symbols"].update_one(
+            {"symbol": symbol},
+            {"$set": {"enabled": True}},
+            upsert=True
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Symbol {symbol} not found"
+            )
+        
+        return {
+            "symbol": symbol,
+            "enabled": True,
+            "message": f"Symbol {symbol} enabled successfully"
+        }
+
+
+@router.post("/symbols/{symbol}/disable")
+def disable_symbol(symbol: str) -> Dict[str, Any]:
+    """
+    Disable a symbol from data ingestion.
+    
+    Disabled symbols will be excluded from:
+    - Scheduled data fetches (hourly)
+    - Gap detection and backfilling (daily)
+    - "Refresh All" operations
+    
+    Note: Existing data for this symbol will NOT be deleted.
+    """
+    from urllib.parse import unquote
+    symbol = unquote(symbol)
+    
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        
+        result = db["symbols"].update_one(
+            {"symbol": symbol},
+            {"$set": {"enabled": False}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Symbol {symbol} not found"
+            )
+        
+        return {
+            "symbol": symbol,
+            "enabled": False,
+            "message": f"Symbol {symbol} disabled successfully"
+        }
+
+
 @router.get("/stream-status/{job_id}")
 async def stream_job_status(job_id: str):
     """

@@ -41,11 +41,15 @@ export default function TerminalPage() {
   const [tradingMode, setTradingMode] = useState<string>("paper");
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.8);
 
+  console.log('[Terminal] Render - Symbol:', selectedSymbol, 'Interval:', selectedInterval, 'Mode:', tradingMode);
+
   // Fetch available symbols
-  const { data: symbolsData, isLoading: loadingSymbols } = useSWR(
+  const { data: symbolsData, isLoading: loadingSymbols, error: symbolsError } = useSWR(
     "/api/market/symbols",
     fetcher
   );
+
+  console.log('[Terminal] Symbols data:', symbolsData, 'Loading:', loadingSymbols, 'Error:', symbolsError);
 
   // Fetch inventory to get last update times
   const { data: inventoryData } = useSWR("/api/admin/overview", fetcher);
@@ -57,7 +61,9 @@ export default function TerminalPage() {
   );
 
   const availableSymbols = useMemo(() => {
-    return symbolsData?.symbols ?? [];
+    const symbols = symbolsData?.symbols ?? [];
+    console.log('[Terminal] Available symbols:', symbols);
+    return symbols;
   }, [symbolsData]);
 
   // Get last update time for selected symbol/interval
@@ -66,6 +72,7 @@ export default function TerminalPage() {
     const row = inventoryData.inventory.find(
       (r: any) => r.symbol === selectedSymbol && r.interval === selectedInterval
     );
+    console.log('[Terminal] Last update for', selectedSymbol, selectedInterval, ':', row?.latest_candle);
     return row?.latest_candle;
   }, [inventoryData, selectedSymbol, selectedInterval]);
 
@@ -173,9 +180,10 @@ export default function TerminalPage() {
                 <label className="mb-2 block text-sm font-medium text-foreground">
                   Cryptocurrency
                 </label>
-                <div className="relative">
+                <div className="flex items-center gap-2">
+                  <SymbolDisplay symbol={selectedSymbol} logoSize={24} showText={false} />
                   <select
-                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm appearance-none pr-10"
+                    className="h-10 flex-1 rounded-md border border-border bg-background px-3 text-sm"
                     value={selectedSymbol}
                     onChange={(e) => setSelectedSymbol(e.target.value)}
                   >
@@ -185,13 +193,6 @@ export default function TerminalPage() {
                       </option>
                     ))}
                   </select>
-                  {/* Display selected symbol with logo below dropdown */}
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <SymbolDisplay symbol={selectedSymbol} logoSize={20} showText={false} />
-                  </div>
-                  <span className="absolute left-10 top-1/2 -translate-y-1/2 text-sm font-medium pointer-events-none">
-                    {selectedSymbol}
-                  </span>
                 </div>
               </div>
 

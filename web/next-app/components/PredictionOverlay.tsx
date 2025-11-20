@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { IChartApi, ISeriesApi, LineData, LineStyle } from "lightweight-charts";
+import { buildApiUrl } from "@/lib/api";
 
 type PredictionOverlayProps = {
   chart: IChartApi | null;
@@ -39,11 +40,12 @@ export function PredictionOverlay({
     // Fetch forecast data
     const fetchForecast = async () => {
       try {
-        const response = await fetch(
+        const url = buildApiUrl(
           `/api/market/forecast-chart?symbol=${encodeURIComponent(
             symbol
           )}&horizon=${interval}&forecast_periods=20`
         );
+        const response = await fetch(url);
 
         if (!response.ok) {
           console.warn("No forecast available for", symbol, interval);

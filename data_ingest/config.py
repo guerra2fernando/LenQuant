@@ -82,11 +82,13 @@ class IngestConfig:
         lookback_days = int(os.getenv("DEFAULT_LOOKBACK_DAYS", "30"))
         batch_size = int(os.getenv("INGEST_BATCH_SIZE", "1000"))
         rate_limit = int(os.getenv("EXCHANGE_RATE_LIMIT_PER_MINUTE", "1000"))
+        source = os.getenv("EXCHANGE_SOURCE", "binance")  # Can be: binance, kraken, coinbase, etc.
         return cls(
             mongo_uri=mongo_uri,
             database=db_name,
             symbols=_parse_csv(os.getenv("DEFAULT_SYMBOLS")),
             intervals=_parse_csv(os.getenv("FEATURE_INTERVALS")) or ["1m"],
+            source=source,
             lookback_days=lookback_days,
             batch_size=batch_size,
             rate_limit_per_minute=rate_limit,

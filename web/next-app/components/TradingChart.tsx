@@ -6,7 +6,7 @@ import { createChart, IChartApi, ISeriesApi, CandlestickData } from "lightweight
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
-import { fetcher } from "@/lib/api";
+import { fetcher, buildApiUrl } from "@/lib/api";
 
 type TradingChartProps = {
   symbol: string;
@@ -29,6 +29,9 @@ export function TradingChart({
   const positionLineRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chartInitialized, setChartInitialized] = useState(false);
+
+  console.log(`[TradingChart] Render - Symbol: ${symbol}, Interval: ${interval}, Loading: ${loading}, ChartInit: ${chartInitialized}`);
 
   // Fetch positions
   const { data: summary } = useSWR("/api/trading/summary", fetcher, {
@@ -43,7 +46,11 @@ export function TradingChart({
   }, [summary, symbol, mode]);
 
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    console.log('[TradingChart] Initializing chart...');
+    if (!chartContainerRef.current) {
+      console.warn('[TradingChart] Chart container ref not available');
+      return;
+    }
 
     // Create chart
     const chart = createChart(chartContainerRef.current, {
@@ -80,6 +87,8 @@ export function TradingChart({
 
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
+    setChartInitialized(true);
+    console.log('[TradingChart] Chart initialized successfully');
 
     // Handle resize
     const handleResize = () => {
@@ -92,45 +101,63 @@ export function TradingChart({
     window.addEventListener("resize", handleResize);
 
     return () => {
+      console.log('[TradingChart] Cleaning up chart');
       window.removeEventListener("resize", handleResize);
       chart.remove();
+      setChartInitialized(false);
     };
   }, [height]);
 
   // Fetch and update data when symbol/interval changes
   useEffect(() => {
-    if (!candleSeriesRef.current) return;
+    console.log(`[TradingChart] Data fetch effect triggered - ChartInit: ${chartInitialized}, CandleSeries: ${!!candleSeriesRef.current}`);
+    
+    if (!chartInitialized || !candleSeriesRef.current) {
+      console.warn('[TradingChart] Chart not ready yet, skipping data fetch');
+      return;
+    }
 
     const fetchData = async () => {
+      console.log(`[TradingChart] Starting data fetch for ${symbol} ${interval}`);
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(
+        const url = buildApiUrl(
           `/api/market/ohlcv?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=500`
         );
+        console.log(`[TradingChart] Fetching from: ${url}`);
+        const response = await fetch(url);
+        
+        console.log(`[TradingChart] Response status: ${response.status}`);
         
         if (!response.ok) {
-          throw new Error(`No data available for ${symbol} ${interval}`);
+          if (response.status === 404) {
+            throw new Error(`No data available for ${symbol} ${interval}. Please ingest data first.`);
+          }
+          throw new Error(`Failed to fetch data: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log(`[TradingChart] Received ${data.candles?.length || 0} candles`);
 
         if (!data.candles || data.candles.length === 0) {
-          throw new Error("No candles returned");
+          throw new Error(`No data for ${symbol} ${interval}. Go to Get Started to ingest data.`);
         }
         
         candleSeriesRef.current?.setData(data.candles as CandlestickData[]);
+        console.log(`[TradingChart] Chart data set successfully`);
       } catch (err: any) {
+        console.error("[TradingChart] Error fetching chart data:", err);
         setError(err.message);
-        console.error("Error fetching chart data:", err);
       } finally {
         setLoading(false);
+        console.log(`[TradingChart] Data fetch complete - Loading: false`);
       }
     };
 
     fetchData();
-  }, [symbol, interval]);
+  }, [symbol, interval, chartInitialized]);
 
   // Add position entry line
   useEffect(() => {
