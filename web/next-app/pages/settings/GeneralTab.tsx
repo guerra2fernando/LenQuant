@@ -6,7 +6,7 @@ import { CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { TooltipExplainer } from "@/components/TooltipExplainer";
-import { SymbolDisplay } from "@/components/CryptoSelector";
+import { SymbolDisplay, CryptoSelector, getAllPredefinedSymbols } from "@/components/CryptoSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,7 +189,9 @@ export default function GeneralTab(): JSX.Element {
   const [bootstrapMessage, setBootstrapMessage] = useState<string | null>(null);
   const [bulkRunMessage, setBulkRunMessage] = useState<string | null>(null);
   const [isBulkRunning, setIsBulkRunning] = useState(false);
-  const [newSymbol, setNewSymbol] = useState<string>("");
+  const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
+  const [selectedIntervals, setSelectedIntervals] = useState<string[]>(["1m", "5m"]);
+  const [lookbackDays, setLookbackDays] = useState<number>(30);
   const [symbolMessage, setSymbolMessage] = useState<string | null>(null);
   const [isAddingSymbol, setIsAddingSymbol] = useState(false);
 
@@ -378,16 +380,22 @@ export default function GeneralTab(): JSX.Element {
     }
   };
 
-  const handleAddSymbol = async () => {
-    const trimmedSymbol = newSymbol.trim().toUpperCase();
-    if (!trimmedSymbol) {
-      setSymbolMessage("Please enter a symbol (e.g., BTC/USD, ETH/USD)");
+  const handleToggleInterval = (interval: string) => {
+    if (selectedIntervals.includes(interval)) {
+      setSelectedIntervals(selectedIntervals.filter(i => i !== interval));
+    } else {
+      setSelectedIntervals([...selectedIntervals, interval]);
+    }
+  };
+
+  const handleAddSymbols = async () => {
+    if (selectedSymbols.length === 0) {
+      setSymbolMessage("Please select at least one cryptocurrency");
       return;
     }
     
-    // Validate format (should contain a /)
-    if (!trimmedSymbol.includes("/")) {
-      setSymbolMessage("Symbol must be in format like BTC/USD or ETH/USDT");
+    if (selectedIntervals.length === 0) {
+      setSymbolMessage("Please select at least one timeframe");
       return;
     }
 
@@ -395,15 +403,15 @@ export default function GeneralTab(): JSX.Element {
     setSymbolMessage(null);
     try {
       const response = await postJson("/api/admin/bootstrap", {
-        symbols: [trimmedSymbol],
-        intervals: overview?.default_intervals || ["1m", "5m"],
-        lookback_days: overview?.default_lookback_days || 30,
+        symbols: selectedSymbols,
+        intervals: selectedIntervals,
+        lookback_days: lookbackDays,
       });
-      setSymbolMessage(`Successfully added ${trimmedSymbol} and fetched ${response.ingested?.length || 0} datasets`);
-      setNewSymbol("");
+      setSymbolMessage(`Successfully added ${selectedSymbols.length} symbol(s) with ${selectedIntervals.length} timeframe(s). Job ID: ${response.job_id || 'N/A'}`);
+      setSelectedSymbols([]);
       await mutateOverview();
     } catch (error) {
-      setSymbolMessage(error instanceof Error ? error.message : `Failed to add ${trimmedSymbol}`);
+      setSymbolMessage(error instanceof Error ? error.message : `Failed to add symbols`);
     } finally {
       setIsAddingSymbol(false);
     }
@@ -551,30 +559,66 @@ export default function GeneralTab(): JSX.Element {
               </div>
             ) : null}
             
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="new-symbol">Add New Symbol</Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Enter a trading pair (e.g., BTC/USD, ETH/USD, SOL/USDT, DOGE/USD)
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    id="new-symbol"
-                    placeholder="BTC/USD"
-                    value={newSymbol}
-                    onChange={(e) => setNewSymbol(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        handleAddSymbol();
-                      }
-                    }}
-                    disabled={isAddingSymbol}
+            <div className="space-y-4">
+              {/* Cryptocurrency Selector */}
+              <CryptoSelector
+                availableSymbols={[...getAllPredefinedSymbols(), ...(overview?.available_symbols || [])]}
+                selectedSymbols={selectedSymbols}
+                onSelectionChange={setSelectedSymbols}
+                placeholder="Select cryptocurrencies to add..."
+              />
+
+              {/* Timeframes */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">
+                  Timeframes
+                  <TooltipExplainer 
+                    term="Timeframes" 
+                    explanation="Select which time intervals to fetch data for. For example, 1m means 1-minute candles, 1h means 1-hour candles. More timeframes give more flexibility for analysis but require more storage."
                   />
-                  <Button onClick={handleAddSymbol} disabled={isAddingSymbol || !newSymbol.trim()}>
-                    {isAddingSymbol ? "Adding..." : "Add Symbol"}
-                  </Button>
+                </Label>
+                <div className="flex flex-wrap gap-3">
+                  {["1m", "5m", "15m", "1h", "4h", "1d"].map(interval => (
+                    <label key={interval} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selectedIntervals.includes(interval)}
+                        onCheckedChange={() => handleToggleInterval(interval)}
+                      />
+                      <span className="text-sm">{interval}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
+
+              {/* Lookback Period */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">
+                  Historical Data Period
+                  <TooltipExplainer 
+                    term="Historical Data Period" 
+                    explanation="How many days of past data to fetch. For example, 30 days will download the last month of price history. More days provide more training data but take longer to process."
+                  />
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={lookbackDays}
+                    onChange={(e) => setLookbackDays(Math.max(1, Math.min(365, parseInt(e.target.value) || 30)))}
+                    className="w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">days of historical data</span>
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleAddSymbols} 
+                disabled={isAddingSymbol || selectedSymbols.length === 0 || selectedIntervals.length === 0}
+                className="w-full"
+              >
+                {isAddingSymbol ? "Adding Symbols..." : `Add ${selectedSymbols.length || 0} Symbol(s)`}
+              </Button>
 
               <div className="rounded-lg border bg-muted/30 p-4">
                 <p className="text-sm font-medium text-foreground mb-2">Current Symbols ({overview?.available_symbols?.length || 0})</p>
@@ -594,11 +638,12 @@ export default function GeneralTab(): JSX.Element {
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                 <p className="text-xs font-medium text-primary mb-1">How it works:</p>
                 <ul className="space-y-1 text-xs text-muted-foreground">
-                  <li>• Adding a symbol fetches the last {overview?.default_lookback_days || 30} days of market data</li>
-                  <li>• Data is pulled at intervals: {overview?.default_intervals?.join(", ") || "1m, 5m"}</li>
+                  <li>• Select multiple cryptocurrencies and timeframes at once</li>
+                  <li>• Historical data is fetched for your specified lookback period</li>
                   <li>• Features are calculated automatically for model training</li>
-                  <li>• The assistant can only negotiate with coins that have data downloaded</li>
-                  <li>• Once added, data continues to update automatically</li>
+                  <li>• The assistant can only trade coins that have data downloaded</li>
+                  <li>• Once added, data continues to update automatically via scheduled jobs</li>
+                  <li>• Monitor data freshness in the Data Ingestion tab</li>
                 </ul>
               </div>
             </div>
@@ -610,23 +655,29 @@ export default function GeneralTab(): JSX.Element {
         <Card>
           <CardHeader>
             <CardTitle>
-              Data Maintenance
+              Legacy Data Bootstrap
               <TooltipExplainer 
-                term="Data Maintenance" 
-                explanation="This runs the complete data preparation pipeline: downloads historical price data (candles) for all configured symbols, calculates technical indicators and features, runs a baseline simulation to test the setup, and generates a performance report. Run this when first setting up the system or adding new trading pairs."
+                term="Legacy Data Bootstrap" 
+                explanation="This is a legacy feature that runs the complete data preparation pipeline in one go. For most use cases, you should use the Symbol Management section above or the Data Ingestion tab for better control and progress tracking."
               />
             </CardTitle>
             <CardDescription>
-              Run the initial data setup pipeline (seed symbols, ingest candles, rebuild features, run the baseline sim, and generate a report).
+              Quick bootstrap for all default symbols. For better control, use Symbol Management above or visit the Data Ingestion tab.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Uses `/api/admin/bootstrap` with the currently configured default symbols and intervals. Expect runtime of a few minutes
-              depending on lookback.
-            </p>
+            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3">
+              <p className="text-xs font-medium text-yellow-600 dark:text-yellow-500 mb-1">
+                ⚠️ Note: This is a legacy feature
+              </p>
+              <p className="text-xs text-muted-foreground">
+                For regular data updates, use the <strong>Data Ingestion</strong> tab which provides real-time progress tracking, 
+                job management, and individual symbol control. This bootstrap is only recommended for emergency full re-sync scenarios.
+              </p>
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <Button
+                variant="outline"
                 onClick={async () => {
                   setBootstrapMessage(null);
                   setIsBootstrapping(true);
@@ -634,7 +685,7 @@ export default function GeneralTab(): JSX.Element {
                     const response = await postJson("/api/admin/bootstrap", {});
                     const ingested = Array.isArray(response?.ingested) ? response.ingested.length : 0;
                     setBootstrapMessage(
-                      `Data setup complete (${ingested} ingest batches). Latest report: ${response?.report_path ?? "n/a"}.`,
+                      `Data setup complete (${ingested} ingest batches). Job ID: ${response?.job_id ?? "n/a"}. Check Data Ingestion tab for details.`,
                     );
                     await mutateOverview();
                   } catch (error) {
@@ -645,10 +696,10 @@ export default function GeneralTab(): JSX.Element {
                 }}
                 disabled={isBootstrapping}
               >
-                {isBootstrapping ? "Setting up…" : "Run Data Setup"}
+                {isBootstrapping ? "Bootstrapping…" : "Run Legacy Bootstrap"}
               </Button>
               <p className="text-xs text-muted-foreground">
-                Monitor progress on the dashboard (`/`), strategies table, and recent reports while the job runs.
+                Uses default symbols and intervals. Results appear in the Data Ingestion tab.
               </p>
             </div>
           </CardContent>

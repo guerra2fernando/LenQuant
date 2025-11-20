@@ -10,7 +10,7 @@ from db.client import get_database_name, mongo_client
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 def list_reports(limit: int = 7) -> Dict[str, Any]:
     with mongo_client() as client:
         db = client[get_database_name()]

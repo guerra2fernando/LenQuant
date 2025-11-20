@@ -9,6 +9,7 @@ import { PositionTabs } from "@/components/PositionTabs";
 import { QuickOrderPanel } from "@/components/QuickOrderPanel";
 import { SmartNotifications } from "@/components/SmartNotifications";
 import { StrategyAutomationPanel } from "@/components/StrategyAutomationPanel";
+import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -172,17 +173,26 @@ export default function TerminalPage() {
                 <label className="mb-2 block text-sm font-medium text-foreground">
                   Cryptocurrency
                 </label>
-                <select
-                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                  value={selectedSymbol}
-                  onChange={(e) => setSelectedSymbol(e.target.value)}
-                >
-                  {availableSymbols.map((symbol: string) => (
-                    <option key={symbol} value={symbol}>
-                      {symbol}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm appearance-none pr-10"
+                    value={selectedSymbol}
+                    onChange={(e) => setSelectedSymbol(e.target.value)}
+                  >
+                    {availableSymbols.map((symbol: string) => (
+                      <option key={symbol} value={symbol}>
+                        {symbol}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Display selected symbol with logo below dropdown */}
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <SymbolDisplay symbol={selectedSymbol} logoSize={20} showText={false} />
+                  </div>
+                  <span className="absolute left-10 top-1/2 -translate-y-1/2 text-sm font-medium pointer-events-none">
+                    {selectedSymbol}
+                  </span>
+                </div>
               </div>
 
               {/* Interval Selector */}
