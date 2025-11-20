@@ -41,7 +41,6 @@ def _seed_symbols(symbols: List[str]) -> int:
                         "symbol": symbol,
                         "base_increment": 0.0001,
                         "quote_increment": 0.01,
-                        "enabled": True,
                     },
                     "$set": {"enabled": True}
                 },
