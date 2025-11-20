@@ -2,26 +2,20 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install dependencies (including dev dependencies needed for build)
+# Install dependencies (including dev dependencies)
 COPY web/next-app/package*.json ./
 RUN npm ci && npm cache clean --force
 
 # Copy application files
 COPY web/next-app/ ./
 
-# Build the application
-RUN npm run build
-
-# Remove dev dependencies after build
-RUN npm prune --production
-
 # Expose port
 EXPOSE 3000
 
-# Set environment to production
-ENV NODE_ENV production
+# Set environment to development for better error debugging
+ENV NODE_ENV development
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Start the application
-CMD ["npm", "start"]
+# Start the application in development mode
+CMD ["npm", "run", "dev"]
 

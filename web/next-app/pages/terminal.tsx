@@ -1,5 +1,4 @@
-/* eslint-disable */
-// @ts-nocheck
+
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { TradingChart } from "@/components/TradingChart";
@@ -44,7 +43,7 @@ export default function TerminalPage() {
   console.log('[Terminal] Render - Symbol:', selectedSymbol, 'Interval:', selectedInterval, 'Mode:', tradingMode);
 
   // Fetch available symbols
-  const { data: symbolsData, isLoading: loadingSymbols, error: symbolsError } = useSWR(
+  const { data: symbolsData, isLoading: loadingSymbols, error: symbolsError } = useSWR<{ symbols: string[] }>(
     "/api/market/symbols",
     fetcher
   );
@@ -52,10 +51,10 @@ export default function TerminalPage() {
   console.log('[Terminal] Symbols data:', symbolsData, 'Loading:', loadingSymbols, 'Error:', symbolsError);
 
   // Fetch inventory to get last update times
-  const { data: inventoryData } = useSWR("/api/admin/overview", fetcher);
+  const { data: inventoryData } = useSWR<{ inventory: any[] }>("/api/admin/overview", fetcher);
 
   // Fetch strategies for auto-selection
-  const { data: strategiesData } = useSWR(
+  const { data: strategiesData } = useSWR<{ genomes: any[] }>(
     "/api/strategies/genomes?status=active&limit=20",
     fetcher
   );
@@ -107,7 +106,7 @@ export default function TerminalPage() {
   if (availableSymbols.length === 0) {
     return (
       <EmptyState
-        variant="generic"
+        variant="data"
         title="No Market Data Available"
         description="Please ingest OHLCV data first. Go to Get Started page to bootstrap historical data."
       />

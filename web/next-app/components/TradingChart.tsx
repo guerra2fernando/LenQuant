@@ -1,5 +1,4 @@
-/* eslint-disable */
-// @ts-nocheck
+
 import { useEffect, useRef, useState, useMemo } from "react";
 import useSWR from "swr";
 import { createChart, IChartApi, ISeriesApi, CandlestickData } from "lightweight-charts";
@@ -34,7 +33,7 @@ export function TradingChart({
   console.log(`[TradingChart] Render - Symbol: ${symbol}, Interval: ${interval}, Loading: ${loading}, ChartInit: ${chartInitialized}`);
 
   // Fetch positions
-  const { data: summary } = useSWR("/api/trading/summary", fetcher, {
+  const { data: summary } = useSWR<{ positions: any[] }>("/api/trading/summary", fetcher, {
     refreshInterval: 5000,
   });
 
