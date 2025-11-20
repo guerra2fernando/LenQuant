@@ -337,7 +337,7 @@ export default function GetStarted(): JSX.Element {
                                   const colorIndex = baseSymbol.length % colors.length;
                                   const bgColor = colors[colorIndex];
                                   const svg = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8" fill="${bgColor}"/><text x="8" y="11" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="white" text-anchor="middle">${baseSymbol.slice(0, 4)}</text></svg>`;
-                                  target.src = `data:image/svg+xml;base64,${btoa(svg)}`;
+                                  target.src = `data:image/svg+xml,${encodeURIComponent(svg)}`;
                                 }}
                               />
                               {symbol}

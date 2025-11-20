@@ -135,14 +135,10 @@ function generatePlaceholderSVG(symbol: string, size: number = 24): string {
   const bgColor = colors[colorIndex];
   const textColor = '#ffffff';
 
-  const svg = `
-    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="${bgColor}"/>
-      <text x="${size/2}" y="${size/2 + 3}" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="${textColor}" text-anchor="middle">${baseSymbol.slice(0, 4)}</text>
-    </svg>
-  `.trim();
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="${bgColor}"/><text x="${size/2}" y="${size/2 + 3}" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="${textColor}" text-anchor="middle">${baseSymbol.slice(0, 4)}</text></svg>`;
 
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+  // Use encodeURIComponent instead of btoa to handle Unicode characters
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 export function getCryptoLogo(symbol: string, exchangeLogos?: Record<string, string>): string {
