@@ -139,6 +139,48 @@ def get_available_symbols() -> Dict[str, Any]:
         }
 
 
+@router.get("/exchange-markets")
+def get_exchange_markets(
+    quote_currencies: Optional[str] = Query(None, description="Comma-separated quote currencies (e.g., 'USDT,USD,BUSD')")
+) -> Dict[str, Any]:
+    """
+    Get available trading pairs from the configured exchange with logos.
+    
+    This endpoint fetches real-time market data from the exchange (e.g., Binance)
+    and enriches it with logo URLs from CoinGecko.
+    
+    Returns:
+        - symbols: List of available trading pairs
+        - markets: Market details (base, quote, active status)
+        - logos: Logo URLs for each base currency
+        - exchange: Exchange name
+    """
+    from data_ingest.exchange_utils import get_exchange_markets_with_logos
+    
+    print("[Market API] Fetching exchange markets...")
+    
+    try:
+        # Parse quote currencies
+        quote_list = None
+        if quote_currencies:
+            quote_list = [q.strip().upper() for q in quote_currencies.split(',') if q.strip()]
+        
+        # Fetch markets with logos
+        result = get_exchange_markets_with_logos(quote_currencies=quote_list)
+        
+        print(f"[Market API] Found {result['active_markets']} active markets from {result['exchange']}")
+        print(f"[Market API] Fetched {len(result.get('logos', {}))} logo URLs")
+        
+        return result
+    
+    except Exception as e:
+        print(f"[Market API] Error fetching exchange markets: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch exchange markets: {str(e)}"
+        )
+
+
 @router.get("/forecast-chart")
 def get_forecast_chart(
     symbol: str = Query(...),

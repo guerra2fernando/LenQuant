@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useExchangeMarkets } from "@/hooks/useExchangeMarkets";
 
 // Comprehensive mapping for top 100+ cryptocurrencies with CoinGecko logos
 export const CRYPTO_LOGOS: Record<string, string> = {
@@ -144,8 +145,16 @@ function generatePlaceholderSVG(symbol: string, size: number = 24): string {
   return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
-export function getCryptoLogo(symbol: string): string {
+export function getCryptoLogo(symbol: string, exchangeLogos?: Record<string, string>): string {
   const baseSymbol = symbol.split('/')[0].toLowerCase();
+  const baseSymbolUpper = symbol.split('/')[0].toUpperCase();
+  
+  // Try exchange-provided logos first
+  if (exchangeLogos && exchangeLogos[baseSymbolUpper]) {
+    return exchangeLogos[baseSymbolUpper];
+  }
+  
+  // Fallback to hardcoded logos
   return CRYPTO_LOGOS[baseSymbol] || generatePlaceholderSVG(symbol);
 }
 
@@ -161,6 +170,7 @@ interface CryptoSelectorProps {
   placeholder?: string;
   className?: string;
   allowCustomSymbols?: boolean;
+  enableExchangeMarkets?: boolean;
 }
 
 export function CryptoSelector({
@@ -170,32 +180,43 @@ export function CryptoSelector({
   placeholder = "Select cryptocurrencies...",
   className,
   allowCustomSymbols = true,
+  enableExchangeMarkets = true,
 }: CryptoSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [customSymbols, setCustomSymbols] = useState<string[]>([]);
   const [newCustomSymbol, setNewCustomSymbol] = useState("");
 
+  // Fetch exchange markets with logos
+  const exchangeMarketsData = useExchangeMarkets();
+  const exchangeSymbols = exchangeMarketsData?.symbols || [];
+  const exchangeLogos = exchangeMarketsData?.logos || {};
+
   // Get all predefined symbols from the CRYPTO_LOGOS mapping
   const predefinedSymbols = useMemo(() => {
     return Object.keys(CRYPTO_LOGOS).map(symbol => `${symbol.toUpperCase()}/USD`);
   }, []);
 
-  // Combine predefined symbols, backend symbols, and custom symbols
+  // Combine exchange symbols, predefined symbols, backend symbols, and custom symbols
   const allSymbols = useMemo(() => {
     const combined = new Set<string>();
 
+    // Add exchange-provided symbols (highest priority if enabled)
+    if (enableExchangeMarkets && exchangeSymbols.length > 0) {
+      exchangeSymbols.forEach((symbol: string) => combined.add(symbol));
+    }
+
     // Add predefined symbols (70+ top cryptocurrencies)
-    predefinedSymbols.forEach(symbol => combined.add(symbol));
+    predefinedSymbols.forEach((symbol: string) => combined.add(symbol));
 
     // Add backend-provided symbols (from .env and database)
-    availableSymbols.forEach(symbol => combined.add(symbol));
+    availableSymbols.forEach((symbol: string) => combined.add(symbol));
 
     // Add custom symbols
-    customSymbols.forEach(symbol => combined.add(symbol));
+    customSymbols.forEach((symbol: string) => combined.add(symbol));
 
     return Array.from(combined).sort();
-  }, [predefinedSymbols, availableSymbols, customSymbols]);
+  }, [enableExchangeMarkets, exchangeSymbols, predefinedSymbols, availableSymbols, customSymbols]);
 
   const filteredSymbols = useMemo(() => {
     if (!searchQuery) return allSymbols;
@@ -249,7 +270,7 @@ export function CryptoSelector({
             return (
               <Badge key={symbol} variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5">
                 <img
-                  src={getCryptoLogo(symbol)}
+                  src={getCryptoLogo(symbol, exchangeLogos)}
                   alt={symbol}
                   className="w-4 h-4 rounded-full"
                   onError={(e) => {
@@ -358,7 +379,7 @@ export function CryptoSelector({
                       )}
                     >
                       <img
-                        src={getCryptoLogo(symbol)}
+                        src={getCryptoLogo(symbol, exchangeLogos)}
                         alt={symbol}
                         className="w-6 h-6 rounded-full"
                         onError={(e) => {
@@ -395,7 +416,9 @@ export function CryptoSelector({
 
       {/* Available count */}
       <div className="text-xs text-muted-foreground">
-        {predefinedSymbols.length} predefined + {availableSymbols.length} configured + {customSymbols.length} custom cryptocurrencies available
+        {enableExchangeMarkets && exchangeSymbols.length > 0 
+          ? `${exchangeSymbols.length} from exchange + ${predefinedSymbols.length} predefined + ${customSymbols.length} custom cryptocurrencies available` 
+          : `${predefinedSymbols.length} predefined + ${availableSymbols.length} configured + ${customSymbols.length} custom cryptocurrencies available`}
       </div>
     </div>
   );
@@ -407,13 +430,14 @@ interface SymbolDisplayProps {
   showText?: boolean;
   logoSize?: number;
   className?: string;
+  exchangeLogos?: Record<string, string>;
 }
 
-export function SymbolDisplay({ symbol, showText = true, logoSize = 16, className }: SymbolDisplayProps) {
+export function SymbolDisplay({ symbol, showText = true, logoSize = 16, className, exchangeLogos }: SymbolDisplayProps) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <img
-        src={getCryptoLogo(symbol)}
+        src={getCryptoLogo(symbol, exchangeLogos)}
         alt={symbol}
         className={`rounded-full flex-shrink-0`}
         style={{ width: logoSize, height: logoSize }}
