@@ -173,6 +173,26 @@ def get_symbols_status() -> List[Dict[str, Any]]:
         return list(symbols)
 
 
+@router.get("/recent-jobs")
+def get_recent_jobs(limit: int = 10) -> List[Dict[str, Any]]:
+    """Get recent ingestion jobs, sorted by creation time (newest first)."""
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        
+        jobs = list(db["ingestion_jobs"].find(
+            {},
+            {"_id": 0}
+        ).sort("created_at", -1).limit(limit))
+        
+        # Convert datetime objects to ISO strings
+        for job in jobs:
+            for key, value in job.items():
+                if isinstance(value, datetime):
+                    job[key] = value.isoformat()
+        
+        return jobs
+
+
 @router.get("/gaps/{symbol}/{interval}")
 def get_data_gaps(symbol: str, interval: str, recent_days_only: Optional[int] = None) -> Dict[str, Any]:
     """

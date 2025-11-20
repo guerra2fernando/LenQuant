@@ -30,6 +30,7 @@ export function DataFreshnessBadge({
   const hoursOld = (now.getTime() - lastUpdateDate.getTime()) / (1000 * 60 * 60);
 
   // Determine freshness status
+  // Note: This is based on the actual candle timestamp, not when ingestion ran
   let variant: "default" | "secondary" | "destructive" | "outline" = "default";
   let icon = <CheckCircle className="h-3 w-3 mr-1" />;
   let label = "Fresh";

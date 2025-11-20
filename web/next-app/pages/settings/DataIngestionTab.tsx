@@ -155,18 +155,33 @@ export default function DataIngestionTab() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              // Try to get the last viewed job_id from localStorage
+            onClick={async () => {
+              // Try to get the most recent ingestion job from the API
+              try {
+                const response = await fetch('/api/data-ingestion/recent-jobs?limit=1');
+                if (response.ok) {
+                  const jobs = await response.json();
+                  if (jobs && jobs.length > 0) {
+                    const recentJobId = jobs[0].job_id;
+                    router.push(`/settings?section=data-ingestion&job_id=${recentJobId}`, undefined, { shallow: true });
+                    return;
+                  }
+                }
+              } catch (err) {
+                console.error("Failed to fetch recent jobs:", err);
+              }
+              
+              // Fallback: try localStorage
               if (typeof window !== 'undefined') {
                 const lastJobId = localStorage.getItem('lastViewedIngestionJobId');
                 if (lastJobId) {
                   router.push(`/settings?section=data-ingestion&job_id=${lastJobId}`, undefined, { shallow: true });
-                } else {
-                  // If no stored job_id, maybe show a message or just navigate without job_id
-                  // For now, we'll navigate without job_id which will show the symbols view
-                  router.push("/settings?section=data-ingestion", undefined, { shallow: true });
+                  return;
                 }
               }
+              
+              // No jobs found - show message
+              setError("No recent ingestion jobs found. Start a data refresh to see progress.");
             }}
           >
             <Clock className="h-4 w-4 mr-2" />
@@ -250,20 +265,34 @@ export default function DataIngestionTab() {
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-green-600" />
-            <span><strong>Fresh:</strong> Updated within the last 2 hours</span>
+            <span><strong>Fresh:</strong> Latest candle is less than 2 hours old</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-yellow-600" />
-            <span><strong>Aging:</strong> Updated 2-24 hours ago</span>
+            <span><strong>Aging:</strong> Latest candle is 2-24 hours old</span>
           </div>
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-red-600" />
-            <span><strong>Stale:</strong> Updated more than 24 hours ago</span>
+            <span><strong>Stale:</strong> Latest candle is more than 24 hours old</span>
           </div>
-          <p className="mt-4 text-xs">
-            Note: Data is automatically refreshed every hour by scheduled tasks. 
-            You can manually refresh individual symbols or all symbols using the buttons above.
-          </p>
+          <div className="mt-4 p-3 bg-muted rounded-lg">
+            <p className="text-xs font-medium mb-1">💡 Important Notes:</p>
+            <ul className="text-xs space-y-1 list-disc list-inside">
+              <li>Freshness shows the timestamp of the <strong>actual candle data</strong>, not when you last refreshed</li>
+              <li>If data shows as "Stale" even after refresh, the exchange may not have recent data for that symbol/interval</li>
+              <li>All timestamps are in UTC (server time may differ from your local timezone)</li>
+              <li>Scheduled tasks automatically refresh data every hour if Celery workers are running</li>
+            </ul>
+          </div>
+          <div className="mt-3 p-3 border border-destructive/50 bg-destructive/10 rounded-lg">
+            <p className="text-xs font-semibold text-destructive mb-1">🔧 If data is consistently stale:</p>
+            <ol className="text-xs space-y-1 list-decimal list-inside text-destructive/90">
+              <li>Run the diagnostic: <code className="bg-black/10 px-1 rounded">python scripts/diagnose_stale_data.py</code></li>
+              <li>Check that Celery workers are running</li>
+              <li>Verify the exchange API is accessible from your server</li>
+              <li>Try manually refreshing with a longer lookback period</li>
+            </ol>
+          </div>
         </CardContent>
       </Card>
     </div>

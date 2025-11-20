@@ -145,8 +145,21 @@ export function TradingChart({
           throw new Error(`No data for ${symbol} ${interval}. Go to Get Started to ingest data.`);
         }
         
-        candleSeriesRef.current?.setData(data.candles as CandlestickData[]);
-        console.log(`[TradingChart] Chart data set successfully`);
+        // Safety check: ensure chart and series still exist before setting data
+        if (candleSeriesRef.current && chartRef.current) {
+          try {
+            candleSeriesRef.current.setData(data.candles as CandlestickData[]);
+            // Ensure the chart is properly sized after data load
+            chartRef.current.timeScale().fitContent();
+            console.log(`[TradingChart] Chart data set successfully`);
+          } catch (chartErr: any) {
+            console.error("[TradingChart] Error setting chart data:", chartErr);
+            throw new Error("Failed to render chart. Try refreshing the page.");
+          }
+        } else {
+          console.warn('[TradingChart] Chart refs disappeared during fetch');
+          throw new Error("Chart was destroyed during data fetch. Please try again.");
+        }
       } catch (err: any) {
         console.error("[TradingChart] Error fetching chart data:", err);
         setError(err.message);

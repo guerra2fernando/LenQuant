@@ -304,13 +304,18 @@ def _update_symbol_status(db, symbol: str, interval: str, job_id: str) -> None:
             "interval": interval
         })
         
+        # Use the newest candle timestamp as last_updated instead of current time
+        # This shows true data freshness rather than when we last ran ingestion
+        newest_timestamp = ohlcv_data.get("newest", datetime.utcnow())
+        
         # Update or create symbol document
         db["symbols"].update_one(
             {"symbol": symbol},
             {
                 "$set": {
                     f"intervals_status.{interval}": {
-                        "last_updated": datetime.utcnow(),
+                        "last_updated": newest_timestamp,  # Use newest candle time
+                        "last_ingestion_at": datetime.utcnow(),  # Track when job ran
                         "record_count": ohlcv_data.get("count", 0),
                         "feature_count": feature_count,
                         "oldest_record": ohlcv_data.get("oldest"),
@@ -325,7 +330,7 @@ def _update_symbol_status(db, symbol: str, interval: str, job_id: str) -> None:
             upsert=True
         )
         
-        logger.info(f"Updated symbol status for {symbol} {interval}")
+        logger.info(f"Updated symbol status for {symbol} {interval} (newest candle: {newest_timestamp})")
         
     except Exception as e:
         logger.error(f"Failed to update symbol status for {symbol} {interval}: {e}")
