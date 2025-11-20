@@ -2,7 +2,6 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
-import { Layout } from "@/components/Layout";
 import { TradingChart } from "@/components/TradingChart";
 import { QuickStats } from "@/components/QuickStats";
 import { StrategySelector } from "@/components/StrategySelector";
@@ -48,7 +47,7 @@ export default function TerminalPage() {
   );
 
   // Fetch inventory to get last update times
-  const { data: inventoryData } = useSWR("/api/admin/inventory", fetcher);
+  const { data: inventoryData } = useSWR("/api/admin/overview", fetcher);
 
   // Fetch strategies for auto-selection
   const { data: strategiesData } = useSWR(
@@ -62,8 +61,8 @@ export default function TerminalPage() {
 
   // Get last update time for selected symbol/interval
   const lastUpdate = useMemo(() => {
-    if (!inventoryData?.rows) return null;
-    const row = inventoryData.rows.find(
+    if (!inventoryData?.inventory) return null;
+    const row = inventoryData.inventory.find(
       (r: any) => r.symbol === selectedSymbol && r.interval === selectedInterval
     );
     return row?.latest_candle;
@@ -91,29 +90,24 @@ export default function TerminalPage() {
 
   if (loadingSymbols) {
     return (
-      <Layout title="Trading Terminal - LenQuant">
-        <div className="flex h-96 items-center justify-center">
-          <p className="text-muted-foreground">Loading terminal...</p>
-        </div>
-      </Layout>
+      <div className="flex h-96 items-center justify-center">
+        <p className="text-muted-foreground">Loading terminal...</p>
+      </div>
     );
   }
 
   if (availableSymbols.length === 0) {
     return (
-      <Layout title="Trading Terminal - LenQuant">
-        <EmptyState
-          variant="generic"
-          title="No Market Data Available"
-          description="Please ingest OHLCV data first. Go to Get Started page to bootstrap historical data."
-        />
-      </Layout>
+      <EmptyState
+        variant="generic"
+        title="No Market Data Available"
+        description="Please ingest OHLCV data first. Go to Get Started page to bootstrap historical data."
+      />
     );
   }
 
   return (
-    <Layout title="Trading Terminal - LenQuant">
-      <div className="space-y-4">
+    <div className="space-y-4">
         {/* Header with controls */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -289,7 +283,6 @@ export default function TerminalPage() {
           </div>
         </div>
       </div>
-    </Layout>
   );
 }
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import asyncio
 import json
 
@@ -104,7 +104,7 @@ def get_latest_price(symbol: str) -> Dict[str, Any]:
 
 
 @router.get("/symbols")
-def get_available_symbols() -> Dict[str, List[str]]:
+def get_available_symbols() -> Dict[str, Any]:
     """
     Get list of all symbols with available OHLCV data.
     Reuses inventory logic from admin.py.

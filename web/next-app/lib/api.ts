@@ -17,6 +17,11 @@ function resolveApiBase(): string {
         !hostname.includes(".") && hostname !== "localhost" && hostname !== "127.0.0.1";
 
       if (!isDockerInternalHostname) {
+        // If page is served over HTTPS, upgrade HTTP URLs to HTTPS
+        if (window.location.protocol === "https:" && parsed.protocol === "http:") {
+          parsed.protocol = "https:";
+          return parsed.toString();
+        }
         return envUrl;
       }
     } catch {
@@ -173,8 +178,16 @@ export function buildWebSocketUrl(path: string): string {
     return `${wsProtocol}//${hostname}${normalizedPath}`;
   }
   
-  // Convert http/https to ws/wss
-  const wsBase = base.replace(/^http/, "ws");
+  // Convert http/https to ws/wss, ensuring we use wss:// when page is served over HTTPS
+  if (typeof window !== "undefined" && window.location.protocol === "https:") {
+    // Page is served over HTTPS, use wss://
+    const wsBase = base.replace(/^https?/, "wss");
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${wsBase}${normalizedPath}`;
+  }
+  
+  // Use ws:// for HTTP
+  const wsBase = base.replace(/^https?/, "ws");
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${wsBase}${normalizedPath}`;
 }
