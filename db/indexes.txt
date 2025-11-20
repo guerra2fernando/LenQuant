@@ -1,11 +1,57 @@
+// Database Indexes Reference
+// All indexes are automatically created by db/startup.py on system startup
+// This file is kept for documentation purposes only
+
+// Core Collections
 db.ohlcv.createIndex({ symbol: 1, interval: 1, timestamp: 1 }, { unique: true })
 db.features.createIndex({ symbol: 1, interval: 1, timestamp: 1 }, { unique: true })
+db.symbols.createIndex({ symbol: 1 }, { unique: true })
+db.symbols.createIndex({ enabled: 1 })
+
+// Simulation & Reports
 db.sim_runs.createIndex({ run_id: 1 }, { unique: true })
+db.sim_runs_intraday.createIndex({ cohort_id: 1 }, { unique: true })
+db.sim_runs_intraday.createIndex({ created_at: 1 })
+db.sim_runs_intraday.createIndex({ bankroll: 1, allocation_policy: 1 })
+db.cohort_summaries.createIndex({ cohort_id: 1 }, { unique: true })
+db.cohort_summaries.createIndex({ generated_at: 1 })
 db.daily_reports.createIndex({ date: 1 }, { unique: true })
 
-// Macro Analysis - Regime Detection (Phase 1)
+// Macro Analysis - Regime Detection
 db.macro_regimes.createIndex({ symbol: 1, timestamp: -1 })
 db.macro_regimes.createIndex({ trend_regime: 1, timestamp: -1 })
 db.macro_regimes.createIndex({ volatility_regime: 1, timestamp: -1 })
 db.macro_regimes.createIndex({ symbol: 1, timestamp: 1 }, { unique: true })
 
+// Data Ingestion
+db.ingestion_jobs.createIndex({ job_id: 1 }, { unique: true })
+db.ingestion_jobs.createIndex({ parent_job_id: 1 })
+db.ingestion_jobs.createIndex({ status: 1 })
+db.ingestion_jobs.createIndex({ symbol: 1, interval: 1 })
+db.ingestion_jobs.createIndex({ created_at: -1 })
+db.ingestion_jobs.createIndex({ job_type: 1, status: 1 })
+
+// User Management
+db.users.createIndex({ id: 1 }, { unique: true })
+db.users.createIndex({ email: 1 }, { unique: true })
+
+// Notifications
+db.notifications.createIndex({ user_id: 1, created_at: -1 })
+db.notifications.createIndex({ user_id: 1, read: 1, created_at: -1 })
+db.notifications.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 })
+db.notifications.createIndex({ type: 1, created_at: -1 })
+db.notification_preferences.createIndex({ user_id: 1 }, { unique: true })
+db.notification_analytics.createIndex({ user_id: 1, opened_at: -1 })
+db.notification_analytics.createIndex({ notification_id: 1 })
+db.notification_analytics.createIndex({ user_id: 1, clicked_at: -1 })
+
+// Trading & Portfolio
+db.trading_positions.createIndex({ mode: 1, updated_at: -1 }, { name: "portfolio_positions_by_mode" })
+db.trading_ledgers.createIndex({ mode: 1, timestamp: -1 }, { name: "portfolio_equity_history" })
+db.trading_fills.createIndex({ mode: 1, symbol: 1, executed_at: -1 }, { name: "portfolio_fills_lookup" })
+db.parent_wallet_snapshots.createIndex({ mode: 1, timestamp: -1 }, { name: "parent_wallet_latest" })
+db.portfolio_snapshots.createIndex({ mode: 1 }, { name: "portfolio_cache_by_mode", unique: true })
+db.portfolio_snapshots.createIndex({ cached_at: -1 }, { name: "portfolio_cache_freshness" })
+
+// Note: TTL indexes for data retention are created dynamically by migration_003_setup_data_retention.py
+// when ENABLE_DATA_RETENTION=true is set in environment

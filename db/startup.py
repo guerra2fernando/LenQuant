@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import List
 
 from db.client import mongo_client, get_database_name
@@ -36,19 +37,93 @@ def create_indexes() -> None:
         except Exception as e:
             logger.warning(f"Ingestion jobs indexes may already exist: {e}")
         
-        # OHLCV collection indexes (if not already created)
+        # OHLCV collection indexes
         try:
-            db["ohlcv"].create_index([("symbol", 1), ("interval", 1), ("timestamp", -1)])
+            db["ohlcv"].create_index([("symbol", 1), ("interval", 1), ("timestamp", 1)], unique=True)
             logger.info("✓ Created ohlcv indexes")
         except Exception as e:
             logger.warning(f"OHLCV indexes may already exist: {e}")
         
         # Features collection indexes
         try:
-            db["features"].create_index([("symbol", 1), ("interval", 1), ("timestamp", -1)])
+            db["features"].create_index([("symbol", 1), ("interval", 1), ("timestamp", 1)], unique=True)
             logger.info("✓ Created features indexes")
         except Exception as e:
             logger.warning(f"Features indexes may already exist: {e}")
+        
+        # Sim runs collection indexes
+        try:
+            db["sim_runs"].create_index([("run_id", 1)], unique=True)
+            logger.info("✓ Created sim_runs indexes")
+        except Exception as e:
+            logger.warning(f"Sim runs indexes may already exist: {e}")
+        
+        # Daily reports collection indexes
+        try:
+            db["daily_reports"].create_index([("date", 1)], unique=True)
+            logger.info("✓ Created daily_reports indexes")
+        except Exception as e:
+            logger.warning(f"Daily reports indexes may already exist: {e}")
+        
+        # Macro regimes collection indexes (Phase 1 - Regime Detection)
+        try:
+            db["macro_regimes"].create_index([("symbol", 1), ("timestamp", -1)])
+            db["macro_regimes"].create_index([("trend_regime", 1), ("timestamp", -1)])
+            db["macro_regimes"].create_index([("volatility_regime", 1), ("timestamp", -1)])
+            db["macro_regimes"].create_index([("symbol", 1), ("timestamp", 1)], unique=True)
+            logger.info("✓ Created macro_regimes indexes")
+        except Exception as e:
+            logger.warning(f"Macro regimes indexes may already exist: {e}")
+        
+        # Intraday cohort indexes
+        try:
+            db["sim_runs_intraday"].create_index([("cohort_id", 1)], unique=True)
+            db["sim_runs_intraday"].create_index([("created_at", 1)])
+            db["sim_runs_intraday"].create_index([("bankroll", 1), ("allocation_policy", 1)])
+            logger.info("✓ Created sim_runs_intraday indexes")
+        except Exception as e:
+            logger.warning(f"Sim runs intraday indexes may already exist: {e}")
+        
+        try:
+            db["cohort_summaries"].create_index([("cohort_id", 1)], unique=True)
+            db["cohort_summaries"].create_index([("generated_at", 1)])
+            logger.info("✓ Created cohort_summaries indexes")
+        except Exception as e:
+            logger.warning(f"Cohort summaries indexes may already exist: {e}")
+        
+        # Users collection indexes
+        try:
+            db["users"].create_index([("id", 1)], unique=True)
+            db["users"].create_index([("email", 1)], unique=True)
+            logger.info("✓ Created users indexes")
+        except Exception as e:
+            logger.warning(f"Users indexes may already exist: {e}")
+        
+        # Notifications collection indexes
+        try:
+            db["notifications"].create_index([("user_id", 1), ("created_at", -1)])
+            db["notifications"].create_index([("user_id", 1), ("read", 1), ("created_at", -1)])
+            db["notifications"].create_index([("expires_at", 1)], expireAfterSeconds=0)
+            db["notifications"].create_index([("type", 1), ("created_at", -1)])
+            logger.info("✓ Created notifications indexes")
+        except Exception as e:
+            logger.warning(f"Notifications indexes may already exist: {e}")
+        
+        # Notification preferences collection indexes
+        try:
+            db["notification_preferences"].create_index([("user_id", 1)], unique=True)
+            logger.info("✓ Created notification_preferences indexes")
+        except Exception as e:
+            logger.warning(f"Notification preferences indexes may already exist: {e}")
+        
+        # Notification analytics collection indexes
+        try:
+            db["notification_analytics"].create_index([("user_id", 1), ("opened_at", -1)])
+            db["notification_analytics"].create_index([("notification_id", 1)])
+            db["notification_analytics"].create_index([("user_id", 1), ("clicked_at", -1)])
+            logger.info("✓ Created notification_analytics indexes")
+        except Exception as e:
+            logger.warning(f"Notification analytics indexes may already exist: {e}")
         
         # Portfolio page performance indexes (Phase 1)
         try:
@@ -111,10 +186,62 @@ def create_indexes() -> None:
         logger.info("Database indexes initialized")
 
 
+def seed_default_symbols() -> None:
+    """Seed the database with default symbols from environment."""
+    try:
+        raw_symbols = os.getenv("DEFAULT_SYMBOLS", "BTC/USDT,ETH/USDT")
+        symbols = [s.strip() for s in raw_symbols.split(",") if s.strip()]
+        
+        if not symbols:
+            logger.info("No default symbols to seed")
+            return
+        
+        with mongo_client() as client:
+            db = client[get_database_name()]
+            
+            for symbol in symbols:
+                db["symbols"].update_one(
+                    {"symbol": symbol},
+                    {
+                        "$setOnInsert": {
+                            "symbol": symbol,
+                            "base_increment": 0.0001,
+                            "quote_increment": 0.01,
+                            "enabled": True,
+                        },
+                        "$set": {"enabled": True}
+                    },
+                    upsert=True,
+                )
+            
+            logger.info(f"✓ Seeded {len(symbols)} default symbols")
+    except Exception as e:
+        logger.warning(f"Could not seed default symbols: {e}")
+
+
+def setup_data_retention() -> None:
+    """Set up data retention TTL indexes and initial cleanup."""
+    try:
+        # Only run if data retention is enabled
+        if os.getenv("ENABLE_DATA_RETENTION", "false").lower() != "true":
+            logger.info("Data retention not enabled, skipping setup")
+            return
+        
+        from db.migrations.migration_003_setup_data_retention import migrate_data_retention
+        
+        logger.info("Setting up data retention system...")
+        result = migrate_data_retention()
+        logger.info(f"✓ Data retention setup completed: {result}")
+    except Exception as e:
+        logger.warning(f"Could not set up data retention (non-critical): {e}")
+
+
 def initialize_database() -> None:
     """Initialize database on application startup."""
     logger.info("Initializing database...")
     create_indexes()
+    seed_default_symbols()
+    setup_data_retention()
     logger.info("Database initialization complete")
 
 
