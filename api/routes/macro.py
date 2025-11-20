@@ -26,14 +26,14 @@ class RegimeResponse(BaseModel):
 
 @router.get("/regime")
 def get_regime(
-    symbol: str = Query(..., description="Trading pair symbol (e.g., 'BTC/USDT')"),
+    symbol: str = Query(..., description="Trading pair symbol (e.g., 'BTC/USD')"),
     interval: str = Query("1h", description="Timeframe for regime detection"),
     timestamp: Optional[datetime] = Query(None, description="Optional timestamp for historical regime"),
 ) -> RegimeResponse:
     """Get current or historical market regime for a symbol.
     
     Args:
-        symbol: Trading pair symbol (e.g., 'BTC/USDT')
+        symbol: Trading pair symbol (e.g., 'BTC/USD')
         interval: Timeframe (default '1h')
         timestamp: Optional timestamp for historical regime detection
         
@@ -41,7 +41,7 @@ def get_regime(
         RegimeResponse with trend regime, volatility regime, and confidence
         
     Example:
-        GET /api/macro/regime?symbol=BTC/USDT&interval=1h
+        GET /api/macro/regime?symbol=BTC/USD&interval=1h
     """
     try:
         detector = RegimeDetector()
@@ -110,14 +110,14 @@ def get_regimes_batch(
     """Get current market regimes for multiple symbols.
     
     Args:
-        symbols: Comma-separated list of symbols (e.g., 'BTC/USDT,ETH/USDT')
+        symbols: Comma-separated list of symbols (e.g., 'BTC/USD,ETH/USDT')
         interval: Timeframe (default '1h')
         
     Returns:
         Dictionary with regimes list
         
     Example:
-        GET /api/macro/regimes/batch?symbols=BTC/USDT,ETH/USDT&interval=1h
+        GET /api/macro/regimes/batch?symbols=BTC/USD,ETH/USDT&interval=1h
     """
     detector = RegimeDetector()
     results = []
@@ -179,7 +179,7 @@ def get_regime_history(
         Dictionary with historical regimes list
         
     Example:
-        GET /api/macro/regimes/history/BTC/USDT?limit=50
+        GET /api/macro/regimes/history/BTC/USD?limit=50
     """
     from db.client import mongo_client, get_database_name
     

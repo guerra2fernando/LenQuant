@@ -186,7 +186,7 @@ class TestProgressCallback:
             source="binance",
             mongo_uri="mongodb://localhost:27017",
             database="test_db",
-            symbols=["BTC/USDT"],
+            symbols=["BTC/USD"],
             intervals=["1m"],
             lookback_days=1,
             batch_size=1000,
@@ -194,7 +194,7 @@ class TestProgressCallback:
         
         # Call fetch with progress callback
         result = fetch_symbol_interval(
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             timeframe="1m",
             lookback_days=1,
             config=config,
@@ -242,7 +242,7 @@ class TestTaskProgressTracking:
         ingest_symbol_interval_task(
             mock_task,
             job_id="test_job",
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             interval="1m",
             lookback_days=1
         )

@@ -114,7 +114,7 @@ def test_specific_pairs():
     try:
         result = get_exchange_markets_with_logos()
         common_pairs = [
-            'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 
+            'BTC/USD', 'ETH/USDT', 'BNB/USDT', 
             'SOL/USDT', 'ADA/USDT', 'XRP/USDT',
             'DOT/USDT', 'DOGE/USDT', 'AVAX/USDT'
         ]

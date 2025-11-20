@@ -28,7 +28,7 @@ export default function EvolutionPage() {
 
 // Old implementation kept for reference - redirects above
 function EvolutionPageOld() {
-  const [symbol, setSymbol] = useState("BTC/USDT");
+  const [symbol, setSymbol] = useState("BTC/USD");
   const [interval, setInterval] = useState("1m");
   const [accounts, setAccounts] = useState(12);
   const [isRunning, setIsRunning] = useState(false);

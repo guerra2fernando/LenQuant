@@ -34,7 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Launch an intraday cohort across multiple agents.")
     parser.add_argument("--bankroll", type=float, default=1_000.0, help="Total bankroll shared across agents")
     parser.add_argument("--agent-count", type=int, default=30, help="Number of agents in the cohort")
-    parser.add_argument("--symbol", type=str, default=None, help="Trading symbol override (e.g. BTC/USDT)")
+    parser.add_argument("--symbol", type=str, default=None, help="Trading symbol override (e.g. BTC/USD)")
     parser.add_argument("--interval", type=str, default=None, help="Base timeframe (default inherited from settings)")
     parser.add_argument("--horizon", type=str, default=None, help="Forecast horizon override")
     parser.add_argument(

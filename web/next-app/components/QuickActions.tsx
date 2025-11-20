@@ -11,7 +11,7 @@ const QUICK_PROMPTS: Array<{ label: string; prompt: string }> = [
   },
   {
     label: "Confidence on BTC scalpers",
-    prompt: "How confident are we in BTC/USDT scalper strategies for the next 4 hours?",
+    prompt: "How confident are we in BTC/USD scalper strategies for the next 4 hours?",
   },
   {
     label: "Feature drift overview",

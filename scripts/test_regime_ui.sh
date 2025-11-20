@@ -47,7 +47,7 @@ fi
 echo ""
 
 # Test 3: Regime data structure
-echo "3. Fetching regime data for BTC/USDT..."
+echo "3. Fetching regime data for BTC/USD..."
 REGIME_DATA=$(curl -s "$API_BASE/api/macro/regime?symbol=BTC%2FUSDT&interval=1h")
 
 if echo "$REGIME_DATA" | grep -q "trend_regime"; then
@@ -72,7 +72,7 @@ echo ""
 
 # Test 4: Multiple symbols batch
 echo "4. Testing batch regime query..."
-BATCH_DATA=$(curl -s "$API_BASE/api/macro/regimes/batch?symbols=BTC/USDT,ETH/USDT&interval=1h")
+BATCH_DATA=$(curl -s "$API_BASE/api/macro/regimes/batch?symbols=BTC/USD,ETH/USDT&interval=1h")
 
 if echo "$BATCH_DATA" | grep -q "regimes"; then
     COUNT=$(echo "$BATCH_DATA" | grep -o "trend_regime" | wc -l)

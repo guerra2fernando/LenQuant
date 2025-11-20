@@ -11,7 +11,7 @@ def test_generate_dashboard_creates_file(tmp_path) -> None:
     metadata = {
         "model_id": "rf_1h_demo",
         "algorithm": "RandomForestRegressor",
-        "symbol": "BTC/USDT",
+        "symbol": "BTC/USD",
         "horizon": "1h",
         "train_start": "2025-10-01T00:00:00Z",
         "train_end": "2025-11-01T00:00:00Z",

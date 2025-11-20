@@ -102,7 +102,7 @@ export default function ModelRegistryPage() {
             Model Registry
             <TooltipExplainer 
               term="Model Registry" 
-              explanation="The model registry is a catalog of all machine learning models that predict price movements. Each model is trained on specific symbol/timeframe combinations (like BTC/USDT 1h). The registry tracks model performance metrics (RMSE, directional accuracy), training dates, and deployment status. Models are periodically retrained with fresh data to maintain accuracy. Think of this as your ML model database and performance tracker."
+              explanation="The model registry is a catalog of all machine learning models that predict price movements. Each model is trained on specific symbol/timeframe combinations (like BTC/USD 1h). The registry tracks model performance metrics (RMSE, directional accuracy), training dates, and deployment status. Models are periodically retrained with fresh data to maintain accuracy. Think of this as your ML model database and performance tracker."
             />
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -125,7 +125,7 @@ export default function ModelRegistryPage() {
               <Label htmlFor="symbol-filter">Symbol</Label>
               <Input
                 id="symbol-filter"
-                placeholder="e.g. BTC/USDT"
+                placeholder="e.g. BTC/USD"
                 value={symbolFilter}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSymbolFilter(event.target.value.trim().toUpperCase())}
               />

@@ -55,9 +55,9 @@ Create a new MongoDB collection: `notifications`
   "type": "trade_execution",           // Category of notification
   "severity": "info",                  // info | success | warning | error | critical
   "title": "Order Filled",
-  "message": "Buy order for BTC/USDT filled at $60,125",
+  "message": "Buy order for BTC/USD filled at $60,125",
   "metadata": {                        // Type-specific data
-    "symbol": "BTC/USDT",
+    "symbol": "BTC/USD",
     "order_id": "ord_xyz",
     "amount": 0.5,
     "price": 60125.00

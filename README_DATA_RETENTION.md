@@ -34,7 +34,7 @@ Test the data retention system:
 python -m manager.tasks run_data_retention_maintenance
 
 # Check data statistics
-python -c "from data_ingest.retention import get_data_stats; print(get_data_stats(['BTC/USDT', 'ETH/USDT']))"
+python -c "from data_ingest.retention import get_data_stats; print(get_data_stats(['BTC/USD', 'ETH/USDT']))"
 ```
 
 ## Automated Operation
@@ -91,7 +91,7 @@ tail -f logs/data_retention.log
 python -c "
 from data_ingest.retention import get_data_stats, DataRetentionConfig
 config = DataRetentionConfig.from_env()
-stats = get_data_stats(['BTC/USDT'])
+stats = get_data_stats(['BTC/USD'])
 print('Data retention config:', config)
 print('Current stats:', stats)
 "
@@ -147,7 +147,7 @@ DATA_RETENTION_BATCH_SIZE=5000
 ### Data loss concerns
 - **No data is permanently deleted** without downsampling first
 - All operations are logged
-- Test on a single symbol first: `python -m data_ingest.retention cleanup_old_data ['BTC/USDT'], config`
+- Test on a single symbol first: `python -m data_ingest.retention cleanup_old_data ['BTC/USD'], config`
 
 ## Performance Impact
 

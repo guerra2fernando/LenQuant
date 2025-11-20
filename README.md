@@ -282,7 +282,7 @@ Advanced Mode is available for users who want full technical control.
 
 ### What cryptocurrencies can I trade?
 **Any cryptocurrency pair available on your connected exchange.** Common pairs include:
-- BTC/USDT, ETH/USDT, SOL/USDT
+- BTC/USD, ETH/USDT, SOL/USDT
 - And thousands of other pairs depending on your exchange
 
 The system is symbol-agnostic — it works with any trading pair your exchange supports.

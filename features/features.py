@@ -138,7 +138,7 @@ def generate_bulk(symbols: list[str], intervals: list[str]) -> int:
 if __name__ == "__main__":
     import os
 
-    symbols = os.getenv("DEFAULT_SYMBOLS", "BTC/USDT").split(",")
+    symbols = os.getenv("DEFAULT_SYMBOLS", "BTC/USD").split(",")
     intervals = os.getenv("FEATURE_INTERVALS", "1m").split(",")
     count = generate_bulk([s.strip() for s in symbols if s.strip()], [i.strip() for i in intervals if i.strip()])
     logger.info("Generated %s feature rows total", count)

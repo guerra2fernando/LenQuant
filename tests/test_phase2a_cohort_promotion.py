@@ -39,7 +39,7 @@ def sample_cohort_doc() -> Dict[str, Any]:
         "bankroll": 1000.0,
         "agent_count": 30,
         "allocation_policy": "equal",
-        "symbol": "BTC/USDT",
+        "symbol": "BTC/USD",
         "interval": "1m",
         "horizon": "5m",
         "parent_wallet": {
@@ -350,7 +350,7 @@ def test_serialise_cohort_detail():
     doc = {
         "cohort_id": "test-001",
         "created_at": datetime(2025, 1, 15, 10, 0, 0),
-        "symbol": "BTC/USDT",
+        "symbol": "BTC/USD",
         "bankroll": 1000.0,
         "agents": [
             {

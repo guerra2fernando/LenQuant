@@ -29,7 +29,7 @@ def test_risk_manager_blocks_notional_exceeding_limit():
     manager = RiskManager()
     request = OrderRequest(
         mode="paper",
-        symbol="BTC/USDT",
+        symbol="BTC/USD",
         side="buy",
         type="limit",
         quantity=10,
@@ -67,7 +67,7 @@ def test_kill_switch_blocks_new_orders():
 
     request = OrderRequest(
         mode="paper",
-        symbol="BTC/USDT",
+        symbol="BTC/USD",
         side="buy",
         type="limit",
         quantity=0.1,

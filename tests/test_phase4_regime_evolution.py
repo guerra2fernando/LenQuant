@@ -361,10 +361,10 @@ class TestGetCurrentRegime:
         
         mock_detector_class.return_value = mock_detector
         
-        result = _get_current_regime("BTC/USDT", "1h")
+        result = _get_current_regime("BTC/USD", "1h")
         
         assert result == "TRENDING_UP"
-        mock_detector.get_latest_regime.assert_called_once_with("BTC/USDT", "1h")
+        mock_detector.get_latest_regime.assert_called_once_with("BTC/USD", "1h")
     
     @patch("evolution.promoter.RegimeDetector")
     def test_no_regime_available(self, mock_detector_class):
@@ -374,7 +374,7 @@ class TestGetCurrentRegime:
         
         mock_detector_class.return_value = mock_detector
         
-        result = _get_current_regime("BTC/USDT", "1h")
+        result = _get_current_regime("BTC/USD", "1h")
         
         assert result is None
     
@@ -383,7 +383,7 @@ class TestGetCurrentRegime:
         """Test graceful handling of detector exceptions."""
         mock_detector_class.side_effect = Exception("Database error")
         
-        result = _get_current_regime("BTC/USDT", "1h")
+        result = _get_current_regime("BTC/USD", "1h")
         
         assert result is None
 

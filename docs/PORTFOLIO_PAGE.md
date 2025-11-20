@@ -17,7 +17,7 @@
   - Aggregates portfolio data across all modes (paper/testnet/live)
   - Includes real-time position valuations
   - Supports hierarchy view with parent wallet breakdown
-  - Integrates macro regime detection from BTC/USDT
+  - Integrates macro regime detection from BTC/USD
 
 ✅ **Paper Wallet Management Endpoint** - `POST /api/trading/wallet/adjust`
   - Add/remove/reset operations for paper trading wallets
@@ -384,7 +384,7 @@ Create API endpoints for portfolio aggregation, hierarchy views, and paper walle
     "live": {...}
   },
   "by_symbol": {
-    "BTC/USDT": {
+    "BTC/USD": {
       "quantity": 0.5,
       "avg_price": 50000.00,
       "current_price": 52000.00,

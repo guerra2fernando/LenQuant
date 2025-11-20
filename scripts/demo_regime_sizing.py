@@ -4,7 +4,7 @@ This script demonstrates how regime-based risk management adjusts position
 sizes based on current market conditions.
 
 Usage:
-    python scripts/demo_regime_sizing.py --symbol "BTC/USDT" --base-size 1000
+    python scripts/demo_regime_sizing.py --symbol "BTC/USD" --base-size 1000
     python scripts/demo_regime_sizing.py --all-symbols --interval 1h
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ def demo_single_symbol(symbol: str, base_size_usd: float, interval: str = "1h") 
     """Demonstrate regime sizing for a single symbol.
     
     Args:
-        symbol: Trading pair symbol (e.g., 'BTC/USDT')
+        symbol: Trading pair symbol (e.g., 'BTC/USD')
         base_size_usd: Base position size in USD before regime adjustment
         interval: Timeframe for regime detection
     """
@@ -220,7 +220,7 @@ def main() -> None:
     parser.add_argument(
         "--symbol",
         type=str,
-        help="Trading pair symbol (e.g., 'BTC/USDT')",
+        help="Trading pair symbol (e.g., 'BTC/USD')",
     )
     parser.add_argument(
         "--base-size",
@@ -253,7 +253,7 @@ def main() -> None:
             symbols = [s.strip() for s in args.symbols.split(",")]
         else:
             # Get common symbols
-            symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "ADA/USDT", "SOL/USDT"]
+            symbols = ["BTC/USD", "ETH/USDT", "BNB/USDT", "ADA/USDT", "SOL/USDT"]
         
         demo_comparison(symbols, args.base_size)
     elif args.symbol:

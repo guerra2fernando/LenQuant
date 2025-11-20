@@ -151,7 +151,7 @@ def run_experiment_cycle(request: ExperimentRequest) -> Dict[str, Any]:
             strategy_config["min_confidence"] = settings.get("min_confidence", strategy_config.get("min_confidence"))
             strategy_config["min_return_threshold"] = settings.get("min_return", strategy_config.get("min_return_threshold"))
             run_id = run_simulation(
-                request.symbol or settings.get("symbol", "BTC/USDT"),
+                request.symbol or settings.get("symbol", "BTC/USD"),
                 request.interval or settings.get("interval", "1m"),
                 strategy_name=saved["strategy_id"],
                 horizon=request.horizon or request.interval or settings.get("interval", "1m"),
@@ -335,7 +335,7 @@ def _persist_intraday_documents(cohort_doc: Dict[str, Any], summary_doc: Dict[st
 
 def launch_intraday_cohort(request: IntradayCohortRequest) -> Dict[str, Any]:
     settings = get_experiment_settings()
-    symbol = request.symbol or settings.get("symbol", "BTC/USDT")
+    symbol = request.symbol or settings.get("symbol", "BTC/USD")
     interval = request.interval or settings.get("interval", "1m")
     horizon = request.horizon or interval
 

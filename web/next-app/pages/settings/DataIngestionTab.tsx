@@ -116,6 +116,10 @@ export default function DataIngestionTab() {
               variant="outline"
               size="sm"
               onClick={() => {
+                // Store the current job_id for later retrieval
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('lastViewedIngestionJobId', job_id);
+                }
                 router.push("/settings?section=data-ingestion", undefined, { shallow: true });
               }}
             >
@@ -148,6 +152,26 @@ export default function DataIngestionTab() {
         </div>
         <div className="flex items-center gap-2">
           <SystemHealthBadge />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Try to get the last viewed job_id from localStorage
+              if (typeof window !== 'undefined') {
+                const lastJobId = localStorage.getItem('lastViewedIngestionJobId');
+                if (lastJobId) {
+                  router.push(`/settings?section=data-ingestion&job_id=${lastJobId}`, undefined, { shallow: true });
+                } else {
+                  // If no stored job_id, maybe show a message or just navigate without job_id
+                  // For now, we'll navigate without job_id which will show the symbols view
+                  router.push("/settings?section=data-ingestion", undefined, { shallow: true });
+                }
+              }
+            }}
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            View Progress
+          </Button>
           <Button
             onClick={handleRefreshAll}
             disabled={refreshing === "all" || !symbols || symbols.length === 0}

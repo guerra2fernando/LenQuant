@@ -214,12 +214,12 @@ The assistant analyzes data from all your strategies and forecasts to suggest th
                 <Label htmlFor="symbol">What cryptocurrency do you want to {selectedAction}?</Label>
                 <Input
                   id="symbol"
-                  placeholder="e.g., BTC/USDT, ETH/USDT"
+                  placeholder="e.g., BTC/USD, ETH/USDT"
                   value={orderData.symbol}
                   onChange={handleSymbolChange}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enter the trading pair (e.g., BTC/USDT means Bitcoin priced in USDT)
+                  Enter the trading pair (e.g., BTC/USD means Bitcoin priced in USDT)
                 </p>
               </div>
               <div className="space-y-2">

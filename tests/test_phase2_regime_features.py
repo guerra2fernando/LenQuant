@@ -50,7 +50,7 @@ class TestRegimeEnrichment(unittest.TestCase):
         mock_mongo.return_value = mock_client
         
         # Enrich dataframe
-        result = _enrich_with_regime(self.df, "BTC/USDT", "1h")
+        result = _enrich_with_regime(self.df, "BTC/USD", "1h")
         
         # Verify regime columns added
         self.assertIn("regime_trend", result.columns)
@@ -76,7 +76,7 @@ class TestRegimeEnrichment(unittest.TestCase):
         mock_mongo.return_value = mock_client
         
         # Enrich dataframe
-        result = _enrich_with_regime(self.df, "BTC/USDT", "1h")
+        result = _enrich_with_regime(self.df, "BTC/USD", "1h")
         
         # Verify default values
         self.assertTrue((result["regime_trend"] == "UNDEFINED").all())
@@ -87,7 +87,7 @@ class TestRegimeEnrichment(unittest.TestCase):
     def test_enrich_with_regime_empty_df(self):
         """Test regime enrichment with empty dataframe."""
         empty_df = pd.DataFrame()
-        result = _enrich_with_regime(empty_df, "BTC/USDT", "1h")
+        result = _enrich_with_regime(empty_df, "BTC/USD", "1h")
         self.assertTrue(result.empty)
 
     @patch("features.features.mongo_client")
@@ -110,7 +110,7 @@ class TestRegimeEnrichment(unittest.TestCase):
         mock_mongo.return_value = mock_client
         
         df = pd.DataFrame({"close": range(20)}, index=timestamps)
-        result = _enrich_with_regime(df, "BTC/USDT", "1h")
+        result = _enrich_with_regime(df, "BTC/USD", "1h")
         
         # Verify duration resets at regime change
         self.assertEqual(result.iloc[0]["regime_duration_bars"], 0)
@@ -344,7 +344,7 @@ class TestSimulatorRegimeContext(unittest.TestCase):
         mock_mongo.return_value = mock_client
         
         # Call function
-        result = _get_regime_for_timestamp("BTC/USDT", "1h", datetime(2024, 1, 1, 13, 0))
+        result = _get_regime_for_timestamp("BTC/USD", "1h", datetime(2024, 1, 1, 13, 0))
         
         # Verify result
         self.assertEqual(result["trend_regime"], "TRENDING_UP")
@@ -367,7 +367,7 @@ class TestSimulatorRegimeContext(unittest.TestCase):
         mock_mongo.return_value = mock_client
         
         # Call function
-        result = _get_regime_for_timestamp("BTC/USDT", "1h", datetime(2024, 1, 1, 13, 0))
+        result = _get_regime_for_timestamp("BTC/USD", "1h", datetime(2024, 1, 1, 13, 0))
         
         # Verify default values
         self.assertEqual(result["trend_regime"], "UNDEFINED")

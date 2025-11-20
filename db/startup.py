@@ -189,7 +189,7 @@ def create_indexes() -> None:
 def seed_default_symbols() -> None:
     """Seed the database with default symbols from environment."""
     try:
-        raw_symbols = os.getenv("DEFAULT_SYMBOLS", "BTC/USDT,ETH/USDT")
+        raw_symbols = os.getenv("DEFAULT_SYMBOLS", "BTC/USD,ETH/USDT")
         symbols = [s.strip() for s in raw_symbols.split(",") if s.strip()]
         
         if not symbols:

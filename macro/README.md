@@ -40,11 +40,11 @@ The macro analysis package provides market regime detection, sentiment analysis,
 
 ```bash
 # Get current regime for a symbol
-curl "http://localhost:8000/api/macro/regime?symbol=BTC/USDT&interval=1h"
+curl "http://localhost:8000/api/macro/regime?symbol=BTC/USD&interval=1h"
 
 # Response:
 {
-  "symbol": "BTC/USDT",
+  "symbol": "BTC/USD",
   "timestamp": "2024-11-12T10:00:00",
   "trend_regime": "TRENDING_UP",
   "volatility_regime": "NORMAL_VOLATILITY",
@@ -61,23 +61,23 @@ curl "http://localhost:8000/api/macro/regime?symbol=BTC/USDT&interval=1h"
 }
 
 # Batch query multiple symbols
-curl "http://localhost:8000/api/macro/regimes/batch?symbols=BTC/USDT,ETH/USDT&interval=1h"
+curl "http://localhost:8000/api/macro/regimes/batch?symbols=BTC/USD,ETH/USDT&interval=1h"
 
 # Get historical regimes
-curl "http://localhost:8000/api/macro/regimes/history/BTC/USDT?limit=100"
+curl "http://localhost:8000/api/macro/regimes/history/BTC/USD?limit=100"
 ```
 
 ### Backfill Historical Data
 
 ```bash
 # Backfill specific symbols
-python scripts/backfill_regimes.py --symbols BTC/USDT,ETH/USDT --interval 1h --limit 1000
+python scripts/backfill_regimes.py --symbols BTC/USD,ETH/USDT --interval 1h --limit 1000
 
 # Backfill all symbols in database
 python scripts/backfill_regimes.py --all-symbols --interval 1h
 
 # Force overwrite existing regimes
-python scripts/backfill_regimes.py --symbols BTC/USDT --interval 1h --force
+python scripts/backfill_regimes.py --symbols BTC/USD --interval 1h --force
 ```
 
 ### Python Usage
@@ -94,7 +94,7 @@ detector = RegimeDetector(
 
 # Classify current market state
 regime = detector.classify_market_state(
-    symbol="BTC/USDT",
+    symbol="BTC/USD",
     interval="1h"
 )
 
@@ -106,7 +106,7 @@ print(f"Confidence: {regime.confidence:.2f}")
 detector.store_regime(regime)
 
 # Retrieve latest regime from cache
-cached_regime = detector.get_latest_regime("BTC/USDT")
+cached_regime = detector.get_latest_regime("BTC/USD")
 ```
 
 ## Regime Classification Logic

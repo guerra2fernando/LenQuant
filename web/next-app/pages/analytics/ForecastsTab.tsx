@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { buildApiUrl, fetcher } from "@/lib/api";
 
 const HORIZONS = ["1m", "1h", "1d"] as const;
-const DEFAULT_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT"];
+const DEFAULT_SYMBOLS = ["BTC/USD", "ETH/USDT", "SOL/USDT"];
 const HISTORY_LENGTH = 60;
 
 type RawForecast = ForecastRow & {

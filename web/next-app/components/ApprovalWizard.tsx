@@ -44,7 +44,7 @@ function normalizeSymbol(value: string) {
 
 export function ApprovalWizard({
   onSubmit,
-  defaultSymbol = "BTC/USDT",
+  defaultSymbol = "BTC/USD",
   defaultMode = "paper",
   symbolOptions,
 }: ApprovalWizardProps) {
@@ -209,13 +209,13 @@ export function ApprovalWizard({
                 Symbol
                 <TooltipExplainer 
                   term="Trading Symbol" 
-                  explanation="The cryptocurrency trading pair, like BTC/USDT (Bitcoin priced in USDT) or ETH/USD (Ethereum in US Dollars). The format is always BASE/QUOTE where you're buying/selling the BASE currency using the QUOTE currency."
+                  explanation="The cryptocurrency trading pair, like BTC/USD (Bitcoin priced in USDT) or ETH/USD (Ethereum in US Dollars). The format is always BASE/QUOTE where you're buying/selling the BASE currency using the QUOTE currency."
                   size="sm"
                 />
               </Label>
               <Input
                 value={symbol}
-                placeholder="e.g., BTC/USDT"
+                placeholder="e.g., BTC/USD"
                 onChange={(event) => setSymbol(normalizeSymbol(event.target.value))}
               />
               {quickPickSymbols.length ? (

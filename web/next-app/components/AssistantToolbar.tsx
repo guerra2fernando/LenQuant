@@ -79,7 +79,7 @@ export function AssistantToolbar({
               Symbol
               <TooltipExplainer 
                 term="Symbol (context)" 
-                explanation="Optionally specify which cryptocurrency pair to focus on (e.g., BTC/USDT, ETH/USD). This narrows the assistant's search to data about that specific symbol. Leave blank for questions spanning all symbols."
+                explanation="Optionally specify which cryptocurrency pair to focus on (e.g., BTC/USD, ETH/USD). This narrows the assistant's search to data about that specific symbol. Leave blank for questions spanning all symbols."
                 size="sm"
               />
             </Label>
@@ -87,7 +87,7 @@ export function AssistantToolbar({
               id="assistant-symbol"
               value={symbol}
               onChange={(event) => onSymbolChange(event.target.value)}
-              placeholder="BTC/USDT"
+              placeholder="BTC/USD"
               className="text-sm"
             />
           </div>

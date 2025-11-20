@@ -223,7 +223,7 @@ def run_simulation(
 
 
 def main() -> None:
-    symbol = "BTC/USDT"
+    symbol = "BTC/USD"
     interval = "1m"
     strategy = "ensemble-threshold"
     run_simulation(symbol, interval, strategy)

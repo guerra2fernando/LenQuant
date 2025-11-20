@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useExchangeMarkets } from "@/hooks/useExchangeMarkets";
 
@@ -314,12 +314,10 @@ export function CryptoSelector({
         </DialogTrigger>
         <DialogContent className="max-w-md max-h-[80vh] overflow-hidden">
           <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold">Select Cryptocurrencies</h3>
-              <p className="text-sm text-muted-foreground">
-                Choose the cryptocurrencies you want to track
-              </p>
-            </div>
+            <DialogTitle>Select Cryptocurrencies</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Choose the cryptocurrencies you want to track
+            </p>
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -28,7 +28,7 @@ def test_ensemble_predict_weighted_average(monkeypatch: pytest.MonkeyPatch) -> N
     timestamp = datetime.utcnow()
 
     def fake_feature_vector(symbol: str, horizon: str, ts: datetime) -> pd.DataFrame:
-        assert symbol == "BTC/USDT"
+        assert symbol == "BTC/USD"
         assert horizon == "1h"
         assert ts == timestamp
         frame = pd.DataFrame(
@@ -57,7 +57,7 @@ def test_ensemble_predict_weighted_average(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(ensemble, "_load_candidate_models", fake_candidate_models)
     monkeypatch.setattr(ensemble, "_load_model", fake_load_model)
 
-    result = ensemble.ensemble_predict("BTC/USDT", "1h", timestamp)
+    result = ensemble.ensemble_predict("BTC/USD", "1h", timestamp)
 
     expected = (0.01 * (1 / (1 + 1e-6)) + 0.03 * (1 / (2 + 1e-6))) / (
         1 / (1 + 1e-6) + 1 / (2 + 1e-6)
@@ -65,6 +65,6 @@ def test_ensemble_predict_weighted_average(monkeypatch: pytest.MonkeyPatch) -> N
     assert pytest.approx(result["predicted_return"], rel=1e-6) == expected
     assert result["confidence"] > 0
     assert result["models"]
-    assert result["symbol"] == "BTC/USDT"
+    assert result["symbol"] == "BTC/USD"
     assert result["horizon"] == "1h"
 

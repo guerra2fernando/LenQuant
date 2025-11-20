@@ -211,7 +211,7 @@ User clicks "Start Setup"
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│             ingest_symbol_interval_task(BTC/USDT, 1m)            │
+│             ingest_symbol_interval_task(BTC/USD, 1m)            │
 └────────────────────────────┬─────────────────────────────────────┘
                              │
                              ▼
@@ -302,7 +302,7 @@ User clicks "Start Setup"
                          ▼
         ┌─────────────────────────────────────┐
         │ Send notification:                  │
-        │ "✓ BTC/USDT 1m ingestion complete" │
+        │ "✓ BTC/USD 1m ingestion complete" │
         └─────────────────────────────────────┘
 ```
 
@@ -457,7 +457,7 @@ User clicks "Start Setup"
 │                      symbols collection                      │
 │                                                              │
 │  {                                                           │
-│    symbol: "BTC/USDT",                                      │
+│    symbol: "BTC/USD",                                      │
 │    enabled: true,                                           │
 │    intervals_status: {                    ┌───────┐         │
 │      "1m": {                              │ Links │         │
@@ -478,7 +478,7 @@ User clicks "Start Setup"
 │  {                                                          │
 │    job_id: "ing_20250120_123456_BTC_1m",                   │
 │    parent_job_id: "batch_20250120_123456",  ──────┐        │
-│    symbol: "BTC/USDT",                            │        │
+│    symbol: "BTC/USD",                            │        │
 │    interval: "1m",                                │        │
 │    status: "completed",                           │        │
 │    records_fetched: 43150,       Links to ────┐   │        │
@@ -496,7 +496,7 @@ User clicks "Start Setup"
 │  {                                            │            │
 │    job_id: "batch_20250120_123456",  ◀───────┘            │
 │    job_type: "bootstrap",                                 │
-│    symbols: ["BTC/USDT", "ETH/USDT"],                     │
+│    symbols: ["BTC/USD", "ETH/USDT"],                     │
 │    intervals: ["1m", "5m"],                               │
 │    child_job_ids: [                                       │
 │      "ing_20250120_123456_BTC_1m",                        │

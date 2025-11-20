@@ -27,7 +27,7 @@ export function TradingChart({
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const positionLineRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [chartInitialized, setChartInitialized] = useState(false);
 
   console.log(`[TradingChart] Render - Symbol: ${symbol}, Interval: ${interval}, Loading: ${loading}, ChartInit: ${chartInitialized}`);
@@ -112,7 +112,8 @@ export function TradingChart({
     console.log(`[TradingChart] Data fetch effect triggered - ChartInit: ${chartInitialized}, CandleSeries: ${!!candleSeriesRef.current}`);
     
     if (!chartInitialized || !candleSeriesRef.current) {
-      console.warn('[TradingChart] Chart not ready yet, skipping data fetch');
+      console.warn('[TradingChart] Chart not ready yet, waiting for initialization');
+      setLoading(true);
       return;
     }
 

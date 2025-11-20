@@ -5,7 +5,7 @@ This script processes historical OHLCV data and generates regime classifications
 for each candle, storing them in the macro_regimes collection.
 
 Usage:
-    python scripts/backfill_regimes.py --symbols BTC/USDT,ETH/USDT --interval 1h --limit 1000
+    python scripts/backfill_regimes.py --symbols BTC/USD,ETH/USDT --interval 1h --limit 1000
     python scripts/backfill_regimes.py --all-symbols --interval 1h  # Process all symbols in DB
 """
 from __future__ import annotations
@@ -47,7 +47,7 @@ def backfill_symbol(
     """Backfill regime classifications for a single symbol.
     
     Args:
-        symbol: Trading pair symbol (e.g., 'BTC/USDT')
+        symbol: Trading pair symbol (e.g., 'BTC/USD')
         interval: Timeframe (e.g., '1h', '1d')
         limit: Maximum number of candles to process (None = all)
         force: If True, overwrite existing regime classifications
@@ -172,7 +172,7 @@ def main():
     parser.add_argument(
         "--symbols",
         type=str,
-        help="Comma-separated list of symbols (e.g., 'BTC/USDT,ETH/USDT')",
+        help="Comma-separated list of symbols (e.g., 'BTC/USD,ETH/USDT')",
     )
     
     parser.add_argument(

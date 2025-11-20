@@ -104,7 +104,7 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         """Test multiplier returns 1.0 when regime risk disabled."""
         self.risk_manager.macro_settings.regime_risk_enabled = False
         
-        multiplier, regime_desc = self.risk_manager.get_regime_multiplier("BTC/USDT")
+        multiplier, regime_desc = self.risk_manager.get_regime_multiplier("BTC/USD")
         
         assert multiplier == 1.0
         assert regime_desc is None
@@ -116,11 +116,11 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         mock_detector.get_latest_regime.return_value = None
         mock_detector_class.return_value = mock_detector
         
-        multiplier, regime_desc = self.risk_manager.get_regime_multiplier("BTC/USDT")
+        multiplier, regime_desc = self.risk_manager.get_regime_multiplier("BTC/USD")
         
         assert multiplier == 1.0
         assert regime_desc == "UNDEFINED"
-        mock_detector.get_latest_regime.assert_called_once_with("BTC/USDT")
+        mock_detector.get_latest_regime.assert_called_once_with("BTC/USD")
     
     @patch("exec.risk_manager.RegimeDetector")
     def test_trending_up_multiplier(self, mock_detector_class):
@@ -129,7 +129,7 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         
         # Create mock regime
         mock_regime = MarketRegime(
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             timestamp=datetime.utcnow(),
             trend_regime=TrendRegime.TRENDING_UP,
             volatility_regime=VolatilityRegime.NORMAL_VOLATILITY,
@@ -149,7 +149,7 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         mock_detector.get_latest_regime.return_value = mock_regime
         mock_detector_class.return_value = mock_detector
         
-        multiplier, regime_desc = self.risk_manager.get_regime_multiplier("BTC/USDT")
+        multiplier, regime_desc = self.risk_manager.get_regime_multiplier("BTC/USD")
         
         # Should use minimum of trend (1.3) and volatility (1.0) = 1.0
         assert multiplier == 1.0
@@ -225,7 +225,7 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         from macro.regime import MarketRegime, RegimeFeatures, TrendRegime, VolatilityRegime
         
         mock_regime = MarketRegime(
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             timestamp=datetime.utcnow(),
             trend_regime=TrendRegime.TRENDING_UP,
             volatility_regime=VolatilityRegime.NORMAL_VOLATILITY,
@@ -241,16 +241,16 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         mock_detector_class.return_value = mock_detector
         
         # First call should fetch regime
-        multiplier1, _ = self.risk_manager.get_regime_multiplier("BTC/USDT")
+        multiplier1, _ = self.risk_manager.get_regime_multiplier("BTC/USD")
         assert mock_detector.get_latest_regime.call_count == 1
         
         # Second call within TTL should use cache
-        multiplier2, _ = self.risk_manager.get_regime_multiplier("BTC/USDT")
+        multiplier2, _ = self.risk_manager.get_regime_multiplier("BTC/USD")
         assert mock_detector.get_latest_regime.call_count == 1  # Not called again
         assert multiplier1 == multiplier2
         
         # Check cache has entry
-        assert "BTC/USDT" in self.risk_manager._regime_cache
+        assert "BTC/USD" in self.risk_manager._regime_cache
     
     @patch("exec.risk_manager.RegimeDetector")
     def test_cache_expiration(self, mock_detector_class):
@@ -258,7 +258,7 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         from macro.regime import MarketRegime, RegimeFeatures, TrendRegime, VolatilityRegime
         
         mock_regime = MarketRegime(
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             timestamp=datetime.utcnow(),
             trend_regime=TrendRegime.TRENDING_UP,
             volatility_regime=VolatilityRegime.NORMAL_VOLATILITY,
@@ -277,16 +277,16 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         self.risk_manager.macro_settings.regime_cache_ttl_seconds = 1
         
         # First call
-        self.risk_manager.get_regime_multiplier("BTC/USDT")
+        self.risk_manager.get_regime_multiplier("BTC/USD")
         assert mock_detector.get_latest_regime.call_count == 1
         
         # Manually expire cache
-        cached_multiplier, cached_at = self.risk_manager._regime_cache["BTC/USDT"]
+        cached_multiplier, cached_at = self.risk_manager._regime_cache["BTC/USD"]
         expired_time = cached_at - timedelta(seconds=10)
-        self.risk_manager._regime_cache["BTC/USDT"] = (cached_multiplier, expired_time)
+        self.risk_manager._regime_cache["BTC/USD"] = (cached_multiplier, expired_time)
         
         # Second call should refetch
-        self.risk_manager.get_regime_multiplier("BTC/USDT")
+        self.risk_manager.get_regime_multiplier("BTC/USD")
         assert mock_detector.get_latest_regime.call_count == 2
     
     @patch("exec.risk_manager.RegimeDetector")
@@ -296,7 +296,7 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         
         # Create regime with low multiplier (significant reduction)
         mock_regime = MarketRegime(
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             timestamp=datetime.utcnow(),
             trend_regime=TrendRegime.TRENDING_DOWN,
             volatility_regime=VolatilityRegime.HIGH_VOLATILITY,
@@ -316,7 +316,7 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         self.risk_manager.macro_settings.significant_reduction_threshold = 0.3
         
         with patch.object(self.risk_manager, "log_breach") as mock_log_breach:
-            multiplier, _ = self.risk_manager.get_regime_multiplier("BTC/USDT")
+            multiplier, _ = self.risk_manager.get_regime_multiplier("BTC/USD")
             
             # min(0.6, 0.5) = 0.5 which is < 0.7, so should trigger
             assert multiplier == 0.5
@@ -335,7 +335,7 @@ class TestGetRegimeMultiplier(unittest.TestCase):
         mock_detector.get_latest_regime.side_effect = Exception("Database error")
         mock_detector_class.return_value = mock_detector
         
-        multiplier, regime_desc = self.risk_manager.get_regime_multiplier("BTC/USDT")
+        multiplier, regime_desc = self.risk_manager.get_regime_multiplier("BTC/USD")
         
         # Should return neutral multiplier on error
         assert multiplier == 1.0
@@ -357,12 +357,12 @@ class TestCalculatePositionSize(unittest.TestCase):
     def test_position_size_without_regime(self):
         """Test position size calculation without regime adjustment."""
         result = self.risk_manager.calculate_position_size(
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             base_size_usd=1000.0,
             apply_regime_multiplier=False,
         )
         
-        assert result["symbol"] == "BTC/USDT"
+        assert result["symbol"] == "BTC/USD"
         assert result["base_size_usd"] == 1000.0
         assert result["regime_multiplier"] == 1.0
         assert result["regime_description"] is None
@@ -375,12 +375,12 @@ class TestCalculatePositionSize(unittest.TestCase):
         mock_get_multiplier.return_value = (0.5, "TRENDING_DOWN/HIGH_VOLATILITY")
         
         result = self.risk_manager.calculate_position_size(
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             base_size_usd=1000.0,
             apply_regime_multiplier=True,
         )
         
-        assert result["symbol"] == "BTC/USDT"
+        assert result["symbol"] == "BTC/USD"
         assert result["base_size_usd"] == 1000.0
         assert result["regime_multiplier"] == 0.5
         assert result["regime_description"] == "TRENDING_DOWN/HIGH_VOLATILITY"
@@ -452,7 +452,7 @@ class TestRiskManagerMacroIntegration(unittest.TestCase):
         risk_manager = RiskManager()
         risk_manager.macro_settings.regime_risk_enabled = True
         risk_manager._regime_adjustments_count = 5
-        risk_manager._regime_cache["BTC/USDT"] = (0.8, datetime.now(timezone.utc))
+        risk_manager._regime_cache["BTC/USD"] = (0.8, datetime.now(timezone.utc))
         
         with patch.object(risk_manager, "_current_open_exposure", return_value=0.0):
             with patch.object(risk_manager, "_positions_count", return_value={}):

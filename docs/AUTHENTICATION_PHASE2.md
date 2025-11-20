@@ -974,7 +974,7 @@ def create_strategy(
    - Deactivated user tries to login → Should fail
 
 4. **Shared Data**:
-   - User A and User B both fetch BTC/USDT forecast
+   - User A and User B both fetch BTC/USD forecast
    - Both should see same market data
    - But different personal strategies
 

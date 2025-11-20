@@ -43,12 +43,12 @@ def _parent_metrics(parent_id: Optional[str]) -> Dict[str, Any]:
     return parent_doc.get("fitness", {})
 
 
-def _get_current_regime(symbol: str = "BTC/USDT", interval: str = "1h") -> Optional[str]:
+def _get_current_regime(symbol: str = "BTC/USD", interval: str = "1h") -> Optional[str]:
     """
     Get the current market regime for a symbol.
     
     Args:
-        symbol: Trading pair symbol (default: BTC/USDT)
+        symbol: Trading pair symbol (default: BTC/USD)
         interval: Time interval (default: 1h)
     
     Returns:
@@ -167,7 +167,7 @@ def _get_regime_performance_for_regime(
 def decide_promotion(
     experiment_id: str,
     policy: PromotionPolicy,
-    symbol: str = "BTC/USDT",
+    symbol: str = "BTC/USD",
     interval: str = "1h",
     enable_regime_bonus: bool = True,
 ) -> Optional[PromotionDecision]:

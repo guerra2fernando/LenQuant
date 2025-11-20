@@ -4,7 +4,7 @@
 
 ```json
 {
-  "symbol": "BTC/USDT",
+  "symbol": "BTC/USD",
   "interval": "1m",
   "timestamp": "ISODate",
   "open": 60000.0,
@@ -22,7 +22,7 @@ Index: `{ "symbol": 1, "interval": 1, "timestamp": 1 }` (unique)
 
 ```json
 {
-  "symbol": "BTC/USDT",
+  "symbol": "BTC/USD",
   "interval": "1m",
   "timestamp": "ISODate",
   "features": {
@@ -67,7 +67,7 @@ Index: `{ "symbol": 1, "interval": 1, "timestamp": 1 }`
 {
   "_id": ObjectId,
   "model_id": "rf_1h_20251110",
-  "symbol": "BTC/USDT",
+  "symbol": "BTC/USD",
   "horizon": "1h",
   "algorithm": "RandomForestRegressor",
   "status": "candidate",

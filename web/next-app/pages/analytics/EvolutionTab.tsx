@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { fetcher, postJson } from "@/lib/api";
 
 export default function EvolutionTab() {
-  const [symbol, setSymbol] = useState("BTC/USDT");
+  const [symbol, setSymbol] = useState("BTC/USD");
   const [interval, setInterval] = useState("1m");
   const [accounts, setAccounts] = useState(12);
   const [isRunning, setIsRunning] = useState(false);
@@ -198,7 +198,7 @@ export default function EvolutionTab() {
                 Symbol
                 <TooltipExplainer 
                   term="Symbol (Evolution)" 
-                  explanation="The cryptocurrency trading pair to test strategies on. For example, BTC/USDT means testing Bitcoin priced in USDT. Strategies are optimized specifically for each symbol's unique price patterns."
+                  explanation="The cryptocurrency trading pair to test strategies on. For example, BTC/USD means testing Bitcoin priced in USDT. Strategies are optimized specifically for each symbol's unique price patterns."
                   size="sm"
                 />
               </label>

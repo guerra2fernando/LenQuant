@@ -87,7 +87,7 @@ class EvolutionExperiment:
 class EvaluationConfig:
     """Parameters controlling evaluation runs."""
 
-    symbol: str = "BTC/USDT"
+    symbol: str = "BTC/USD"
     horizon: str = "1h"
     paper_days: int = 7
     max_concurrent: int = 4

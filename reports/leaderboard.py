@@ -16,7 +16,7 @@ def _ensure_directory() -> None:
     LEADERBOARD_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _get_current_regime(symbol: str = "BTC/USDT", interval: str = "1h") -> Optional[str]:
+def _get_current_regime(symbol: str = "BTC/USD", interval: str = "1h") -> Optional[str]:
     """Get current market regime."""
     try:
         detector = RegimeDetector()
@@ -248,7 +248,7 @@ def generate_regime_leaderboard(
     *,
     limit: int = 10,
     use_current_regime: bool = False,
-    symbol: str = "BTC/USDT",
+    symbol: str = "BTC/USD",
     interval: str = "1h",
     as_of: Optional[datetime] = None,
 ) -> Dict[str, Any]:

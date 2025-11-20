@@ -122,7 +122,7 @@ function getRiskAdjustment(trend: string, volatility: string): string {
 }
 
 export function MacroRegimeCard({
-  symbol = "BTC/USDT",
+  symbol = "BTC/USD",
   interval = "1h",
   regimeData,
   isLoading = false,

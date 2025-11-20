@@ -39,7 +39,7 @@ def get_leaderboard_slug(slug: str) -> Dict[str, Any]:
 @router.get("/regime/current")
 def get_current_regime_leaderboard(
     limit: int = Query(default=10, ge=1, le=50),
-    symbol: str = Query(default="BTC/USDT"),
+    symbol: str = Query(default="BTC/USD"),
     interval: str = Query(default="1h"),
 ) -> Dict[str, Any]:
     """

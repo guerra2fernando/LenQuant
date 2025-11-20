@@ -24,7 +24,7 @@ export default function AssistantWorkspacePage() {
   const { isEasyMode } = useMode();
   const initialPrompt = typeof router.query.prompt === "string" ? router.query.prompt : "";
   const [query, setQuery] = useState(initialPrompt);
-  const [symbol, setSymbol] = useState("BTC/USDT");
+  const [symbol, setSymbol] = useState("BTC/USD");
   const [date, setDate] = useState("");
   const [horizon, setHorizon] = useState("1h");
   const [strategyId, setStrategyId] = useState("");

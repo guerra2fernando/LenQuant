@@ -22,7 +22,7 @@ def _seed_symbols(symbols: List[str]) -> int:
     Seed symbols into the database.
     
     Args:
-        symbols: List of trading pairs (e.g., ['BTC/USDT', 'ETH/USDT'])
+        symbols: List of trading pairs (e.g., ['BTC/USD', 'ETH/USDT'])
     
     Returns:
         Number of symbols seeded
@@ -164,7 +164,7 @@ def bootstrap_data(payload: BootstrapRequest) -> Dict[str, Any]:
     """
     config = IngestConfig.from_env()
 
-    symbols = payload.symbols or config.symbols or ["BTC/USDT"]
+    symbols = payload.symbols or config.symbols or ["BTC/USD"]
     intervals = payload.intervals or config.intervals or ["1m"]
     lookback_days = payload.lookback_days or config.lookback_days
 

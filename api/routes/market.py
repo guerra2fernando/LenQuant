@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("/ohlcv")
 def get_ohlcv(
-    symbol: str = Query(..., description="Trading pair, e.g., BTC/USDT"),
+    symbol: str = Query(..., description="Trading pair, e.g., BTC/USD"),
     interval: str = Query(..., description="Timeframe: 1m, 5m, 15m, 1h, 4h, 1d"),
     limit: int = Query(500, ge=1, le=2000, description="Number of candles"),
     start_time: Optional[datetime] = Query(None, description="Start timestamp"),

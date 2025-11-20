@@ -13,7 +13,7 @@ def _utcnow() -> datetime:
 class AssistantQueryContext(BaseModel):
     """Structured query metadata supplied by the UI/backend when asking the assistant."""
 
-    symbol: Optional[str] = Field(default=None, description="Trading pair symbol, e.g. BTC/USDT")
+    symbol: Optional[str] = Field(default=None, description="Trading pair symbol, e.g. BTC/USD")
     date: Optional[dt_date] = Field(default=None, description="Primary date of interest.")
     strategy_id: Optional[str] = Field(default=None, description="Strategy identifier if scoped.")
     horizon: Optional[str] = Field(default=None, description="Forecast horizon such as 1h.")

@@ -68,7 +68,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Compute uplift between the ensemble strategy and a baseline.")
     parser.add_argument("--ensemble-strategy", default="ensemble-threshold", help="Strategy name using forecasts.")
     parser.add_argument("--baseline-strategy", default="baseline", help="Baseline strategy name.")
-    parser.add_argument("--symbol", default="BTC/USDT", help="Symbol filter.")
+    parser.add_argument("--symbol", default="BTC/USD", help="Symbol filter.")
     parser.add_argument("--horizon", default="1m", help="Horizon filter.")
     args = parser.parse_args()
 

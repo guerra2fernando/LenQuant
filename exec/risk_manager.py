@@ -264,7 +264,7 @@ class RiskManager:
         """Get position size multiplier based on current market regime.
         
         Args:
-            symbol: Trading pair symbol (e.g., 'BTC/USDT')
+            symbol: Trading pair symbol (e.g., 'BTC/USD')
             
         Returns:
             Tuple of (multiplier, regime_description)

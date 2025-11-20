@@ -42,7 +42,7 @@ class TestIngestionTasks:
         result = ingest_symbol_interval_task(
             mock_task,
             job_id="test_job_001",
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             interval="1m",
             lookback_days=1
         )
@@ -76,7 +76,7 @@ class TestIngestionTasks:
         mock_task = MagicMock()
         
         # Call batch task
-        symbols = ["BTC/USDT", "ETH/USDT"]
+        symbols = ["BTC/USD", "ETH/USDT"]
         intervals = ["1m", "5m"]
         
         result = batch_ingest_task(

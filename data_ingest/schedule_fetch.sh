@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage: ./schedule_fetch.sh BTC/USDT 1m
-SYMBOL=${1:-BTC/USDT}
+# Usage: ./schedule_fetch.sh BTC/USD 1m
+SYMBOL=${1:-BTC/USD}
 INTERVAL=${2:-1m}
 LIMIT=${3:-500}
 

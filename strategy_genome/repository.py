@@ -24,7 +24,7 @@ SETTINGS_COLLECTION = "settings"
 EXPERIMENT_SETTINGS_ID = "experiment_settings"
 
 DEFAULT_EXPERIMENT_SETTINGS = {
-    "symbol": "BTC/USDT",
+    "symbol": "BTC/USD",
     "interval": "1m",
     "accounts": 20,
     "mutations_per_parent": 4,

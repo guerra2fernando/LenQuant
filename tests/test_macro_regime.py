@@ -370,7 +370,7 @@ class TestMarketRegime(unittest.TestCase):
         )
         
         regime = MarketRegime(
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             timestamp=datetime(2024, 1, 1, 12, 0),
             trend_regime=TrendRegime.TRENDING_UP,
             volatility_regime=VolatilityRegime.NORMAL_VOLATILITY,
@@ -378,7 +378,7 @@ class TestMarketRegime(unittest.TestCase):
             features=features,
         )
         
-        self.assertEqual(regime.symbol, "BTC/USDT")
+        self.assertEqual(regime.symbol, "BTC/USD")
         self.assertEqual(regime.trend_regime, TrendRegime.TRENDING_UP)
         self.assertEqual(regime.volatility_regime, VolatilityRegime.NORMAL_VOLATILITY)
         self.assertAlmostEqual(regime.confidence, 0.75)

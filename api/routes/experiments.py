@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExperimentPayload(BaseModel):
-    symbol: Optional[str] = Field(None, description="Trading symbol to evaluate, e.g., BTC/USDT")
+    symbol: Optional[str] = Field(None, description="Trading symbol to evaluate, e.g., BTC/USD")
     interval: Optional[str] = Field(None, description="Base timeframe, e.g., 1m")
     horizon: Optional[str] = Field(None, description="Forecast horizon, defaults to interval")
     accounts: Optional[int] = Field(20, ge=1, le=200, description="Number of simulations to run")
@@ -68,7 +68,7 @@ class IntradayLaunchPayload(BaseModel):
     end_time: Optional[datetime] = Field(
         default=None, description="Upper bound of the simulation window (ISO 8601). Defaults to manager settings."
     )
-    symbol: Optional[str] = Field(default=None, description="Market symbol override, e.g., BTC/USDT")
+    symbol: Optional[str] = Field(default=None, description="Market symbol override, e.g., BTC/USD")
     interval: Optional[str] = Field(default=None, description="Sampling interval override, e.g., 1m")
     horizon: Optional[str] = Field(default=None, description="Forecast horizon override")
     families: Optional[List[str]] = Field(

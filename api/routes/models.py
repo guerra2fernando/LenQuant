@@ -52,7 +52,7 @@ def registry_detail(model_id: str) -> Dict[str, Any]:
 
 
 class RetrainRequest(BaseModel):
-    symbol: str = Field(..., example="BTC/USDT")
+    symbol: str = Field(..., example="BTC/USD")
     horizon: str = Field(..., example="1h")
     algorithm: str = Field("rf", description="Training algorithm (rf or lgbm)")
     train_window: Optional[int] = Field(None, description="Training window in days")
@@ -72,7 +72,7 @@ def _default_symbols() -> List[str]:
         symbols = [item.strip() for item in raw.split(",") if item.strip()]
         if symbols:
             return symbols
-    return ["BTC/USDT"]
+    return ["BTC/USD"]
 
 
 def _run_training_job(payload: RetrainRequest) -> None:

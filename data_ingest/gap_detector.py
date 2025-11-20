@@ -76,7 +76,7 @@ def detect_data_gaps(
     gap_threshold_multiplier times the expected interval.
     
     Args:
-        symbol: Trading pair symbol (e.g., 'BTC/USDT')
+        symbol: Trading pair symbol (e.g., 'BTC/USD')
         interval: Interval (e.g., '1m', '5m', '1h', '1d')
         config: Configuration object
         gap_threshold_multiplier: Multiplier for gap detection threshold

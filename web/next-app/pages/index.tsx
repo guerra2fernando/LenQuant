@@ -67,7 +67,7 @@ export default function Home(): JSX.Element {
   const { data: status, mutate: refreshStatus } = useSWR<StatusResponse>("/api/status", fetcher);
   const { data: reports, mutate: refreshReports } = useSWR<ReportsResponse>("/api/reports?limit=3", fetcher);
   const { data: overview, mutate: refreshOverview } = useSWR<AdminOverviewResponse>("/api/admin/overview", fetcher);
-  const { regime: btcRegime, isLoading: isLoadingRegime } = useRegime("BTC/USDT", "1h");
+  const { regime: btcRegime, isLoading: isLoadingRegime } = useRegime("BTC/USD", "1h");
   const [bootstrapResult, setBootstrapResult] = useState<BootstrapResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -324,7 +324,7 @@ export default function Home(): JSX.Element {
 
         {/* Market Regime */}
         <MacroRegimeCard 
-          symbol="BTC/USDT" 
+          symbol="BTC/USD" 
           interval="1h" 
           regimeData={btcRegime} 
           isLoading={isLoadingRegime}
@@ -480,7 +480,7 @@ export default function Home(): JSX.Element {
 
       {/* Market Regime */}
       <MacroRegimeCard 
-        symbol="BTC/USDT" 
+        symbol="BTC/USD" 
         interval="1h" 
         regimeData={btcRegime} 
         isLoading={isLoadingRegime}

@@ -317,7 +317,7 @@ def save_test_predictions(model_id: str, timestamps: pd.Index, y_true: pd.Series
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train a forecasting model for a specific horizon.")
-    parser.add_argument("--symbol", required=True, help="Trading pair symbol, e.g., BTC/USDT")
+    parser.add_argument("--symbol", required=True, help="Trading pair symbol, e.g., BTC/USD")
     parser.add_argument("--horizon", required=True, help="Forecast horizon key, e.g., 1m, 1h, 1d")
     parser.add_argument("--train-window", type=int, default=None, help="Training window in days")
     parser.add_argument(

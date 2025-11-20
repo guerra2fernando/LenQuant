@@ -146,7 +146,7 @@ def fetch_symbol_interval(
     Fetch data for a single symbol/timeframe combination.
     
     Args:
-        symbol: Trading pair symbol (e.g., 'BTC/USDT')
+        symbol: Trading pair symbol (e.g., 'BTC/USD')
         timeframe: Interval (e.g., '1m', '1h', '1d')
         since: UNIX timestamp in milliseconds to start from
         limit: Max candles per API call
@@ -249,7 +249,7 @@ def fetch_symbol_interval(
 
 def _parse_args() -> tuple[Optional[str], Optional[str], Optional[int], int, Optional[int]]:
     parser = ArgumentParser(description="Fetch OHLCV data into MongoDB.")
-    parser.add_argument("--symbol", help="Trading pair symbol, e.g., BTC/USDT")
+    parser.add_argument("--symbol", help="Trading pair symbol, e.g., BTC/USD")
     parser.add_argument("--interval", help="Timeframe, e.g., 1m, 1h, 1d")
     parser.add_argument("--since", type=int, help="UNIX ms timestamp to start from")
     parser.add_argument("--limit", type=int, default=1000, help="Max candles per call")

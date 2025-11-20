@@ -207,8 +207,8 @@ def main() -> None:
     parser.add_argument(
         "--symbol",
         type=str,
-        default="BTC/USDT",
-        help="Trading pair symbol (default: BTC/USDT)",
+        default="BTC/USD",
+        help="Trading pair symbol (default: BTC/USD)",
     )
     parser.add_argument(
         "--quantity",

@@ -194,7 +194,7 @@ def get_portfolio_summary(
     try:
         from macro.regime import RegimeDetector
         detector = RegimeDetector()
-        btc_regime = detector.get_latest_regime("BTC/USDT")
+        btc_regime = detector.get_latest_regime("BTC/USD")
         if btc_regime:
             portfolio["regime"] = {
                 "current": btc_regime.trend_regime.value,

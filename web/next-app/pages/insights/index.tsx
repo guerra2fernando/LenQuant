@@ -53,7 +53,7 @@ export default function InsightsPage() {
   const [mounted, setMounted] = useState(false);
 
   // Forecasts data
-  const DEFAULT_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT"];
+  const DEFAULT_SYMBOLS = ["BTC/USD", "ETH/USDT", "SOL/USDT"];
   const { data: forecastData, isLoading: isLoadingForecasts } = useBatchForecast("1h", DEFAULT_SYMBOLS);
   const forecastRows: ForecastRow[] = useMemo(
     () => (forecastData as ForecastBatchResponse | undefined)?.forecasts ?? [],
@@ -61,7 +61,7 @@ export default function InsightsPage() {
   );
 
   // Regime data
-  const { regime: btcRegime, isLoading: isLoadingRegime } = useRegime("BTC/USDT", "1h");
+  const { regime: btcRegime, isLoading: isLoadingRegime } = useRegime("BTC/USD", "1h");
 
   // Strategies data
   const { data: strategiesData } = useSWR<StrategiesResponse>("/api/run/sim?limit=5", fetcher);
@@ -103,7 +103,7 @@ export default function InsightsPage() {
         </CardHeader>
         <CardContent>
           <MacroRegimeCard 
-            symbol="BTC/USDT" 
+            symbol="BTC/USD" 
             interval="1h" 
             regimeData={btcRegime} 
             isLoading={isLoadingRegime}

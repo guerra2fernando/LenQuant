@@ -10,7 +10,7 @@ from models.model_utils import load_horizon_settings
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run horizon retraining jobs based on stored settings.")
-    parser.add_argument("--symbols", default="BTC/USDT", help="Comma-separated list of symbols to retrain")
+    parser.add_argument("--symbols", default="BTC/USD", help="Comma-separated list of symbols to retrain")
     parser.add_argument("--algorithm", choices=["rf", "lgbm"], default="rf", help="Algorithm to train")
     parser.add_argument("--promote", action="store_true", help="Promote trained models to production")
     parser.add_argument("--dry-run", action="store_true", help="Print the commands without executing them")

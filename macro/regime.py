@@ -253,7 +253,7 @@ class RegimeDetector:
         """Classify current market regime for a symbol.
         
         Args:
-            symbol: Trading pair symbol (e.g., 'BTC/USDT')
+            symbol: Trading pair symbol (e.g., 'BTC/USD')
             interval: Timeframe (default '1h')
             timestamp: Optional timestamp for historical regime detection
             

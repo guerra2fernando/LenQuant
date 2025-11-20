@@ -64,7 +64,7 @@ class ActionManager:
         symbol_override: Optional[str] = None,
     ) -> TradeRecommendation:
         strategy_id = doc.get("strategy_id", "")
-        symbol = symbol_override or doc.get("symbol") or "BTC/USDT"
+        symbol = symbol_override or doc.get("symbol") or "BTC/USD"
         horizon = doc.get("interval") or doc.get("horizon") or "1h"
         fitness = doc.get("fitness") or {}
         roi = float(fitness.get("roi", 0.0))

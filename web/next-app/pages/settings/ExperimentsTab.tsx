@@ -28,7 +28,7 @@ type ExperimentSettings = {
 };
 
 const DEFAULT_SETTINGS: ExperimentSettings = {
-  symbol: "BTC/USDT",
+  symbol: "BTC/USD",
   interval: "1m",
   accounts: 20,
   mutations_per_parent: 4,
@@ -102,7 +102,7 @@ export default function ExperimentsTab(): JSX.Element {
             label="Symbol" 
             value={form.symbol} 
             onChange={(value) => updateField("symbol", value)}
-            explanation="The cryptocurrency trading pair to test strategies on (e.g., BTC/USDT, ETH/USD). This is the market where experiments will run."
+            explanation="The cryptocurrency trading pair to test strategies on (e.g., BTC/USD, ETH/USD). This is the market where experiments will run."
           />
           <Field 
             label="Interval" 

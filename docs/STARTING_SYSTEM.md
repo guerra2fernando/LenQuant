@@ -118,7 +118,7 @@ CELERY_RESULT_BACKEND=redis://localhost:6379/0
 CELERY_EXPERIMENT_QUEUE=experiments
 
 # Trading Symbols (customize as needed)
-DEFAULT_SYMBOLS=BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,DCR/USDT
+DEFAULT_SYMBOLS=BTC/USD,ETH/USDT,SOL/USDT,BNB/USDT,DCR/USDT
 
 # Data Collection Intervals
 FEATURE_INTERVALS=1m,1h,1d
@@ -497,7 +497,7 @@ This downloads price data from exchanges:
 python -m data_ingest.fetcher
 
 # Fetch specific symbol
-python -m data_ingest.fetcher --symbol BTC/USDT --interval 1h --lookback-days 90
+python -m data_ingest.fetcher --symbol BTC/USD --interval 1h --lookback-days 90
 
 # Fetch with custom parameters
 python -m data_ingest.fetcher \
@@ -509,17 +509,17 @@ python -m data_ingest.fetcher \
 
 **Expected Output:**
 ```
-2024-11-19 10:00:00 INFO Fetching BTC/USDT 1m candles (batch=1000, lookback_days=90)
-2024-11-19 10:00:02 INFO Stored 129600 candles for BTC/USDT 1m
-2024-11-19 10:00:02 INFO Fetching BTC/USDT 1h candles (batch=1000, lookback_days=90)
-2024-11-19 10:00:04 INFO Stored 2160 candles for BTC/USDT 1h
-2024-11-19 10:00:04 INFO Fetching BTC/USDT 1d candles (batch=1000, lookback_days=90)
-2024-11-19 10:00:05 INFO Stored 90 candles for BTC/USDT 1d
+2024-11-19 10:00:00 INFO Fetching BTC/USD 1m candles (batch=1000, lookback_days=90)
+2024-11-19 10:00:02 INFO Stored 129600 candles for BTC/USD 1m
+2024-11-19 10:00:02 INFO Fetching BTC/USD 1h candles (batch=1000, lookback_days=90)
+2024-11-19 10:00:04 INFO Stored 2160 candles for BTC/USD 1h
+2024-11-19 10:00:04 INFO Fetching BTC/USD 1d candles (batch=1000, lookback_days=90)
+2024-11-19 10:00:05 INFO Stored 90 candles for BTC/USD 1d
 2024-11-19 10:00:05 INFO Completed ingestion: 131850 total candles upserted
 ```
 
 **Parameters Explained:**
-- `--symbol`: Trading pair (e.g., BTC/USDT, ETH/USDT)
+- `--symbol`: Trading pair (e.g., BTC/USD, ETH/USDT)
 - `--interval`: Timeframe (1m, 5m, 15m, 1h, 4h, 1d)
 - `--lookback-days`: How many days of history to fetch
 - `--limit`: Max candles per API call (default: 1000)
@@ -563,7 +563,7 @@ You can also trigger data collection via API calls:
 # Trigger data collection for a specific symbol
 curl -X POST http://localhost:8000/api/admin/ingest \
   -H "Content-Type: application/json" \
-  -d '{"symbol": "BTC/USDT", "interval": "1h", "lookback_days": 30}'
+  -d '{"symbol": "BTC/USD", "interval": "1h", "lookback_days": 30}'
 ```
 
 ### Verify Data Collection
@@ -575,8 +575,8 @@ mongosh mongodb://localhost:27017/lenquant
 # Count total candles
 db.ohlcv.countDocuments()
 
-# Check latest candles for BTC/USDT
-db.ohlcv.find({symbol: "BTC/USDT", interval: "1h"}).sort({timestamp: -1}).limit(5)
+# Check latest candles for BTC/USD
+db.ohlcv.find({symbol: "BTC/USD", interval: "1h"}).sort({timestamp: -1}).limit(5)
 
 # Check data coverage
 db.ohlcv.aggregate([
@@ -662,7 +662,7 @@ Before trading, train models to predict price movements:
 1. Go to `http://localhost:3000/models`
 2. Click "Train New Model"
 3. Select:
-   - Symbol: BTC/USDT
+   - Symbol: BTC/USD
    - Horizon: 1h
    - Algorithm: LightGBM
 4. Click "Start Training"
@@ -673,7 +673,7 @@ Before trading, train models to predict price movements:
 curl -X POST http://localhost:8000/api/models/train \
   -H "Content-Type: application/json" \
   -d '{
-    "symbol": "BTC/USDT",
+    "symbol": "BTC/USD",
     "horizon": "1h",
     "algorithm": "lightgbm",
     "lookback_days": 90
@@ -693,7 +693,7 @@ python scripts/run_retraining.py
 
 **Expected Output:**
 ```
-Training model for BTC/USDT 1h...
+Training model for BTC/USD 1h...
 Features shape: (2160, 45)
 Training set: 1728 samples
 Test set: 432 samples
@@ -833,7 +833,7 @@ The AI assistant can help make trading decisions:
 
 2. **Request Analysis**:
    ```
-   "Analyze BTC/USDT 1h chart"
+   "Analyze BTC/USD 1h chart"
    "What indicators are bullish for SOL?"
    "Show me top opportunities"
    ```
@@ -893,10 +893,10 @@ celery -A manager.tasks:celery_app inspect active
 **1. Data Collection Test:**
 ```bash
 # Fetch small dataset
-python -m data_ingest.fetcher --symbol BTC/USDT --interval 1h --lookback-days 1
+python -m data_ingest.fetcher --symbol BTC/USD --interval 1h --lookback-days 1
 
 # Verify in database
-mongosh mongodb://localhost:27017/lenquant --eval "db.ohlcv.countDocuments({symbol:'BTC/USDT'})"
+mongosh mongodb://localhost:27017/lenquant --eval "db.ohlcv.countDocuments({symbol:'BTC/USD'})"
 ```
 
 **2. Model Training Test:**
@@ -904,7 +904,7 @@ mongosh mongodb://localhost:27017/lenquant --eval "db.ohlcv.countDocuments({symb
 # Train a quick model
 curl -X POST http://localhost:8000/api/models/train \
   -H "Content-Type: application/json" \
-  -d '{"symbol": "BTC/USDT", "horizon": "1h", "algorithm": "lightgbm"}'
+  -d '{"symbol": "BTC/USD", "horizon": "1h", "algorithm": "lightgbm"}'
 
 # Check model status
 curl http://localhost:8000/api/models/list
@@ -924,7 +924,7 @@ curl http://localhost:8000/api/forecast/BTC-USDT?horizon=1h
 curl -X POST http://localhost:8000/api/trading/order \
   -H "Content-Type: application/json" \
   -d '{
-    "symbol": "BTC/USDT",
+    "symbol": "BTC/USD",
     "side": "buy",
     "amount": 0.001,
     "order_type": "market",
@@ -1029,19 +1029,19 @@ docker start lenquant-redis  # Docker
 
 ### Issue 5: No Data Being Fetched
 
-**Error:** `No candles returned for BTC/USDT`
+**Error:** `No candles returned for BTC/USD`
 
 **Solution:**
 ```bash
 # Check symbol format (must match exchange format)
-# Binance uses: BTC/USDT, ETH/USDT
+# Binance uses: BTC/USD, ETH/USDT
 # Coinbase uses: BTC-USD, ETH-USD
 
 # Check exchange connectivity
-python -c "import ccxt; exchange = ccxt.binance(); print(exchange.fetch_ticker('BTC/USDT'))"
+python -c "import ccxt; exchange = ccxt.binance(); print(exchange.fetch_ticker('BTC/USD'))"
 
 # Check if symbol is available on exchange
-python -c "import ccxt; exchange = ccxt.binance(); markets = exchange.load_markets(); print('BTC/USDT' in markets)"
+python -c "import ccxt; exchange = ccxt.binance(); markets = exchange.load_markets(); print('BTC/USD' in markets)"
 ```
 
 ### Issue 6: Model Training Fails
@@ -1051,10 +1051,10 @@ python -c "import ccxt; exchange = ccxt.binance(); markets = exchange.load_marke
 **Solution:**
 ```bash
 # Need more historical data
-python -m data_ingest.fetcher --symbol BTC/USDT --interval 1h --lookback-days 90
+python -m data_ingest.fetcher --symbol BTC/USD --interval 1h --lookback-days 90
 
 # Check data availability
-mongosh cryptotrader --eval "db.ohlcv.countDocuments({symbol:'BTC/USDT', interval:'1h'})"
+mongosh cryptotrader --eval "db.ohlcv.countDocuments({symbol:'BTC/USD', interval:'1h'})"
 # Should have at least 2160 documents (90 days * 24 hours)
 ```
 
@@ -1180,7 +1180,7 @@ python -m data_ingest.fetcher --lookback-days 90
 python -m data_ingest.fetcher --lookback-days 2
 
 # Specific symbol and timeframe
-python -m data_ingest.fetcher --symbol BTC/USDT --interval 1h --lookback-days 30
+python -m data_ingest.fetcher --symbol BTC/USD --interval 1h --lookback-days 30
 ```
 
 ### Model Operations

@@ -179,7 +179,7 @@ def get_data_gaps(symbol: str, interval: str, recent_days_only: Optional[int] = 
     Detect data gaps for a specific symbol/interval combination.
     
     Args:
-        symbol: Trading pair symbol (e.g., 'BTC/USDT')
+        symbol: Trading pair symbol (e.g., 'BTC/USD')
         interval: Interval (e.g., '1m', '5m', '1h', '1d')
         recent_days_only: If specified, only check recent N days
         

@@ -33,7 +33,7 @@ const TRADING_MODES = [
 
 export default function TerminalPage() {
   const { isEasyMode } = useMode();
-  const [selectedSymbol, setSelectedSymbol] = useState<string>("BTC/USDT");
+  const [selectedSymbol, setSelectedSymbol] = useState<string>("BTC/USD");
   const [selectedInterval, setSelectedInterval] = useState<string>("1h");
   const [showPredictions, setShowPredictions] = useState(true);
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);

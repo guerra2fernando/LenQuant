@@ -119,7 +119,7 @@ def get_coingecko_logos(symbols: List[str]) -> Dict[str, str]:
     Fetch logo URLs for cryptocurrency symbols from CoinGecko.
     
     Args:
-        symbols: List of trading pairs (e.g., ['BTC/USDT', 'ETH/USDT'])
+        symbols: List of trading pairs (e.g., ['BTC/USD', 'ETH/USDT'])
     
     Returns:
         Dictionary mapping symbol to logo URL

@@ -170,7 +170,7 @@ router = APIRouter()
 
 @router.get("/ohlcv")
 def get_ohlcv(
-    symbol: str = Query(..., description="Trading pair, e.g., BTC/USDT"),
+    symbol: str = Query(..., description="Trading pair, e.g., BTC/USD"),
     interval: str = Query(..., description="Timeframe: 1m, 5m, 15m, 1h, 4h, 1d"),
     limit: int = Query(500, ge=1, le=2000, description="Number of candles"),
     start_time: Optional[datetime] = Query(None, description="Start timestamp"),
@@ -436,7 +436,7 @@ const INTERVALS = [
 
 export default function TerminalPage() {
   const { isEasyMode } = useMode();
-  const [selectedSymbol, setSelectedSymbol] = useState<string>("BTC/USDT");
+  const [selectedSymbol, setSelectedSymbol] = useState<string>("BTC/USD");
   const [selectedInterval, setSelectedInterval] = useState<string>("1h");
 
   // Fetch available symbols
@@ -641,13 +641,13 @@ const ADVANCED_MODE_NAV_ITEMS = [
 **API Tests**:
 ```bash
 # Test OHLCV endpoint
-curl "http://localhost:8000/api/market/ohlcv?symbol=BTC/USDT&interval=1h&limit=100"
+curl "http://localhost:8000/api/market/ohlcv?symbol=BTC/USD&interval=1h&limit=100"
 
 # Test symbols endpoint
 curl "http://localhost:8000/api/market/symbols"
 
 # Test latest price
-curl "http://localhost:8000/api/market/latest-price?symbol=BTC/USDT"
+curl "http://localhost:8000/api/market/latest-price?symbol=BTC/USD"
 ```
 
 ---
@@ -1079,7 +1079,7 @@ export default function TerminalPage() {
 **API Tests**:
 ```bash
 # Test forecast endpoint
-curl "http://localhost:8000/api/market/forecast-chart?symbol=BTC/USDT&horizon=1h&forecast_periods=20"
+curl "http://localhost:8000/api/market/forecast-chart?symbol=BTC/USD&horizon=1h&forecast_periods=20"
 
 # Test strategies
 curl "http://localhost:8000/api/strategies/genomes?status=active&limit=20"
@@ -2655,7 +2655,7 @@ The trading terminal is now production-ready with all planned features. Optional
 
 **Problem**: Chart doesn't load
 - Check MongoDB connection
-- Verify OHLCV data exists: `db.ohlcv.find({symbol: "BTC/USDT"}).limit(5)`
+- Verify OHLCV data exists: `db.ohlcv.find({symbol: "BTC/USD"}).limit(5)`
 - Check browser console for API errors
 
 **Problem**: Predictions don't appear
@@ -2777,13 +2777,13 @@ The phased approach ensures each component is tested before moving to the next, 
 5. **API Testing**:
    ```bash
    # Test OHLCV endpoint
-   curl "http://localhost:8000/api/market/ohlcv?symbol=BTC/USDT&interval=1h&limit=100"
+   curl "http://localhost:8000/api/market/ohlcv?symbol=BTC/USD&interval=1h&limit=100"
    
    # Test symbols endpoint
    curl "http://localhost:8000/api/market/symbols"
    
    # Test latest price
-   curl "http://localhost:8000/api/market/latest-price?symbol=BTC/USDT"
+   curl "http://localhost:8000/api/market/latest-price?symbol=BTC/USD"
    ```
 
 ### Next Steps (Phase 2)

@@ -429,7 +429,7 @@ app = FastAPI(lifespan=lifespan)
     "job_type": "bootstrap" | "scheduled" | "manual_refresh",
     
     # What to ingest
-    "symbol": "BTC/USDT",
+    "symbol": "BTC/USD",
     "interval": "1m",
     "lookback_days": 30,
     "batch_size": 1000,
@@ -478,7 +478,7 @@ Add new fields to track data status:
 
 ```python
 {
-    "symbol": "BTC/USDT",
+    "symbol": "BTC/USD",
     "base_increment": 0.0001,
     "quote_increment": 0.01,
     
@@ -941,7 +941,7 @@ def bootstrap_data(payload: BootstrapRequest) -> Dict[str, Any]:
     """
     config = IngestConfig.from_env()
 
-    symbols = payload.symbols or config.symbols or ["BTC/USDT"]
+    symbols = payload.symbols or config.symbols or ["BTC/USD"]
     intervals = payload.intervals or config.intervals or ["1m"]
     lookback_days = payload.lookback_days or config.lookback_days
 
@@ -1691,7 +1691,7 @@ def detect_data_gaps(symbol: str, interval: str, max_gap_size: int = 100) -> Lis
     Detect gaps in OHLCV data for a symbol/interval.
     
     Args:
-        symbol: Trading pair (e.g., "BTC/USDT")
+        symbol: Trading pair (e.g., "BTC/USD")
         interval: Timeframe (e.g., "1m", "5m", "1h")
         max_gap_size: Maximum candles to report per gap (prevents huge backfills)
     
@@ -1780,7 +1780,7 @@ from data_ingest.gap_detector import detect_data_gaps
 @router.get("/gaps/{symbol}/{interval}")
 def get_data_gaps(symbol: str, interval: str) -> Dict[str, Any]:
     """Get detected gaps for a symbol/interval."""
-    # URL decode symbol (BTC%2FUSDT -> BTC/USDT)
+    # URL decode symbol (BTC%2FUSDT -> BTC/USD)
     from urllib.parse import unquote
     symbol = unquote(symbol)
     
@@ -2054,7 +2054,7 @@ def test_ingest_task_success():
         
         result = ingest_symbol_interval_task(
             job_id="test_job",
-            symbol="BTC/USDT",
+            symbol="BTC/USD",
             interval="1m",
             lookback_days=1
         )
@@ -2070,7 +2070,7 @@ def test_ingest_task_failure():
         with pytest.raises(Exception):
             ingest_symbol_interval_task(
                 job_id="test_job",
-                symbol="BTC/USDT",
+                symbol="BTC/USD",
                 interval="1m",
                 lookback_days=1
             )
@@ -2087,7 +2087,7 @@ def test_ingest_task_failure():
 def test_start_ingestion_endpoint(client):
     """Test /api/data-ingestion/start endpoint."""
     response = client.post("/api/data-ingestion/start", json={
-        "symbols": ["BTC/USDT"],
+        "symbols": ["BTC/USD"],
         "intervals": ["1m"],
         "lookback_days": 1
     })
@@ -2101,7 +2101,7 @@ def test_job_status_endpoint(client):
     """Test /api/data-ingestion/status/{job_id} endpoint."""
     # First, start a job
     start_response = client.post("/api/data-ingestion/start", json={
-        "symbols": ["BTC/USDT"],
+        "symbols": ["BTC/USD"],
         "intervals": ["1m"],
         "lookback_days": 1
     })
@@ -2493,7 +2493,7 @@ Only proceed with Phase 5 items if you observe:
 curl -X POST http://localhost:8000/api/admin/bootstrap \
   -H "Content-Type: application/json" \
   -d '{
-    "symbols": ["BTC/USDT"],
+    "symbols": ["BTC/USD"],
     "intervals": ["1m"],
     "lookback_days": 1
   }'
@@ -2745,7 +2745,7 @@ eventSource.addEventListener('done', () => {
 curl -X POST http://localhost:8000/api/data-ingestion/start \
   -H "Content-Type: application/json" \
   -d '{
-    "symbols": ["BTC/USDT"],
+    "symbols": ["BTC/USD"],
     "intervals": ["1m"],
     "lookback_days": 1,
     "job_type": "test_progress"
@@ -3927,7 +3927,7 @@ open http://localhost:3000
 
 # 3. Go to Get Started page
 
-# 4. Select 1 symbol (e.g., BTC/USDT), 1 interval (e.g., 1m), 1 day lookback
+# 4. Select 1 symbol (e.g., BTC/USD), 1 interval (e.g., 1m), 1 day lookback
 
 # 5. Click "Start Setup"
 
