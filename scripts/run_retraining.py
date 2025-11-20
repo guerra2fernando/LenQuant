@@ -4,27 +4,8 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
-from typing import List
 
-from db.client import get_database_name, mongo_client
-
-DEFAULT_HORIZON_SETTINGS = [
-    {"name": "1m", "train_window_days": 90, "retrain_cadence": "daily", "threshold_pct": 0.001},
-    {"name": "1h", "train_window_days": 180, "retrain_cadence": "daily", "threshold_pct": 0.005},
-    {"name": "1d", "train_window_days": 365, "retrain_cadence": "weekly", "threshold_pct": 0.02},
-]
-
-SETTINGS_COLLECTION = "settings"
-DOCUMENT_ID = "models_settings"
-
-
-def load_horizon_settings() -> List[dict]:
-    with mongo_client() as client:
-        db = client[get_database_name()]
-        doc = db[SETTINGS_COLLECTION].find_one({"_id": DOCUMENT_ID})
-    if doc and doc.get("horizons"):
-        return list(doc["horizons"])
-    return DEFAULT_HORIZON_SETTINGS
+from models.model_utils import load_horizon_settings
 
 
 def parse_args() -> argparse.Namespace:

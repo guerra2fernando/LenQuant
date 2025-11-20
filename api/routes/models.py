@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from db.client import get_database_name, mongo_client
 from models import model_utils, registry
-from scripts.run_retraining import load_horizon_settings
+from models.model_utils import load_horizon_settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

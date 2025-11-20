@@ -12,10 +12,43 @@ from data_ingest.fetcher import fetch_symbol_interval
 from db.client import get_database_name, mongo_client
 from features.features import generate_for_symbol
 from reports.generator import generate_daily_report
-from scripts.seed_symbols import seed
 from simulator.runner import run_simulation
 
 router = APIRouter()
+
+
+def _seed_symbols(symbols: List[str]) -> int:
+    """
+    Seed symbols into the database.
+    
+    Args:
+        symbols: List of trading pairs (e.g., ['BTC/USDT', 'ETH/USDT'])
+    
+    Returns:
+        Number of symbols seeded
+    """
+    if not symbols:
+        return 0
+    
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        
+        for symbol in symbols:
+            db["symbols"].update_one(
+                {"symbol": symbol},
+                {
+                    "$setOnInsert": {
+                        "symbol": symbol,
+                        "base_increment": 0.0001,
+                        "quote_increment": 0.01,
+                        "enabled": True,
+                    },
+                    "$set": {"enabled": True}
+                },
+                upsert=True,
+            )
+        
+        return len(symbols)
 
 
 def _serialize_dt(value: Any) -> Optional[str]:
@@ -140,7 +173,7 @@ def bootstrap_data(payload: BootstrapRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="No symbols or intervals available for bootstrap.")
 
     # Seed symbols in database
-    seeded_count = seed(symbols)
+    seeded_count = _seed_symbols(symbols)
     
     # Create batch ingestion job
     parent_job_id = f"bootstrap_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
