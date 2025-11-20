@@ -9,13 +9,16 @@ RUN npm ci && npm cache clean --force
 # Copy application files
 COPY web/next-app/ ./
 
+# Build the application
+RUN npm run build
+
 # Expose port
 EXPOSE 3000
 
-# Set environment to development for better error debugging
-ENV NODE_ENV development
+# Set environment to production
+ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Start the application in development mode
-CMD ["npm", "run", "dev"]
+# Start the application in production mode
+CMD ["npm", "run", "start"]
 
