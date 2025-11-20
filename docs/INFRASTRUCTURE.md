@@ -349,8 +349,8 @@ redis-cli ping  # Should return PONG
 ```bash
 # Clone repository
 cd /home/ubuntu
-git clone <your-repo-url> lenxys-trader
-cd lenxys-trader
+git clone <your-repo-url> cryptotrader
+cd cryptotrader
 
 # Create virtual environment
 python3.11 -m venv .venv
@@ -394,7 +394,7 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 
 # Reports
-REPORT_OUTPUT_DIR=/home/ubuntu/lenxys-trader/reports/output
+REPORT_OUTPUT_DIR=/home/ubuntu/cryptotrader/reports/output
 ```
 
 Save: `Ctrl+X`, then `Y`, then `Enter`
@@ -414,9 +414,9 @@ After=network.target redis-server.service
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/lenxys-trader
-Environment="PATH=/home/ubuntu/lenxys-trader/.venv/bin"
-ExecStart=/home/ubuntu/lenxys-trader/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
+WorkingDirectory=/home/ubuntu/cryptotrader
+Environment="PATH=/home/ubuntu/cryptotrader/.venv/bin"
+ExecStart=/home/ubuntu/cryptotrader/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=10
 
@@ -437,9 +437,9 @@ After=network.target redis-server.service
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/lenxys-trader
-Environment="PATH=/home/ubuntu/lenxys-trader/.venv/bin"
-ExecStart=/home/ubuntu/lenxys-trader/.venv/bin/celery -A manager.tasks:celery_app worker --loglevel=info
+WorkingDirectory=/home/ubuntu/cryptotrader
+Environment="PATH=/home/ubuntu/cryptotrader/.venv/bin"
+ExecStart=/home/ubuntu/cryptotrader/.venv/bin/celery -A manager.tasks:celery_app worker --loglevel=info
 Restart=always
 RestartSec=10
 
@@ -460,7 +460,7 @@ After=network.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/lenxys-trader/web/next-app
+WorkingDirectory=/home/ubuntu/cryptotrader/web/next-app
 Environment="PATH=/usr/bin:/usr/local/bin"
 Environment="NODE_ENV=production"
 Environment="NEXT_PUBLIC_API_URL=http://localhost:8000"
@@ -598,10 +598,10 @@ sudo certbot renew --dry-run
 crontab -e
 
 # Add this line (fetch data every hour)
-0 * * * * cd /home/ubuntu/lenxys-trader && /home/ubuntu/lenxys-trader/.venv/bin/python -m data_ingest.fetcher >> /home/ubuntu/logs/data-fetch.log 2>&1
+0 * * * * cd /home/ubuntu/cryptotrader && /home/ubuntu/cryptotrader/.venv/bin/python -m data_ingest.fetcher >> /home/ubuntu/logs/data-fetch.log 2>&1
 
 # Add model retraining (daily at 2 AM)
-0 2 * * * cd /home/ubuntu/lenxys-trader && /home/ubuntu/lenxys-trader/.venv/bin/python scripts/run_retraining.py >> /home/ubuntu/logs/training.log 2>&1
+0 2 * * * cd /home/ubuntu/cryptotrader && /home/ubuntu/cryptotrader/.venv/bin/python scripts/run_retraining.py >> /home/ubuntu/logs/training.log 2>&1
 
 # Create logs directory
 mkdir -p /home/ubuntu/logs
@@ -611,7 +611,7 @@ mkdir -p /home/ubuntu/logs
 
 ```bash
 # Activate virtual environment
-cd /home/ubuntu/lenxys-trader
+cd /home/ubuntu/cryptotrader
 source .venv/bin/activate
 
 # Seed symbols
@@ -882,8 +882,8 @@ docker run hello-world
 ```bash
 # Clone repository
 cd ~
-git clone <your-repo-url> lenxys-trader
-cd lenxys-trader
+git clone <your-repo-url> cryptotrader
+cd cryptotrader
 
 # Create .env file
 nano .env
@@ -1099,8 +1099,8 @@ BACKUP_DIR="/home/lenquant/backups"
 mkdir -p $BACKUP_DIR
 
 # Backup MongoDB
-docker exec lenxys-trader-mongo-1 mongodump --out /tmp/backup
-docker cp lenxys-trader-mongo-1:/tmp/backup $BACKUP_DIR/mongo_$DATE
+docker exec cryptotrader-mongo-1 mongodump --out /tmp/backup
+docker cp cryptotrader-mongo-1:/tmp/backup $BACKUP_DIR/mongo_$DATE
 
 # Backup environment files
 cp ~/.env $BACKUP_DIR/env_$DATE
@@ -1490,8 +1490,8 @@ exit
 ssh -i lenquant-key.pem ubuntu@$PUBLIC_IP
 
 # Clone repository
-git clone <your-repo-url> lenxys-trader
-cd lenxys-trader
+git clone <your-repo-url> cryptotrader
+cd cryptotrader
 
 # Create .env file
 nano .env
@@ -1519,7 +1519,7 @@ ASSISTANT_LLM_PROVIDER=openai
 OPENAI_API_KEY=your_key
 OPENAI_MODEL=gpt-4o-mini
 
-REPORT_OUTPUT_DIR=/home/ubuntu/lenxys-trader/reports/output
+REPORT_OUTPUT_DIR=/home/ubuntu/cryptotrader/reports/output
 ```
 
 ```bash
@@ -1646,7 +1646,7 @@ nano ~/backup-to-s3.sh
 DATE=$(date +%Y%m%d_%H%M%S)
 
 # Backup MongoDB
-docker exec lenxys-trader-mongo-1 mongodump --archive=/tmp/backup_$DATE.archive
+docker exec cryptotrader-mongo-1 mongodump --archive=/tmp/backup_$DATE.archive
 
 # Upload to S3
 aws s3 cp /tmp/backup_$DATE.archive s3://lenquant-backups/backups/mongo_$DATE.archive

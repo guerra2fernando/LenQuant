@@ -21,6 +21,26 @@ celery_app.conf.update(
     # Broker connection settings
     broker_connection_retry_on_startup=True,  # Fix for Celery 6.0+ deprecation warning
 
+    # Redis-specific connection resilience settings
+    broker_transport_options={
+        'master_name': 'mymaster',  # For Redis Sentinel (if used)
+        'socket_timeout': 30,
+        'socket_connect_timeout': 30,
+        'socket_keepalive': True,
+        'socket_keepalive_options': {'TCP_KEEPIDLE': 60, 'TCP_KEEPINTVL': 30, 'TCP_KEEPCNT': 3},
+        'health_check_interval': 30,
+        'visibility_timeout': 3600,  # 1 hour - how long before task is considered lost
+    },
+
+    # Result backend connection resilience
+    result_backend_transport_options={
+        'socket_timeout': 30,
+        'socket_connect_timeout': 30,
+        'socket_keepalive': True,
+        'socket_keepalive_options': {'TCP_KEEPIDLE': 60, 'TCP_KEEPINTVL': 30, 'TCP_KEEPCNT': 3},
+        'health_check_interval': 30,
+    },
+
     # Task routing
     task_routes={
         # Manager tasks
@@ -29,9 +49,13 @@ celery_app.conf.update(
         "manager.tasks.run_daily_reconciliation": {"queue": "maintenance"},
         "manager.tasks.run_data_retention_maintenance": {"queue": "maintenance"},
         "manager.tasks.run_daily_reconciliation_task": {"queue": "maintenance"},
+        "manager.tasks.cache_portfolio_snapshot": {"queue": "maintenance"},
 
         # Data ingest tasks
         "data_ingest.tasks.fetch_recent_data": {"queue": "data"},
+        "data_ingest.tasks.ingest_symbol_interval": {"queue": "data"},
+        "data_ingest.tasks.batch_ingest": {"queue": "data"},
+        "data_ingest.tasks.backfill_gaps": {"queue": "data"},
 
         # Feature tasks
         "features.tasks.generate_features": {"queue": "data"},
@@ -68,6 +92,22 @@ celery_app.conf.update(
             'task': 'features.tasks.generate_features',
             'schedule': crontab(minute=0, hour='*/2'),  # Every 2 hours
         },
+
+        # Gap detection and backfilling - runs daily at 3 AM
+        'backfill-gaps': {
+            'task': 'data_ingest.tasks.backfill_gaps',
+            'schedule': crontab(hour=3, minute=0),  # Daily at 3:00 AM
+        },
+
+        # Portfolio snapshot caching - runs every 10 seconds (Phase 4)
+        'cache-portfolio-every-10-seconds': {
+            'task': 'manager.tasks.cache_portfolio_snapshot',
+            'schedule': 10.0,  # Every 10 seconds
+            'options': {
+                'queue': 'maintenance',
+                'expires': 15,  # Expire if not executed within 15 seconds
+            },
+        },
     },
 
     # Beat configuration
@@ -76,4 +116,19 @@ celery_app.conf.update(
 
     # Timezone (optional, defaults to UTC)
     timezone='UTC',
+
+    # Worker settings for better resilience
+    worker_prefetch_multiplier=1,  # Prevent task starvation
+    worker_max_tasks_per_child=1000,  # Restart worker processes periodically
+    worker_disable_rate_limits=False,
+
+    # Task settings
+    task_acks_late=True,  # Tasks are acknowledged after completion
+    task_reject_on_worker_lost=True,  # Re-queue tasks if worker dies
 )
+
+# Import all task modules to ensure they are registered
+# This is critical for task discovery by workers
+import data_ingest.tasks  # noqa: E402
+import features.tasks  # noqa: E402
+import manager.tasks  # noqa: E402

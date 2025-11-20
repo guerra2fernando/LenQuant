@@ -122,6 +122,16 @@ class SettlementEngine:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         now = _utcnow()
+        
+        # Extract attribution from metadata
+        strategy_id = None
+        cohort_id = None
+        genome_id = None
+        if metadata:
+            strategy_id = metadata.get("strategy_id")
+            cohort_id = metadata.get("cohort_id")
+            genome_id = metadata.get("genome_id")
+        
         payload = {
             "symbol": symbol,
             "mode": mode,
@@ -131,6 +141,10 @@ class SettlementEngine:
             "realized_pnl": float(realized_pnl),
             "updated_at": now,
             "metadata": metadata or {},
+            # Attribution fields for Phase 3 portfolio hierarchy
+            "strategy_id": strategy_id,
+            "cohort_id": cohort_id,
+            "genome_id": genome_id,
         }
         with mongo_client() as client:
             db = client[get_database_name()]
@@ -217,6 +231,7 @@ class SettlementEngine:
                 quantity=new_quantity,
                 avg_entry_price=new_avg_price,
                 realized_pnl=float(existing.get("realized_pnl", 0.0) if existing else 0.0),
+                metadata=order.get("metadata"),
             )
             wallet_after = wallet_before - (quantity * price) - fee
         else:
@@ -235,6 +250,7 @@ class SettlementEngine:
                         quantity=remaining,
                         avg_entry_price=float(existing.get("avg_entry_price", price)),
                         realized_pnl=realized_total,
+                        metadata=order.get("metadata"),
                     )
                 else:
                     self._delete_position(symbol=symbol, mode=mode, side="long")

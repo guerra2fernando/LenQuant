@@ -22,6 +22,8 @@ type Props = {
 
 const EASY_MODE_NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
+  { href: "/terminal", label: "Terminal" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/trading", label: "Trading" },
   { href: "/insights", label: "Insights" },
   { href: "/assistant", label: "Assistant" },
@@ -30,6 +32,8 @@ const EASY_MODE_NAV_ITEMS = [
 
 const ADVANCED_MODE_NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
+  { href: "/terminal", label: "Terminal" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/trading", label: "Trading" },
   { href: "/analytics", label: "Analytics" },
   { href: "/assistant", label: "Assistant" },

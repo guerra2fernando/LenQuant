@@ -215,3 +215,35 @@ class NotificationService:
             # Log but don't fail notification creation if WebSocket broadcast fails
             logger.warning(f"Failed to broadcast notification via WebSocket: {e}")
 
+
+# Convenience functions for data ingestion notifications
+_notification_service = None
+
+
+def _get_notification_service() -> NotificationService:
+    """Get or create singleton notification service instance."""
+    global _notification_service
+    if _notification_service is None:
+        _notification_service = NotificationService()
+    return _notification_service
+
+
+def notify_ingestion_complete(job_id: str, symbol: str, interval: str):
+    """Send notification when data ingestion completes successfully."""
+    try:
+        # For now, we don't have user_id context in background tasks
+        # We'll broadcast to admin user or skip user-specific notification
+        # In Phase 3, we can improve this to track which user initiated the job
+        logger.info(f"Data ingestion completed: {symbol} {interval} (job: {job_id})")
+    except Exception as e:
+        logger.error(f"Failed to send ingestion completion notification: {e}")
+
+
+def notify_ingestion_failed(job_id: str, symbol: str, interval: str, error: str):
+    """Send notification when data ingestion fails."""
+    try:
+        # For now, we don't have user_id context in background tasks
+        # We'll broadcast to admin user or skip user-specific notification
+        logger.error(f"Data ingestion failed: {symbol} {interval} - {error} (job: {job_id})")
+    except Exception as e:
+        logger.error(f"Failed to send ingestion failure notification: {e}")

@@ -86,7 +86,10 @@ def _record_histogram(metric: Histogram | None, *, labels: Dict[str, str], value
 def _record_gauge(metric: Gauge | None, *, labels: Dict[str, str], value: float) -> None:
     if metric is None:
         return
-    metric.labels(**labels).set(value)
+    if labels:
+        metric.labels(**labels).set(value)
+    else:
+        metric.set(value)
 
 
 def record_intraday_cohort_metrics(

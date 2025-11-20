@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 from typing import Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
@@ -19,6 +20,7 @@ from api.routes import (
     admin,
     assistant,
     auth,
+    data_ingestion,
     evolution,
     experiments,
     forecast,
@@ -26,6 +28,7 @@ from api.routes import (
     leaderboard,
     learning,
     macro,
+    market,
     models,
     notifications,
     reports,
@@ -36,7 +39,20 @@ from api.routes import (
     risk,
 )
 
-app = FastAPI(title="LenQuant Core API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager for startup and shutdown events."""
+    # Startup
+    logger.info("Starting up LenQuant Core API...")
+    from db.startup import initialize_database
+    initialize_database()
+    yield
+    # Shutdown
+    logger.info("Shutting down LenQuant Core API...")
+
+
+app = FastAPI(title="LenQuant Core API", lifespan=lifespan)
 
 # Request logging middleware
 @app.middleware("http")
@@ -84,9 +100,11 @@ app.include_router(assistant.router, prefix="/api/assistant")
 app.include_router(learning.router, prefix="/api/learning")
 app.include_router(knowledge.router, prefix="/api/knowledge")
 app.include_router(admin.router, prefix="/api/admin")
+app.include_router(data_ingestion.router, prefix="/api/data-ingestion", tags=["data-ingestion"])
 app.include_router(trade.router, prefix="/api/trading")
 app.include_router(risk.router, prefix="/api/risk")
 app.include_router(macro.router, prefix="/api/macro")
+app.include_router(market.router, prefix="/api/market", tags=["market"])
 app.include_router(notifications.router, prefix="/api", tags=["notifications"])
 
 
@@ -204,6 +222,13 @@ async def websocket_notifications(websocket: WebSocket):
     except Exception as exc:
         logger.error(f"WebSocket error for user {user_id}: {exc}", exc_info=True)
         await notification_manager.disconnect(user_id, websocket)
+
+
+@app.websocket("/ws/prices/{symbol}")
+async def websocket_prices_endpoint(websocket: WebSocket, symbol: str):
+    """WebSocket endpoint for real-time price streaming."""
+    from api.routes.market import websocket_prices
+    await websocket_prices(websocket, symbol)
 
 
 @app.get("/api/status")

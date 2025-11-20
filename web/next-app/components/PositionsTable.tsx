@@ -16,6 +16,9 @@ type Position = {
   realized_pnl?: number;
   unrealized_pnl?: number;
   updated_at?: string;
+  strategy_id?: string;
+  cohort_id?: string;
+  genome_id?: string;
 };
 
 type PositionsTableProps = {
@@ -68,6 +71,7 @@ export function PositionsTable({ positions, mode }: PositionsTableProps) {
               <TableHead>Side</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Avg Price</TableHead>
+              <TableHead>Strategy/Cohort</TableHead>
               <TableHead>Unrealized PnL</TableHead>
               <TableHead>Realized PnL</TableHead>
               <TableHead>Updated</TableHead>
@@ -82,6 +86,24 @@ export function PositionsTable({ positions, mode }: PositionsTableProps) {
                 <TableCell>{(position.side ?? "long").toUpperCase()}</TableCell>
                 <TableCell>{formatNumber(position.quantity, 4)}</TableCell>
                 <TableCell>${formatNumber(position.avg_entry_price ?? 0, 2)}</TableCell>
+                <TableCell className="text-xs font-mono">
+                  {position.strategy_id || position.cohort_id ? (
+                    <div>
+                      {position.strategy_id && (
+                        <div className="text-blue-500" title={position.strategy_id}>
+                          S:{position.strategy_id.substring(0, 8)}
+                        </div>
+                      )}
+                      {position.cohort_id && (
+                        <div className="text-purple-500" title={position.cohort_id}>
+                          C:{position.cohort_id.substring(0, 8)}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell
                   className={
                     position.unrealized_pnl !== undefined && position.unrealized_pnl >= 0 ? "text-emerald-500" : "text-red-500"

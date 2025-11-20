@@ -109,7 +109,7 @@ You can connect to any exchange that ccxt supports by configuring your API crede
 ```bash
 # Clone repository
 git clone <repo-url>
-cd lenxys-trader
+cd cryptotrader
 
 # Set up environment
 cp .env.example .env

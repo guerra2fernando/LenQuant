@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ def add_regime_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # Ranges from 0 (unstable, frequent changes) to 1 (stable, long duration)
     # Uses sigmoid-like function: stability = 1 - exp(-duration/scale)
     stability_scale = 20.0  # Bars needed to reach ~63% stability
-    df["regime_stability"] = 1.0 - pd.np.exp(-df["regime_duration_bars"] / stability_scale)
+    df["regime_stability"] = 1.0 - np.exp(-df["regime_duration_bars"] / stability_scale)
     
     # Boost stability by confidence if available
     if "regime_confidence" in df.columns:

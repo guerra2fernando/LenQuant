@@ -21,19 +21,23 @@ import { fetcher } from "@/lib/api";
 type Step = "intro" | "data" | "setup" | "complete";
 
 type BootstrapResponse = {
+  job_id: string;
   seeded_symbols: number;
-  ingested: Array<{ symbol: string; interval: string; rows: number }>;
-  features: Array<{ symbol: string; interval: string; rows: number }>;
-  simulation_run_id: string | null;
-  report_path: string | null;
-  inventory: Array<{
+  message: string;
+  total_combinations: number;
+  timestamp: string;
+  // Legacy fields (for backwards compatibility)
+  ingested?: Array<{ symbol: string; interval: string; rows: number }>;
+  features?: Array<{ symbol: string; interval: string; rows: number }>;
+  simulation_run_id?: string | null;
+  report_path?: string | null;
+  inventory?: Array<{
     symbol: string;
     interval: string;
     ohlcv_count: number;
     features_count: number;
     latest_candle: string | null;
   }>;
-  timestamp: string;
 };
 
 const DEFAULT_SYMBOLS = ["BTC/USD", "ETH/USD"];
@@ -107,11 +111,11 @@ export default function GetStarted(): JSX.Element {
           lookback_days: lookbackDays,
         }),
       });
-      setBootstrapResult(response);
-      setCurrentStep("complete");
+      
+      // Redirect to settings page to show live progress
+      router.push(`/settings?section=data-ingestion&job_id=${response.job_id}`);
     } catch (err: any) {
       setError(err.message || "Failed to set up data. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -373,27 +377,15 @@ export default function GetStarted(): JSX.Element {
 
               {loading && (
                 <ProgressIndicator
-                  message="Setting up your platform..."
-                  subMessage="Fetching market data and calculating features. This may take a few minutes."
+                  message="Starting data ingestion..."
+                  subMessage="Preparing to fetch market data. You'll be redirected to track progress in real-time."
                   variant="spinner"
-                />
-              )}
-
-              {error && (
-                <ErrorMessage
-                  title="Setup failed"
-                  message={error}
-                  onRetry={() => {
-                    setError(null);
-                    setCurrentStep("data");
-                  }}
-                  guidance="The setup process encountered an error. This might be due to network issues or server problems. Try again, or check your connection."
                 />
               )}
             </>
           )}
 
-          {currentStep === "complete" && bootstrapResult && (
+          {currentStep === "complete" && (
             <>
               <div className="space-y-4">
                 <div className="flex items-center justify-center">
@@ -402,37 +394,11 @@ export default function GetStarted(): JSX.Element {
                   </div>
                 </div>
                 <div className="text-center">
-                  <h3 className="text-xl font-semibold">Setup Complete!</h3>
+                  <h3 className="text-xl font-semibold">Redirecting...</h3>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Your platform is ready. Here's what we set up:
+                    Taking you to the data ingestion dashboard to track progress.
                   </p>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg border bg-muted/30 p-4">
-                    <p className="text-sm font-medium">Price Data</p>
-                    <p className="mt-1 text-2xl font-bold">{bootstrapResult.ingested.length} pairs</p>
-                  </div>
-                  <div className="rounded-lg border bg-muted/30 p-4">
-                    <p className="text-sm font-medium">Features Calculated</p>
-                    <p className="mt-1 text-2xl font-bold">{bootstrapResult.features.length} sets</p>
-                  </div>
-                </div>
-                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-                  <p className="text-sm font-medium text-primary">What's Next?</p>
-                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    <li>• Visit the Dashboard to see your {isEasyMode ? "portfolio overview" : "system status and data coverage"}</li>
-                    <li>• Check Insights to see market forecasts and {isEasyMode ? "recommendations" : "analytics"}</li>
-                    <li>• Use the Assistant to ask questions about trading</li>
-                    <li>• Go to Trading when you're ready to {isEasyMode ? "place orders" : "execute trades"}</li>
-                    {!isEasyMode && <li>• Add more coins in Settings → General → Symbol Management</li>}
-                  </ul>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={handleComplete} size="lg">
-                  Go to Dashboard
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
               </div>
             </>
           )}

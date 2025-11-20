@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Settings, TrendingUp, MessageSquare, Shield, FlaskConical, Brain, Database } from "lucide-react";
+import { Settings, TrendingUp, MessageSquare, Shield, FlaskConical, Brain, Database, HardDrive } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useMode } from "@/lib/mode-context";
@@ -13,6 +13,7 @@ import AutonomyTab from "./settings/AutonomyTab";
 import ExperimentsTab from "./settings/ExperimentsTab";
 import LearningTab from "./settings/LearningTab";
 import DataRetentionTab from "./settings/DataRetentionTab";
+import DataIngestionTab from "./settings/DataIngestionTab";
 
 import { Bell } from "lucide-react";
 import NotificationTab from "./settings/NotificationTab";
@@ -23,6 +24,7 @@ const EASY_MODE_TABS = [
   { id: "trading", label: "Trading", icon: TrendingUp },
   { id: "assistant", label: "Assistant", icon: MessageSquare },
   { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "data-ingestion", label: "Data", icon: HardDrive },
 ] as const;
 
 // Advanced Mode tabs - all settings
@@ -31,6 +33,7 @@ const ADVANCED_MODE_TABS = [
   { id: "trading", label: "Trading", icon: TrendingUp },
   { id: "assistant", label: "Assistant", icon: MessageSquare },
   { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "data-ingestion", label: "Data Ingestion", icon: HardDrive },
   { id: "autonomy", label: "Autonomy", icon: Shield },
   { id: "experiments", label: "Experiments", icon: FlaskConical },
   { id: "learning", label: "Learning", icon: Brain },
@@ -49,10 +52,13 @@ export default function SettingsPage(): JSX.Element {
 
   useEffect(() => {
     setMounted(true);
-    // Set active tab from URL query parameter
+    // Set active tab from URL query parameter - prioritize 'section' for backwards compatibility
+    const sectionParam = router.query.section as string;
     const tabParam = router.query.tab as string;
-    if (tabParam && tabs.some((t) => t.id === tabParam)) {
-      setActiveTab(tabParam as EasyTabId | AdvancedTabId);
+    const activeParam = sectionParam || tabParam;
+    
+    if (activeParam && tabs.some((t) => t.id === activeParam)) {
+      setActiveTab(activeParam as EasyTabId | AdvancedTabId);
     }
   }, [router, tabs]);
 
@@ -100,6 +106,7 @@ export default function SettingsPage(): JSX.Element {
         {activeTab === "trading" && <TradingTab />}
         {activeTab === "assistant" && <AssistantTab />}
         {activeTab === "notifications" && <NotificationTab />}
+        {activeTab === "data-ingestion" && <DataIngestionTab />}
         {!isEasyMode && activeTab === "autonomy" && <AutonomyTab />}
         {!isEasyMode && activeTab === "experiments" && <ExperimentsTab />}
         {!isEasyMode && activeTab === "learning" && <LearningTab />}

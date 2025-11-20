@@ -87,7 +87,7 @@ docker run -d -p 6379:6379 --name lenquant-redis redis:7.2-alpine
 ```bash
 # If not already cloned
 git clone <your-repo-url>
-cd lenxys-trader
+cd cryptotrader
 ```
 
 ### Step 2: Configure Environment Variables
@@ -293,7 +293,7 @@ This is the main API server that handles all HTTP requests.
 
 ```bash
 # Make sure you're in the project root
-cd /path/to/lenxys-trader
+cd /path/to/cryptotrader
 
 # Activate virtual environment
 # Windows:
@@ -330,7 +330,7 @@ This handles background tasks like model training and strategy evolution.
 
 ```bash
 # Navigate to project root
-cd /path/to/lenxys-trader
+cd /path/to/cryptotrader
 
 # Activate virtual environment
 # Windows:
@@ -427,7 +427,7 @@ docker-compose down
 
 ```bash
 # Navigate to frontend directory
-cd /path/to/lenxys-trader/web/next-app
+cd /path/to/cryptotrader/web/next-app
 
 # Start development server
 npm run dev
@@ -477,7 +477,7 @@ This registers the trading pairs you want to track:
 
 ```bash
 # Make sure virtual environment is activated
-cd /path/to/lenxys-trader
+cd /path/to/cryptotrader
 
 # Seed default symbols from .env
 python scripts/seed_symbols.py
@@ -535,7 +535,7 @@ To keep data updated, set up a scheduled job:
 crontab -e
 
 # Add this line to fetch data every hour
-0 * * * * cd /path/to/lenxys-trader && /path/to/.venv/bin/python -m data_ingest.fetcher
+0 * * * * cd /path/to/cryptotrader && /path/to/.venv/bin/python -m data_ingest.fetcher
 ```
 
 **Option B: Using Task Scheduler (Windows)**
@@ -546,7 +546,7 @@ crontab -e
 5. Action: Start a program
    - Program: `C:\path\to\.venv\Scripts\python.exe`
    - Arguments: `-m data_ingest.fetcher`
-   - Start in: `C:\path\to\lenxys-trader`
+   - Start in: `C:\path\to\cryptotrader`
 
 **Option C: Using the Built-in Scheduler**
 ```bash
@@ -1149,24 +1149,24 @@ mongod
 redis-server
 
 # Terminal 3: Backend API
-cd lenxys-trader
+cd cryptotrader
 source .venv/bin/activate
 cd api && uvicorn main:app --reload
 
 # Terminal 4: Celery Worker
-cd lenxys-trader
+cd cryptotrader
 source .venv/bin/activate
 celery -A manager.tasks:celery_app worker --loglevel=info
 
 # Terminal 5: Frontend
-cd lenxys-trader/web/next-app
+cd cryptotrader/web/next-app
 npm run dev
 ```
 
 ### Starting Everything (Docker)
 
 ```bash
-cd lenxys-trader/docker
+cd cryptotrader/docker
 docker-compose up -d
 ```
 

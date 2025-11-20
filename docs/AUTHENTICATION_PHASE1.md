@@ -1271,7 +1271,7 @@ mongod
 redis-server
 
 # Terminal 3: Backend
-cd lenxys-trader
+cd cryptotrader
 source .venv/bin/activate
 cd api
 uvicorn main:app --reload
@@ -1401,7 +1401,7 @@ Update your cron jobs to source the environment:
 crontab -e
 
 # Add this line to fetch data every hour
-0 * * * * cd /path/to/lenxys-trader && /path/to/scripts/run_with_auth.sh /path/to/.venv/bin/python -m data_ingest.fetcher
+0 * * * * cd /path/to/cryptotrader && /path/to/scripts/run_with_auth.sh /path/to/.venv/bin/python -m data_ingest.fetcher
 ```
 
 ---
@@ -1453,7 +1453,7 @@ CELERY_BROKER_URL=redis://production-host:6379/0
 
 ```bash
 # On production server
-cd /path/to/lenxys-trader
+cd /path/to/cryptotrader
 source .venv/bin/activate
 
 # Install dependencies

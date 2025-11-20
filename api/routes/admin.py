@@ -124,56 +124,58 @@ class KillSwitchPayload(BaseModel):
 
 @router.post("/bootstrap")
 def bootstrap_data(payload: BootstrapRequest) -> Dict[str, Any]:
+    """
+    Start asynchronous bootstrap process.
+    
+    Seeds symbols and initiates background ingestion jobs.
+    Returns immediately with job ID for tracking.
+    """
     config = IngestConfig.from_env()
 
     symbols = payload.symbols or config.symbols or ["BTC/USDT"]
     intervals = payload.intervals or config.intervals or ["1m"]
-    limit = payload.limit or config.batch_size
     lookback_days = payload.lookback_days or config.lookback_days
 
     if not symbols or not intervals:
         raise HTTPException(status_code=400, detail="No symbols or intervals available for bootstrap.")
 
-    results: Dict[str, Any] = {
-        "seeded_symbols": 0,
-        "ingested": [],
-        "features": [],
-        "simulation_run_id": None,
-        "report_path": None,
-        "inventory": [],
-        "batch_size": limit,
-        "lookback_days": lookback_days,
-        "requested_symbols": symbols,
-        "requested_intervals": intervals,
+    # Seed symbols in database
+    seeded_count = seed(symbols)
+    
+    # Create batch ingestion job
+    parent_job_id = f"bootstrap_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+    
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        
+        job_doc = {
+            "job_id": parent_job_id,
+            "job_type": "bootstrap",
+            "symbols": symbols,
+            "intervals": intervals,
+            "lookback_days": lookback_days,
+            "status": "queued",
+            "created_at": datetime.utcnow(),
+            "progress_pct": 0.0,
+            "child_job_ids": [],
+        }
+        
+        db["ingestion_jobs"].insert_one(job_doc)
+    
+    # Start async batch ingestion
+    from data_ingest.tasks import batch_ingest_task
+    batch_ingest_task.apply_async(
+        args=[parent_job_id, symbols, intervals, lookback_days],
+        queue="data"
+    )
+    
+    return {
+        "job_id": parent_job_id,
+        "seeded_symbols": seeded_count,
+        "message": "Bootstrap started. Use /api/data-ingestion/status-batch/{job_id} to track progress",
+        "total_combinations": len(symbols) * len(intervals),
         "timestamp": datetime.utcnow().isoformat(),
     }
-
-    results["seeded_symbols"] = seed(symbols)
-
-    for symbol in symbols:
-        for interval in intervals:
-            ingested = fetch_symbol_interval(
-                symbol,
-                interval,
-                limit=limit,
-                config=config,
-                lookback_days=lookback_days,
-            )
-            results["ingested"].append({"symbol": symbol, "interval": interval, "rows": ingested})
-
-            feature_rows = generate_for_symbol(symbol, interval)
-            results["features"].append({"symbol": symbol, "interval": interval, "rows": feature_rows})
-
-    primary_symbol = symbols[0]
-    primary_interval = intervals[0]
-    run_id = run_simulation(primary_symbol, primary_interval, "bootstrap-baseline")
-    results["simulation_run_id"] = run_id
-
-    report_path = generate_daily_report()
-    results["report_path"] = str(report_path)
-    results["inventory"] = _inventory_snapshot(config, symbols, intervals)
-
-    return results
 
 
 @router.post("/kill-switch")
