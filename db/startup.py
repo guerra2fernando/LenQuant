@@ -199,21 +199,21 @@ def seed_default_symbols() -> None:
         with mongo_client() as client:
             db = client[get_database_name()]
             
-        for symbol in symbols:
-            db["symbols"].update_one(
-                {"symbol": symbol},
-                {
-                    "$setOnInsert": {
-                        "symbol": symbol,
-                        "base_increment": 0.0001,
-                        "quote_increment": 0.01,
+            for symbol in symbols:
+                db["symbols"].update_one(
+                    {"symbol": symbol},
+                    {
+                        "$setOnInsert": {
+                            "symbol": symbol,
+                            "base_increment": 0.0001,
+                            "quote_increment": 0.01,
+                        },
+                        "$set": {"enabled": True}
                     },
-                    "$set": {"enabled": True}
-                },
-                upsert=True,
-            )
-            
-            logger.info(f"✓ Seeded {len(symbols)} default symbols")
+                    upsert=True,
+                )
+        
+        logger.info(f"✓ Seeded {len(symbols)} default symbols")
     except Exception as e:
         logger.warning(f"Could not seed default symbols: {e}")
 
