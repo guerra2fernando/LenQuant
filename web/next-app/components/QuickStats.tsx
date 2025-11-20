@@ -8,8 +8,17 @@ type QuickStatsProps = {
   symbol: string;
 };
 
+type MarketPriceData = {
+  price: number;
+  open: number;
+  close: number;
+  high: number;
+  low: number;
+  volume: number;
+};
+
 export function QuickStats({ symbol }: QuickStatsProps) {
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading } = useSWR<MarketPriceData>(
     `/api/market/latest-price?symbol=${encodeURIComponent(symbol)}`,
     fetcher,
     { refreshInterval: 5000 }
