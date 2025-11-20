@@ -27,7 +27,6 @@ celery_app.conf.update(
         'socket_timeout': 30,
         'socket_connect_timeout': 30,
         'socket_keepalive': True,
-        'socket_keepalive_options': {'TCP_KEEPIDLE': 60, 'TCP_KEEPINTVL': 30, 'TCP_KEEPCNT': 3},
         'health_check_interval': 30,
         'visibility_timeout': 3600,  # 1 hour - how long before task is considered lost
     },
@@ -37,7 +36,6 @@ celery_app.conf.update(
         'socket_timeout': 30,
         'socket_connect_timeout': 30,
         'socket_keepalive': True,
-        'socket_keepalive_options': {'TCP_KEEPIDLE': 60, 'TCP_KEEPINTVL': 30, 'TCP_KEEPCNT': 3},
         'health_check_interval': 30,
     },
 
