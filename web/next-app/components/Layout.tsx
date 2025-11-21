@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Settings } from "lucide-react";
 
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ModeToggle } from "@/components/ModeToggle";
@@ -14,6 +14,7 @@ import { ExchangeStatusBadge } from "@/components/ExchangeStatusBadge";
 import { SEO } from "@/components/SEO";
 import { useMode } from "@/lib/mode-context";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   children: ReactNode;
@@ -28,7 +29,6 @@ const EASY_MODE_NAV_ITEMS = [
   { href: "/trading", label: "Trading" },
   { href: "/insights", label: "Insights" },
   { href: "/assistant", label: "Assistant" },
-  { href: "/settings", label: "Settings" },
 ] as const;
 
 const ADVANCED_MODE_NAV_ITEMS = [
@@ -39,7 +39,6 @@ const ADVANCED_MODE_NAV_ITEMS = [
   { href: "/analytics", label: "Analytics" },
   { href: "/assistant", label: "Assistant" },
   { href: "/knowledge", label: "Knowledge" },
-  { href: "/settings", label: "Settings" },
 ] as const;
 
 export function Layout({ children, title, description }: Props) {
@@ -98,7 +97,18 @@ export function Layout({ children, title, description }: Props) {
             <ExchangeStatusBadge />
             <ModeToggle />
             <NotificationCenter />
-            <ThemeToggle />
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/settings")}
+                aria-label="Settings"
+                title="Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </Button>
+            </div>
             
             {/* User Menu */}
             {session?.user && (

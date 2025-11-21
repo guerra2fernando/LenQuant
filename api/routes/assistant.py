@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 import db.client as db_client
+from api.routes.trade import get_portfolio_summary
 from assistant import (
     ActionManager,
     AssistantConversationTurn,
@@ -312,9 +313,7 @@ def _get_context_aware_recommendation() -> Dict[str, Any]:
         db = client[db_client.get_database_name()]
         
         # Check portfolio state
-        from api.routes.trade import get_order_manager
-        manager = get_order_manager()
-        portfolio_summary = manager.get_portfolio_summary()
+        portfolio_summary = get_portfolio_summary()
         
         paper_balance = portfolio_summary.get("modes", {}).get("paper", {}).get("wallet_balance", 0)
         positions_count = len(portfolio_summary.get("modes", {}).get("paper", {}).get("positions", []))
@@ -400,14 +399,12 @@ def get_context_aware_recommendation() -> Dict[str, Any]:
     relevant action recommendation.
     """
     recommendation = _get_context_aware_recommendation()
-    
+
     # Get context information
     with db_client.mongo_client() as client:
         db = client[db_client.get_database_name()]
-        
-        from api.routes.trade import get_order_manager
-        manager = get_order_manager()
-        portfolio_summary = manager.get_portfolio_summary()
+
+        portfolio_summary = get_portfolio_summary()
         
         has_data = db["ohlcv"].count_documents({}) > 0
         paper_balance = portfolio_summary.get("modes", {}).get("paper", {}).get("wallet_balance", 0)
@@ -443,9 +440,7 @@ def get_assistant_context() -> Dict[str, Any]:
     with db_client.mongo_client() as client:
         db = client[db_client.get_database_name()]
         
-        from api.routes.trade import get_order_manager
-        manager = get_order_manager()
-        portfolio_summary = manager.get_portfolio_summary()
+        portfolio_summary = get_portfolio_summary()
         
         # Portfolio context
         paper_mode = portfolio_summary.get("modes", {}).get("paper", {})
@@ -585,9 +580,7 @@ def get_proactive_suggestions(
     with db_client.mongo_client() as client:
         db = client[db_client.get_database_name()]
         
-        from api.routes.trade import get_order_manager
-        manager = get_order_manager()
-        portfolio_summary = manager.get_portfolio_summary()
+        portfolio_summary = get_portfolio_summary()
         
         paper_balance = portfolio_summary.get("modes", {}).get("paper", {}).get("wallet_balance", 0)
         positions = portfolio_summary.get("modes", {}).get("paper", {}).get("positions", [])
@@ -754,9 +747,7 @@ def get_quick_prompts(
     with db_client.mongo_client() as client:
         db = client[db_client.get_database_name()]
         
-        from api.routes.trade import get_order_manager
-        manager = get_order_manager()
-        portfolio_summary = manager.get_portfolio_summary()
+        portfolio_summary = get_portfolio_summary()
         
         positions_count = len(portfolio_summary.get("modes", {}).get("paper", {}).get("positions", []))
         has_data = db["ohlcv"].count_documents({}) > 0

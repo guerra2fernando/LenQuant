@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
 from uuid import uuid4
 
+from api.routes.trade import get_portfolio_summary
 from exec.order_manager import OrderManager, OrderRequest
 from exec.risk_manager import RiskViolation
 from strategy_genome.repository import list_genomes
@@ -42,6 +43,14 @@ class ActionManager:
     def refresh_settings(self) -> AssistantSettings:
         self.settings = self._load_settings()
         return self.settings
+
+    def get_portfolio_summary(
+        self,
+        modes: Optional[List[str]] = None,
+        include_hierarchy: bool = False,
+    ) -> Dict[str, Any]:
+        """Get portfolio summary using the trade API function."""
+        return get_portfolio_summary(modes=modes, include_hierarchy=include_hierarchy)
 
     def auto_generate_recommendations(
         self,

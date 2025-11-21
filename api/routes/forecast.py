@@ -22,6 +22,12 @@ class ForecastRequest(BaseModel):
     timestamp: Optional[datetime] = None
 
 
+class ForecastBatchResponse(BaseModel):
+    forecasts: List[Dict[str, Any]]
+    total_count: int
+    returned_count: int
+
+
 def _serialize_result(result: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "symbol": result["symbol"],
@@ -43,7 +49,7 @@ def forecast(payload: ForecastRequest) -> Dict[str, Any]:
     return _serialize_result(result)
 
 
-@router.get("/batch")
+@router.get("/batch", response_model=ForecastBatchResponse)
 def forecast_batch(
     symbols: str = Query(..., description="Comma-separated symbol list"),
     horizon: str = Query(..., description="Horizon key, e.g., 1h"),
@@ -55,7 +61,7 @@ def forecast_batch(
     sort_order: Optional[str] = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
     limit: Optional[int] = Query(None, ge=1, le=100, description="Limit results"),
     offset: Optional[int] = Query(0, ge=0, description="Offset for pagination"),
-) -> Dict[str, List[Dict[str, Any]]]:
+) -> ForecastBatchResponse:
     ts = timestamp or datetime.utcnow()
     outputs: List[Dict[str, Any]] = []
     for raw_symbol in symbols.split(","):

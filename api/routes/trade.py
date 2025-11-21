@@ -395,8 +395,14 @@ def get_equity_history(
     snapshots = []
     for ledger in reversed(ledgers):  # Chronological order
         equity = ledger.get("wallet_balance", 0) + ledger.get("positions_value", 0)
+
+        # Handle timestamp - could be datetime object or ISO string
+        timestamp = ledger["timestamp"]
+        if isinstance(timestamp, str):
+            timestamp = datetime.fromisoformat(timestamp)
+
         snapshots.append({
-            "timestamp": ledger["timestamp"].isoformat(),
+            "timestamp": timestamp.isoformat(),
             "equity": equity,
             "wallet_balance": ledger.get("wallet_balance", 0),
             "positions_value": ledger.get("positions_value", 0),
