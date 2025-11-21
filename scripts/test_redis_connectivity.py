@@ -140,3 +140,4 @@ if __name__ == "__main__":
     else:
         print("\n✅ Redis configuration looks good!")
         sys.exit(0)
+

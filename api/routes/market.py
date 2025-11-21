@@ -41,11 +41,11 @@ def get_ohlcv(
         
         print(f"[Market API] MongoDB query: {query}")
         
-        # Fetch candles
+        # Fetch candles - sort descending to get most recent, then reverse for chronological order
         cursor = (
             db["ohlcv"]
             .find(query)
-            .sort("timestamp", 1)
+            .sort("timestamp", -1)  # Get most recent first
             .limit(limit)
         )
         
@@ -59,6 +59,9 @@ def get_ohlcv(
                 "close": float(doc["close"]),
                 "volume": float(doc["volume"]),
             })
+        
+        # Reverse to get chronological order (oldest to newest) for chart
+        candles.reverse()
         
         print(f"[Market API] Found {len(candles)} candles for {symbol} {interval}")
         

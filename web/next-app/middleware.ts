@@ -19,5 +19,6 @@ export const config = {
      */
     "/((?!login|terms|privacy|api/auth|_next|images|favicon.ico|robots.txt).*)",
   ],
+  runtime: 'nodejs', // Force Node.js runtime to avoid Edge Runtime compatibility issues
 };
 
