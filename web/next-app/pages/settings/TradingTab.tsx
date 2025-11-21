@@ -72,25 +72,6 @@ export default function TradingTab(): JSX.Element {
 
       <SettingsTradingForm settings={settings} onSubmit={handleSave} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Alert Test
-            <TooltipExplainer 
-              term="Alert Test" 
-              explanation="Send a test notification through your configured alert channels (email, Slack, etc.) to verify they're set up correctly. This helps ensure you'll receive important notifications about trades, errors, or system events. Run this after configuring new notification channels."
-            />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Send a test alert to the configured channels to verify connectivity.
-          </p>
-          <Button onClick={handleTestAlert} disabled={isTestingAlert}>
-            {isTestingAlert ? "Sending..." : "Send Test Alert"}
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

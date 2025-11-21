@@ -172,6 +172,13 @@ def get_portfolio_summary(
     modes: Optional[List[str]] = Query(None),
     include_hierarchy: bool = Query(False),
 ) -> Dict[str, Any]:
+    # Handle the case where this function is called directly (not through FastAPI)
+    # When called directly, modes might be a Query object, so we extract the actual value
+    if hasattr(modes, 'default') and hasattr(modes, 'alias'):
+        # This is a FastAPI Query object
+        actual_modes = None  # Query(None) means no value provided
+    else:
+        actual_modes = modes
     """
     Aggregated portfolio view across modes with real-time valuations.
     Reuses existing settlement engine, risk manager, and regime detector.
@@ -179,7 +186,7 @@ def get_portfolio_summary(
     manager = _get_order_manager()
     settlement = manager.settlement
     
-    modes_to_check = modes or ["paper", "testnet", "live"]
+    modes_to_check = actual_modes or ["paper", "testnet", "live"]
     portfolio = {
         "timestamp": datetime.utcnow().isoformat(),
         "total_equity_usd": 0.0,

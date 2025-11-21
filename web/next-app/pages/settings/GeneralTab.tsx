@@ -655,61 +655,6 @@ export default function GeneralTab(): JSX.Element {
         <Card>
           <CardHeader>
             <CardTitle>
-              Legacy Data Bootstrap
-              <TooltipExplainer 
-                term="Legacy Data Bootstrap" 
-                explanation="This is a legacy feature that runs the complete data preparation pipeline in one go. For most use cases, you should use the Symbol Management section above or the Data Ingestion tab for better control and progress tracking."
-              />
-            </CardTitle>
-            <CardDescription>
-              Quick bootstrap for all default symbols. For better control, use Symbol Management above or visit the Data Ingestion tab.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3">
-              <p className="text-xs font-medium text-yellow-600 dark:text-yellow-500 mb-1">
-                ⚠️ Note: This is a legacy feature
-              </p>
-              <p className="text-xs text-muted-foreground">
-                For regular data updates, use the <strong>Data Ingestion</strong> tab which provides real-time progress tracking, 
-                job management, and individual symbol control. This bootstrap is only recommended for emergency full re-sync scenarios.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  setBootstrapMessage(null);
-                  setIsBootstrapping(true);
-                  try {
-                    const response = await postJson("/api/admin/bootstrap", {});
-                    const ingested = Array.isArray(response?.ingested) ? response.ingested.length : 0;
-                    setBootstrapMessage(
-                      `Data setup complete (${ingested} ingest batches). Job ID: ${response?.job_id ?? "n/a"}. Check Data Ingestion tab for details.`,
-                    );
-                    await mutateOverview();
-                  } catch (error) {
-                    setBootstrapMessage(error instanceof Error ? error.message : "Failed to run data setup.");
-                  } finally {
-                    setIsBootstrapping(false);
-                  }
-                }}
-                disabled={isBootstrapping}
-              >
-                {isBootstrapping ? "Bootstrapping…" : "Run Legacy Bootstrap"}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Uses default symbols and intervals. Results appear in the Data Ingestion tab.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section>
-        <Card>
-          <CardHeader>
-            <CardTitle>
               Model Retraining Preferences
               <TooltipExplainer 
                 term="Model Retraining Preferences" 

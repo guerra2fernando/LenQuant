@@ -37,17 +37,55 @@ export function ScheduleConfigurationCard() {
   const [evolutionConfig, setEvolutionConfig] = useState<Partial<ScheduleConfig>>({});
   const [knowledgeConfig, setKnowledgeConfig] = useState<Partial<ScheduleConfig>>({});
 
-  const handleSave = async (type: "learning_cycle" | "evolution" | "knowledge_generation") => {
+  const convertToApiFormat = (config: Partial<ScheduleConfig>) => {
+    if (!config.enabled) {
+      return { enabled: false, schedule: "", config: {} };
+    }
+
+    let schedule = "";
+    const [hours, minutes] = (config.time_of_day || "02:00").split(":");
+
+    if (config.frequency === "hourly") {
+      schedule = "0 * * * *"; // Every hour at minute 0
+    } else if (config.frequency === "daily") {
+      schedule = `0 ${minutes} ${hours} * * *`; // Every day at specified time
+    } else if (config.frequency === "weekly") {
+      schedule = `0 ${minutes} ${hours} * * ${config.day_of_week || 0}`; // Weekly at specified time and day
+    }
+
+    return {
+      enabled: true,
+      schedule,
+      config: {}
+    };
+  };
+
+  const getBackendTaskType = (frontendType: "learning_cycle" | "evolution" | "knowledge_generation") => {
+    switch (frontendType) {
+      case "learning_cycle":
+        return "learning";
+      case "evolution":
+        return "evolution";
+      case "knowledge_generation":
+        return "learning"; // Map knowledge generation to learning for now
+      default:
+        return frontendType;
+    }
+  };
+
+  const handleSave = async (frontendType: "learning_cycle" | "evolution" | "knowledge_generation") => {
     setIsSaving(true);
     try {
-      const config =
-        type === "learning_cycle"
+      const localConfig =
+        frontendType === "learning_cycle"
           ? learningConfig
-          : type === "evolution"
+          : frontendType === "evolution"
             ? evolutionConfig
             : knowledgeConfig;
 
-      await postJson(`/api/schedules/${type}`, config);
+      const apiPayload = convertToApiFormat(localConfig);
+      const backendType = getBackendTaskType(frontendType);
+      await postJson(`/api/schedules/${backendType}`, apiPayload);
       await mutate();
       toast.success(`${type.replace("_", " ")} schedule updated`);
     } catch (error) {
@@ -74,7 +112,7 @@ export function ScheduleConfigurationCard() {
   const renderScheduleSection = (
     title: string,
     description: string,
-    type: "learning_cycle" | "evolution" | "knowledge_generation",
+    frontendType: "learning_cycle" | "evolution" | "knowledge_generation",
     config?: ScheduleConfig,
     localConfig?: Partial<ScheduleConfig>,
     setLocalConfig?: (config: Partial<ScheduleConfig>) => void,
@@ -176,7 +214,7 @@ export function ScheduleConfigurationCard() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleSave(type)}
+              onClick={() => handleSave(frontendType)}
               disabled={isSaving}
             >
               <Save className="mr-2 h-3 w-3" />
