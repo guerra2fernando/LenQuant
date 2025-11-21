@@ -5,6 +5,7 @@ import useSWR from "swr";
 
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { ForecastTable, type ForecastRow } from "@/components/ForecastTable";
+import { ForecastFilterPanel, type ForecastFilters } from "@/components/ForecastFilterPanel";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +44,10 @@ export default function ForecastsTab() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, number[]>>({});
+  const [filters, setFilters] = useState<ForecastFilters>({
+    minConfidence: 0,
+    direction: 'all',
+  });
 
   useEffect(() => {
     if (data) {
@@ -118,6 +123,31 @@ export default function ForecastsTab() {
     [data],
   );
 
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      // Confidence filter
+      if (row.confidence !== undefined && row.confidence < filters.minConfidence) {
+        return false;
+      }
+
+      // Direction filter
+      if (filters.direction !== 'all' && row.pred_return !== undefined) {
+        if (filters.direction === 'up' && row.pred_return <= 0.02) return false;
+        if (filters.direction === 'down' && row.pred_return >= -0.02) return false;
+        if (filters.direction === 'neutral' && (row.pred_return > 0.02 || row.pred_return < -0.02)) return false;
+      }
+
+      return true;
+    });
+  }, [rows, filters]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filters.minConfidence > 0) count++;
+    if (filters.direction !== 'all') count++;
+    return count;
+  }, [filters]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -130,7 +160,7 @@ export default function ForecastsTab() {
             />
           </h2>
           <p className="text-sm text-muted-foreground">
-            Ensemble predictions for {symbols.join(", ")} across multiple horizons.
+            Ensemble predictions for {symbols.join(", ")} across multiple horizons. {filteredRows.length} of {rows.length} shown.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -160,6 +190,11 @@ export default function ForecastsTab() {
               )}
             </Button>
           ))}
+          <ForecastFilterPanel
+            filters={filters}
+            onFiltersChange={setFilters}
+            activeFiltersCount={activeFiltersCount}
+          />
           <Button variant="outline" onClick={handleExport} disabled={isLoading || isExporting}>
             {isExporting ? "Exporting..." : "Download CSV"}
           </Button>
@@ -205,7 +240,7 @@ export default function ForecastsTab() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ForecastTable data={rows} isLoading={isLoading} lastUpdated={lastUpdated} history={history} />
+          <ForecastTable data={filteredRows} isLoading={isLoading} lastUpdated={lastUpdated} history={history} />
         </CardContent>
       </Card>
     </div>

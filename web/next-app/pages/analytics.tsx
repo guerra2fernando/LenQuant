@@ -2,17 +2,23 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { BarChart3, TrendingUp, Sparkles, Brain } from "lucide-react";
+import { BarChart3, TrendingUp, Sparkles, Brain, Activity } from "lucide-react";
+import useSWR from "swr";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ForecastAlertSystem } from "@/components/ForecastAlertSystem";
 import { useMode } from "@/lib/mode-context";
+import { fetcher } from "@/lib/api";
+import OverviewTab from "./analytics/OverviewTab";
 import ForecastsTab from "./analytics/ForecastsTab";
 import StrategiesTab from "./analytics/StrategiesTab";
 import EvolutionTab from "./analytics/EvolutionTab";
 import LearningInsightsTab from "./analytics/LearningInsightsTab";
 
 const TABS = [
+  { id: "overview", label: "Overview", icon: Activity },
   { id: "forecasts", label: "Forecasts", icon: TrendingUp },
   { id: "strategies", label: "Strategies", icon: BarChart3 },
   { id: "evolution", label: "Evolution", icon: Sparkles },
@@ -24,8 +30,13 @@ type TabId = (typeof TABS)[number]["id"];
 export default function AnalyticsPage(): JSX.Element {
   const router = useRouter();
   const { isAdvancedMode } = useMode();
-  const [activeTab, setActiveTab] = useState<TabId>("forecasts");
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [mounted, setMounted] = useState(false);
+
+  // Fetch overview data for badges (Phase 2 UX Conciliation)
+  const { data: overviewData } = useSWR("/api/analytics/overview", fetcher, {
+    refreshInterval: 30000,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -45,8 +56,17 @@ export default function AnalyticsPage(): JSX.Element {
     return null;
   }
 
+  // Extract badge counts from overview
+  const tabBadges = overviewData?.tab_badges || {};
+
+  const getBadgeForTab = (tabId: TabId) => {
+    const badgeValue = tabBadges[tabId];
+    return badgeValue && badgeValue > 0 ? badgeValue : null;
+  };
+
   return (
     <div className="space-y-6">
+      <ForecastAlertSystem />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
         <p className="text-sm text-muted-foreground">
@@ -59,6 +79,7 @@ export default function AnalyticsPage(): JSX.Element {
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
+          const badgeCount = getBadgeForTab(tab.id);
           return (
             <Button
               key={tab.id}
@@ -68,6 +89,14 @@ export default function AnalyticsPage(): JSX.Element {
             >
               <Icon className="h-4 w-4" />
               {tab.label}
+              {badgeCount && (
+                <Badge 
+                  variant={isActive ? "secondary" : "default"} 
+                  className="ml-1 h-5 min-w-5 px-1.5 text-xs"
+                >
+                  {badgeCount}
+                </Badge>
+              )}
             </Button>
           );
         })}
@@ -75,6 +104,7 @@ export default function AnalyticsPage(): JSX.Element {
 
       {/* Tab Content */}
       <div>
+        {activeTab === "overview" && <OverviewTab />}
         {activeTab === "forecasts" && <ForecastsTab />}
         {activeTab === "strategies" && <StrategiesTab />}
         {activeTab === "evolution" && <EvolutionTab />}

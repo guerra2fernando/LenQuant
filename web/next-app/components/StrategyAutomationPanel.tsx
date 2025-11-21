@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
-import { useToast } from "@/components/ToastProvider";
 import { fetcher, putJson } from "@/lib/api";
+import { toast } from "sonner";
 
 type StrategyAutomationPanelProps = {
   selectedStrategies: string[];
@@ -17,7 +17,6 @@ export function StrategyAutomationPanel({
   selectedStrategies,
 }: StrategyAutomationPanelProps) {
   const [automationStates, setAutomationStates] = useState<Record<string, boolean>>({});
-  const { pushToast } = useToast();
 
   // Fetch global autonomy settings
   const { data: autonomySettings } = useSWR("/api/settings/autonomy", fetcher);
@@ -31,20 +30,19 @@ export function StrategyAutomationPanel({
     try {
       // In a real implementation, you'd have an endpoint to enable/disable
       // automation per strategy. For now, we'll show a notification.
-      pushToast({
-        title: enabled ? "Automation enabled" : "Automation disabled",
-        description: `Strategy ${strategyId} ${
-          enabled ? "will" : "will not"
-        } trade automatically`,
-        variant: "info",
-      });
+      toast.info(
+        enabled ? "Automation enabled" : "Automation disabled",
+        {
+          description: `Strategy ${strategyId} ${
+            enabled ? "will" : "will not"
+          } trade automatically`,
+        }
+      );
     } catch (error: any) {
       // Revert on error
       setAutomationStates((prev) => ({ ...prev, [strategyId]: !enabled }));
-      pushToast({
-        title: "Failed to update automation",
+      toast.error("Failed to update automation", {
         description: error.message,
-        variant: "error",
       });
     }
   };

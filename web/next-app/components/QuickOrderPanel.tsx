@@ -1,25 +1,41 @@
 /* eslint-disable */
 // @ts-nocheck
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/components/ToastProvider";
 import { fetcher, postJson } from "@/lib/api";
+import { toast } from "sonner";
 import { formatNumber } from "@/lib/utils";
+import { TrendingUp } from "lucide-react";
 
 type QuickOrderPanelProps = {
   symbol: string;
   mode: string;
+  forecastContext?: {
+    action?: string;
+    suggestedSize?: string;
+    confidence?: string;
+    source?: string;
+  } | null;
 };
 
-export function QuickOrderPanel({ symbol, mode }: QuickOrderPanelProps) {
+export function QuickOrderPanel({ symbol, mode, forecastContext }: QuickOrderPanelProps) {
   const [quantity, setQuantity] = useState<string>("0.001");
   const [submitting, setSubmitting] = useState(false);
-  const { pushToast } = useToast();
+  
+  // Pre-fill quantity from forecast if provided
+  useEffect(() => {
+    if (forecastContext?.suggestedSize) {
+      // Convert suggested size to a reasonable quantity
+      // This is simplified - in production, consider position sizing logic
+      const size = parseFloat(forecastContext.suggestedSize) / 100; // Convert percentage to units
+      setQuantity(Math.max(0.001, size).toFixed(3));
+    }
+  }, [forecastContext]);
 
   // Get latest price
   const { data: priceData } = useSWR(
@@ -43,16 +59,12 @@ export function QuickOrderPanel({ symbol, mode }: QuickOrderPanelProps) {
       };
 
       await postJson("/api/trading/orders", payload);
-      pushToast({
-        title: "Order submitted",
+      toast.success("Order submitted", {
         description: `${side.toUpperCase()} ${quantity} ${symbol}`,
-        variant: "success",
       });
     } catch (error: any) {
-      pushToast({
-        title: "Order failed",
+      toast.error("Order failed", {
         description: error.message || "Failed to submit order",
-        variant: "destructive",
       });
     } finally {
       setSubmitting(false);
@@ -68,6 +80,23 @@ export function QuickOrderPanel({ symbol, mode }: QuickOrderPanelProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Forecast Context Badge */}
+        {forecastContext?.source === 'forecast' && (
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">
+                  AI Forecast Signal
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {forecastContext.action === 'buy' ? 'Buy' : 'Sell'} recommendation with {forecastContext.confidence}% confidence
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Current Price */}
         <div>
           <p className="text-xs text-muted-foreground">Current Price</p>

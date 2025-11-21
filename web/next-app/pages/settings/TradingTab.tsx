@@ -5,15 +5,15 @@ import useSWR from "swr";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { AccountSelector } from "@/components/AccountSelector";
 import { SettingsTradingForm } from "@/components/SettingsTradingForm";
+import { ExchangeConnectionCard } from "@/components/ExchangeConnectionCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { fetcher, postJson, putJson } from "@/lib/api";
-import { useToast } from "@/components/ToastProvider";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function TradingTab(): JSX.Element {
   const { data, mutate } = useSWR("/api/settings/trading", fetcher);
-  const { pushToast } = useToast();
   const [isTestingAlert, setIsTestingAlert] = useState(false);
 
   const settings = data ?? {
@@ -25,7 +25,7 @@ export default function TradingTab(): JSX.Element {
 
   const handleSave = async (payload: unknown) => {
     await putJson("/api/settings/trading", payload);
-    pushToast({ title: "Settings saved", variant: "success" });
+    toast.success("Settings saved");
     await mutate();
   };
 
@@ -33,7 +33,7 @@ export default function TradingTab(): JSX.Element {
     setIsTestingAlert(true);
     try {
       await postJson("/api/settings/trading/test-alert", {});
-      pushToast({ title: "Test alert sent", variant: "success" });
+      toast.success("Test alert sent");
     } finally {
       setIsTestingAlert(false);
     }
@@ -47,6 +47,8 @@ export default function TradingTab(): JSX.Element {
 
   return (
     <div className="space-y-6">
+      <ExchangeConnectionCard />
+      
       <Card>
         <CardHeader>
           <CardTitle>

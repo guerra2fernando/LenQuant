@@ -6,12 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fetcher, postJson } from "@/lib/api";
-import { useToast } from "@/components/ToastProvider";
 import { Shield, Download, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 export function AuditSection() {
   const [loading, setLoading] = useState(false);
-  const { pushToast } = useToast();
   
   const { data: reconciliation, mutate } = useSWR(
     "/api/trading/reconciliation",
@@ -32,17 +31,13 @@ export function AuditSection() {
       a.download = `reconciliation-${new Date().toISOString()}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      
-      pushToast({
-        title: "Report exported",
+
+      toast.success("Report exported", {
         description: "Reconciliation report downloaded successfully",
-        variant: "success",
       });
     } catch (error) {
-      pushToast({
-        title: "Export failed",
+      toast.error("Export failed", {
         description: "Failed to export reconciliation report",
-        variant: "error",
       });
     } finally {
       setLoading(false);
@@ -54,17 +49,13 @@ export function AuditSection() {
     try {
       await postJson("/api/trading/reconciliation/run", {});
       await mutate();
-      
-      pushToast({
-        title: "Reconciliation triggered",
+
+      toast.success("Reconciliation triggered", {
         description: "Report will be generated shortly",
-        variant: "success",
       });
     } catch (error) {
-      pushToast({
-        title: "Reconciliation failed",
+      toast.error("Reconciliation failed", {
         description: "Failed to trigger reconciliation",
-        variant: "error",
       });
     } finally {
       setLoading(false);

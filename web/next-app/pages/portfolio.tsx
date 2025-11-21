@@ -18,10 +18,14 @@ import { useWebSocket } from "@/lib/hooks";
 import { fetcher } from "@/lib/api";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { useMode } from "@/lib/mode-context";
-import { TrendingUp, TrendingDown, Wallet, PieChart, Activity, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PieChart, Activity, DollarSign, Terminal, AlertTriangle, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/router";
+import { PortfolioActionsCard } from "@/components/PortfolioActionsCard";
+import { PositionInsightsCard } from "@/components/PositionInsightsCard";
 
 export default function PortfolioPage() {
+  const router = useRouter();
   const [selectedMode, setSelectedMode] = useState("paper");
   const { isEasyMode } = useMode();
   
@@ -41,6 +45,11 @@ export default function PortfolioPage() {
     fetcher,
     { refreshInterval: 30_000 }
   );
+
+  // Fetch exchange connection status
+  const { data: exchangeStatus } = useSWR("/api/exchange/status", fetcher, {
+    refreshInterval: 30_000,
+  });
   
   // Real-time updates via WebSocket
   const { data: wsData, isConnected } = useWebSocket("/ws/trading");
@@ -192,6 +201,17 @@ export default function PortfolioPage() {
         
         {["paper", "testnet", "live"].map((mode) => (
           <TabsContent key={mode} value={mode} className="space-y-4">
+            {/* Phase 1: Portfolio Actions Card */}
+            <PortfolioActionsCard 
+              mode={mode}
+              balance={modeData.wallet_balance || 0}
+              hasPositions={(modeData.positions || []).length > 0}
+              isExchangeConnected={exchangeStatus?.connected === true}
+            />
+
+            {/* Phase 1: Position Insights */}
+            <PositionInsightsCard positions={modeData.positions || []} />
+
             {/* Mode Summary Cards */}
             <div className="grid gap-4 md:grid-cols-5">
               <Card>
@@ -290,10 +310,30 @@ export default function PortfolioPage() {
             )}
             
             {/* Positions Table */}
-            <PositionsTable 
-              positions={modeData.positions || []} 
-              mode={mode} 
-            />
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Open Positions</CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push('/analytics?tab=strategies')}
+                      className="gap-1"
+                    >
+                      <BarChart3 className="h-3 w-3" />
+                      View Strategies
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <PositionsTable 
+                  positions={modeData.positions || []} 
+                  mode={mode} 
+                />
+              </CardContent>
+            </Card>
             
             {/* Equity Curve Chart (Phase 5) */}
             <EquityCurveChart mode={selectedMode} limit={100} />
@@ -328,7 +368,7 @@ export default function PortfolioPage() {
             <div className="space-y-2">
               {Object.entries(livePortfolio.by_symbol || {}).map(([symbol, data]: [string, any]) => (
                 <div key={symbol} className="flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 flex-1">
                     <SymbolDisplay symbol={symbol} />
                     <div>
                       <div className="text-sm text-muted-foreground">
@@ -336,6 +376,36 @@ export default function PortfolioPage() {
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Modes: {data.modes.join(", ").toUpperCase()}
+                      </div>
+                      {/* Contextual Links */}
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/terminal?symbol=${symbol}`)}
+                          className="h-6 text-xs gap-1 px-2"
+                        >
+                          <Terminal className="h-3 w-3" />
+                          Terminal
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/risk?symbol=${symbol}`)}
+                          className="h-6 text-xs gap-1 px-2"
+                        >
+                          <AlertTriangle className="h-3 w-3" />
+                          Risk
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/analytics?tab=strategies&symbol=${symbol}`)}
+                          className="h-6 text-xs gap-1 px-2"
+                        >
+                          <BarChart3 className="h-3 w-3" />
+                          Strategies
+                        </Button>
                       </div>
                     </div>
                   </div>

@@ -261,3 +261,77 @@ def bootstrap_overview() -> Dict[str, Any]:
         "inventory": inventory,
     }
 
+
+@router.get("/bootstrap/status/{job_id}")
+def get_bootstrap_status(job_id: str) -> Dict[str, Any]:
+    """
+    Get status of a bootstrap job.
+    
+    Returns progress information for data ingestion, model training,
+    forecast generation, and other initialization tasks.
+    """
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        
+        # Look up the job
+        job = db["ingestion_jobs"].find_one({"job_id": job_id})
+        
+        if not job:
+            raise HTTPException(status_code=404, detail=f"Bootstrap job {job_id} not found")
+        
+        status = job.get("status", "unknown")
+        progress_pct = job.get("progress_pct", 0.0)
+        
+        # For now, we'll provide a simplified progress structure
+        # Full implementation would track individual phases
+        phases = {
+            "data_ingestion": {
+                "status": "completed" if status == "completed" else "running" if status == "running" else "pending",
+                "progress_pct": progress_pct,
+                "estimated_time_remaining": None,
+            },
+            "models_training": {
+                "status": "pending",
+                "progress_pct": 0,
+                "estimated_time_remaining": None,
+            },
+            "forecasts_generating": {
+                "status": "pending",
+                "progress_pct": 0,
+                "estimated_time_remaining": None,
+            },
+            "strategies_evaluating": {
+                "status": "pending",
+                "progress_pct": 0,
+                "estimated_time_remaining": None,
+            },
+        }
+        
+        # If data ingestion is complete, check for model training
+        if status == "completed":
+            # Check if models exist
+            model_count = db["model_registry"].count_documents({})
+            if model_count > 0:
+                phases["models_training"]["status"] = "completed"
+                phases["models_training"]["progress_pct"] = 100
+                
+                # Check if forecasts/reports exist
+                report_count = db["daily_reports"].count_documents({})
+                if report_count > 0:
+                    phases["forecasts_generating"]["status"] = "completed"
+                    phases["forecasts_generating"]["progress_pct"] = 100
+                    
+                    # Check if strategies exist
+                    strategy_count = db["strategy_genome"].count_documents({})
+                    if strategy_count > 0:
+                        phases["strategies_evaluating"]["status"] = "completed"
+                        phases["strategies_evaluating"]["progress_pct"] = 100
+        
+        return {
+            "job_id": job_id,
+            "status": status,
+            "progress": phases,
+            "error": job.get("error"),
+            "started_at": job.get("created_at").isoformat() if job.get("created_at") else None,
+            "completed_at": job.get("completed_at").isoformat() if job.get("completed_at") else None,
+        }

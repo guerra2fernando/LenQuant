@@ -18,8 +18,8 @@ import { PositionsTable } from "@/components/PositionsTable";
 import { RiskGaugeCard } from "@/components/RiskGaugeCard";
 import { TradingTabs } from "@/components/TradingTabs";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
-import { useToast } from "@/components/ToastProvider";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useMode } from "@/lib/mode-context";
@@ -51,7 +51,6 @@ export default function TradingControlCenterPage() {
   const [editingOrder, setEditingOrder] = useState(null);
   const [promotionModalOpen, setPromotionModalOpen] = useState(false);
   const [promotionCohortId, setPromotionCohortId] = useState<string | null>(null);
-  const { pushToast } = useToast();
 
   // Use WebSocket for real-time updates, fallback to polling
   const { data: wsData, isConnected: wsConnected } = useWebSocket("/ws/trading");
@@ -191,7 +190,7 @@ export default function TradingControlCenterPage() {
 
   const handleSubmitOrder = async (payload) => {
     await postJson("/api/trading/orders", payload);
-    pushToast({ title: "Order submitted", description: `${payload.side.toUpperCase()} ${payload.symbol}`, variant: "success" });
+    toast.success("Order submitted", { description: `${payload.side.toUpperCase()} ${payload.symbol}` });
     await refreshSummary();
   };
 
@@ -208,13 +207,13 @@ export default function TradingControlCenterPage() {
 
   const handleCancel = async (order) => {
     await postJson(`/api/trading/orders/${order.order_id}/cancel`, { reason: "user" });
-    pushToast({ title: "Order canceled", description: order.order_id, variant: "warning" });
+    toast.warning("Order canceled", { description: order.order_id });
     await refreshSummary();
   };
 
   const handleSync = async (order) => {
     await postJson(`/api/trading/orders/${order.order_id}/sync`, {});
-    pushToast({ title: "Order synced", description: order.order_id, variant: "info" });
+    toast.info("Order synced", { description: order.order_id });
     await refreshSummary();
   };
 
@@ -223,20 +222,20 @@ export default function TradingControlCenterPage() {
   const handleAmendSubmit = async (updates) => {
     if (!editingOrder) return;
     await postJson(`/api/trading/orders/${editingOrder.order_id}/amend`, updates);
-    pushToast({ title: "Order amended", description: editingOrder.order_id, variant: "success" });
+    toast.success("Order amended", { description: editingOrder.order_id });
     setEditingOrder(null);
     await refreshSummary();
   };
 
   const handleKillSwitchArm = async (reason) => {
     await postJson("/api/admin/kill-switch", { action: "arm", reason, mode });
-    pushToast({ title: "Kill switch armed", description: reason, variant: "error" });
+    toast.error("Kill switch armed", { description: reason });
     await refreshSummary();
   };
 
   const handleKillSwitchRelease = async () => {
     await postJson("/api/admin/kill-switch", { action: "release" });
-    pushToast({ title: "Kill switch released", description: "Trading resumes.", variant: "success" });
+    toast.success("Kill switch released", { description: "Trading resumes." });
     await refreshSummary();
   };
 

@@ -18,10 +18,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 from api.routes import (
     admin,
+    analytics,
     assistant,
     auth,
     data_ingestion,
     evolution,
+    exchange,
     experiments,
     forecast,
     knowledge,
@@ -33,10 +35,13 @@ from api.routes import (
     notifications,
     reports,
     runs,
+    schedules,
     settings,
     strategies,
+    system,
     trade,
     risk,
+    user_progress,
 )
 
 
@@ -106,6 +111,17 @@ app.include_router(risk.router, prefix="/api/risk")
 app.include_router(macro.router, prefix="/api/macro")
 app.include_router(market.router, prefix="/api/market", tags=["market"])
 app.include_router(notifications.router, prefix="/api", tags=["notifications"])
+
+# Phase 1 UX Conciliation routers
+app.include_router(user_progress.router, prefix="/api/user", tags=["user"])
+app.include_router(exchange.router, prefix="/api/exchange", tags=["exchange"])
+app.include_router(system.router, prefix="/api/system", tags=["system"])
+
+# Phase 2 UX Conciliation routers
+app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
+
+# Phase 6 UX Conciliation routers
+app.include_router(schedules.router, prefix="/api/schedules", tags=["schedules"])
 
 
 # WebSocket Notification Connection Manager

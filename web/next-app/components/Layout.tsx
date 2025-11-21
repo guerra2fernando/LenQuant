@@ -10,6 +10,7 @@ import { LogOut, User } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ModeToggle } from "@/components/ModeToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ExchangeStatusBadge } from "@/components/ExchangeStatusBadge";
 import { SEO } from "@/components/SEO";
 import { useMode } from "@/lib/mode-context";
 import { cn } from "@/lib/utils";
@@ -94,6 +95,7 @@ export function Layout({ children, title, description }: Props) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <ExchangeStatusBadge />
             <ModeToggle />
             <NotificationCenter />
             <ThemeToggle />

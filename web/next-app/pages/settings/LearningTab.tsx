@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScheduleConfigurationCard } from "@/components/ScheduleConfigurationCard";
 import { fetcher, putJson } from "@/lib/api";
 
 type LearningSettings = {
@@ -135,6 +136,9 @@ export default function LearningTab(): JSX.Element {
           <CardContent className="py-3 text-sm text-emerald-900 dark:text-emerald-100">{message}</CardContent>
         </Card>
       )}
+
+      {/* Phase 6: Schedule Configuration */}
+      <ScheduleConfigurationCard />
 
       {draft && (
         <>

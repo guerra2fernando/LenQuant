@@ -69,3 +69,51 @@ def list_entries(limit: int = 10) -> List[Dict[str, Any]]:
         entries.append(doc)
     return entries
 
+
+def list_entries_by_tags(tags: List[str], limit: int = 10) -> List[Dict[str, Any]]:
+    """List knowledge entries filtered by tags."""
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        cursor = db[COLLECTION].find({"tags": {"$in": tags}}).sort("created_at", -1).limit(limit)
+        docs = list(cursor)
+    entries: List[Dict[str, Any]] = []
+    for doc in docs:
+        if isinstance(doc.get("created_at"), datetime):
+            doc["created_at"] = doc["created_at"].isoformat()
+        doc["_id"] = str(doc["_id"])
+        entries.append(doc)
+    return entries
+
+
+def get_all_tags() -> List[Dict[str, Any]]:
+    """Get all unique tags from knowledge entries with counts."""
+    with mongo_client() as client:
+        db = client[get_database_name()]
+        pipeline = [
+            {"$unwind": "$tags"},
+            {"$group": {
+                "_id": "$tags",
+                "count": {"$sum": 1}
+            }},
+            {"$sort": {"count": -1}},
+            {"$project": {
+                "tag": "$_id",
+                "count": 1,
+                "_id": 0
+            }}
+        ]
+        docs = list(db[COLLECTION].aggregate(pipeline))
+    
+    # Categorize tags
+    for doc in docs:
+        tag = doc.get("tag", "").lower()
+        if any(symbol in tag for symbol in ["btc", "eth", "sol", "ada", "xrp"]):
+            doc["category"] = "symbol"
+        elif any(word in tag for word in ["strategy", "trade", "position"]):
+            doc["category"] = "strategy"
+        elif any(word in tag for word in ["volume", "volatility", "momentum", "rsi", "macd"]):
+            doc["category"] = "indicator"
+        else:
+            doc["category"] = "market"
+    
+    return docs

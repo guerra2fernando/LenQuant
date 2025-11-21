@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ToastProvider";
 import { fetcher, postJson, putJson } from "@/lib/api";
+import { toast } from "sonner";
 
 type AssistantSettings = {
   provider: string;
@@ -38,7 +38,6 @@ export default function AssistantTab(): JSX.Element {
   const [draft, setDraft] = useState<AssistantSettings | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
-  const { pushToast } = useToast();
 
   useEffect(() => {
     if (data) {
@@ -81,13 +80,11 @@ export default function AssistantTab(): JSX.Element {
         require_mfa: draft.require_mfa,
         notification_channels: draft.notification_channels,
       });
-      pushToast({ title: "Assistant settings saved", variant: "success" });
+      toast.success("Assistant settings saved");
       await mutate();
     } catch (error) {
-      pushToast({
-        title: "Failed to save assistant settings",
+      toast.error("Failed to save assistant settings", {
         description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
@@ -99,16 +96,12 @@ export default function AssistantTab(): JSX.Element {
     try {
       const result = await postJson("/api/settings/assistant/test-connection", {});
       setTestResult(JSON.stringify(result, null, 2));
-      pushToast({
-        title: "LLM connection succeeded",
+      toast.success("LLM connection succeeded", {
         description: `${result.provider ?? ""} (${result.model ?? "n/a"})`,
-        variant: "success",
       });
     } catch (error) {
-      pushToast({
-        title: "LLM connection failed",
+      toast.error("LLM connection failed", {
         description: error instanceof Error ? error.message : "Unable to reach provider",
-        variant: "destructive",
       });
       setTestResult(error instanceof Error ? error.message : "LLM provider connection failed.");
     }

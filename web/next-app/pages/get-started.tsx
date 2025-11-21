@@ -112,8 +112,8 @@ export default function GetStarted(): JSX.Element {
         }),
       });
       
-      // Redirect to settings page to show live progress
-      router.push(`/settings?section=data-ingestion&job_id=${response.job_id}`);
+      // Phase 1: Redirect to setup complete page
+      router.push(`/setup-complete?job_id=${response.job_id}`);
     } catch (err: any) {
       setError(err.message || "Failed to set up data. Please try again.");
       setLoading(false);

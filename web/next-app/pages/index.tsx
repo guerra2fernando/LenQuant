@@ -18,6 +18,15 @@ import { useMode } from "@/lib/mode-context";
 import { fetcher } from "../lib/api";
 import { useRegime } from "@/lib/hooks";
 import { MacroRegimeCard } from "@/components/MacroRegimeCard";
+import { SetupProgressCard } from "@/components/SetupProgressCard";
+import { TradingPairsCard } from "@/components/TradingPairsCard";
+import { PortfolioQuickStatusCard } from "@/components/PortfolioQuickStatusCard";
+import { RecommendedActionCard } from "@/components/RecommendedActionCard";
+import { SmartSignalPreviewCard } from "@/components/SmartSignalPreviewCard";
+import { SystemHealthCard } from "@/components/SystemHealthCard";
+import { AnalyticsSummaryCard } from "@/components/AnalyticsSummaryCard";
+import { EvolutionProgressCard } from "@/components/EvolutionProgressCard";
+import { LearningProgressCard } from "@/components/LearningProgressCard";
 
 type StatusResponse = {
   status: string;
@@ -235,6 +244,12 @@ export default function Home(): JSX.Element {
           </Link>
         )}
 
+        {/* Phase 1: Setup Progress Card (shown until complete) */}
+        <SetupProgressCard />
+
+        {/* Phase 1: Recommended Next Action */}
+        <RecommendedActionCard />
+
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Link href="/trading">
@@ -298,6 +313,27 @@ export default function Home(): JSX.Element {
             </Card>
           </Link>
         </div>
+
+        {/* Phase 1: Three-column layout for new cards */}
+        {hasData && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <TradingPairsCard />
+            <PortfolioQuickStatusCard />
+            <SmartSignalPreviewCard />
+          </div>
+        )}
+
+        {/* Phase 1: System Health Card */}
+        {hasData && <SystemHealthCard />}
+
+        {/* Phase 2: Analytics Summary Card */}
+        {hasData && <AnalyticsSummaryCard />}
+
+        {/* Phase 5: Evolution Progress Card */}
+        {hasData && <EvolutionProgressCard />}
+
+        {/* Phase 6: Learning Progress Card */}
+        <LearningProgressCard />
 
         {/* System Status Indicator */}
         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
@@ -391,6 +427,12 @@ export default function Home(): JSX.Element {
         </Link>
       )}
 
+      {/* Phase 1: Setup Progress Card (shown until complete) */}
+      <SetupProgressCard />
+
+      {/* Phase 1: Recommended Next Action */}
+      <RecommendedActionCard />
+
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Link href="/trading">
@@ -455,6 +497,27 @@ export default function Home(): JSX.Element {
         </Link>
       </div>
 
+      {/* Phase 1: Three-column layout for new cards */}
+      {hasData && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <TradingPairsCard />
+          <PortfolioQuickStatusCard />
+          <SmartSignalPreviewCard />
+        </div>
+      )}
+
+      {/* Phase 1: System Health Card */}
+      {hasData && <SystemHealthCard />}
+
+      {/* Phase 2: Analytics Summary Card */}
+      {hasData && <AnalyticsSummaryCard />}
+
+      {/* Phase 5: Evolution Progress Card */}
+      {hasData && <EvolutionProgressCard />}
+
+      {/* Phase 6: Learning Progress Card */}
+      <LearningProgressCard />
+
       {/* System Status Indicator */}
       <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
         <div className="flex items-center gap-3">
@@ -486,20 +549,31 @@ export default function Home(): JSX.Element {
         isLoading={isLoadingRegime}
       />
 
-      {/* Recent Activity */}
+      {/* Recent Activity with link to all reports */}
       {hasReports && (
         <Card>
           <CardHeader>
-            <CardTitle>Recent Reports</CardTitle>
-            <CardDescription>Latest performance summaries</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Recent Reports</CardTitle>
+                <CardDescription>Latest performance summaries</CardDescription>
+              </div>
+              <Link href="/reports">
+                <Button variant="outline" size="sm">
+                  View All
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {reportItems.slice(0, 3).map((report: Report) => (
-                <div key={report.date} className="rounded-lg border bg-muted/30 p-3">
-                  <div className="text-sm font-semibold text-foreground">{report.date}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">{report.summary || "No summary available."}</div>
-                </div>
+                <Link key={report.date} href={`/reports/${report.date}`}>
+                  <div className="rounded-lg border bg-muted/30 p-3 hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer">
+                    <div className="text-sm font-semibold text-foreground">{report.date}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{report.summary || "No summary available."}</div>
+                  </div>
+                </Link>
               ))}
             </div>
           </CardContent>

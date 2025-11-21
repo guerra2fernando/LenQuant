@@ -31,12 +31,61 @@ def list_models() -> Dict[str, List[str]]:
 @router.get("/registry")
 def registry_list(symbol: Optional[str] = None, horizon: Optional[str] = None, limit: int = 50) -> Dict[str, Any]:
     records = registry.list_models(symbol=symbol, horizon=horizon, limit=limit)
+    
+    # Add health status calculations
+    health_summary = {"fresh_count": 0, "aging_count": 0, "stale_count": 0, "retrain_recommended_count": 0}
+    now = datetime.utcnow()
+    
     for rec in records:
         if "_id" in rec:
             rec["_id"] = str(rec["_id"])
-        if "trained_at" in rec and hasattr(rec["trained_at"], "isoformat"):
-            rec["trained_at"] = rec["trained_at"].isoformat()
-    return {"items": records}
+        
+        # Calculate model health status
+        trained_at = rec.get("trained_at")
+        if trained_at and hasattr(trained_at, "isoformat"):
+            age_hours = (now - trained_at).total_seconds() / 3600
+            rec["trained_at"] = trained_at.isoformat()
+            
+            # Determine health status
+            if age_hours < 72:  # < 3 days
+                status = "fresh"
+                health_summary["fresh_count"] += 1
+            elif age_hours < 168:  # 3-7 days
+                status = "aging"
+                health_summary["aging_count"] += 1
+            else:  # > 7 days
+                status = "stale"
+                health_summary["stale_count"] += 1
+            
+            retrain_recommended = age_hours > 168  # > 7 days
+            if retrain_recommended:
+                health_summary["retrain_recommended_count"] += 1
+            
+            reason = ""
+            if status == "stale":
+                reason = f"Model is {int(age_hours / 24)} days old and should be retrained"
+            elif status == "aging":
+                reason = f"Model is {int(age_hours / 24)} days old"
+            else:
+                reason = f"Model is fresh ({int(age_hours)} hours old)"
+            
+            rec["health_status"] = {
+                "status": status,
+                "age_hours": round(age_hours, 1),
+                "retrain_recommended": retrain_recommended,
+                "reason": reason,
+                "next_auto_retrain": None  # TODO: Calculate from schedule
+            }
+        else:
+            rec["health_status"] = {
+                "status": "unknown",
+                "age_hours": None,
+                "retrain_recommended": False,
+                "reason": "Training date unavailable",
+                "next_auto_retrain": None
+            }
+    
+    return {"items": records, "health_summary": health_summary}
 
 
 @router.get("/registry/{model_id}")

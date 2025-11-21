@@ -175,3 +175,49 @@ def put_learning_settings(payload: LearningSettingsPayload) -> Dict[str, Any]:
             merged[section] = {**current.get(section, {}), **value}
     return update_learning_settings(merged)
 
+
+@router.get("/status")
+def get_learning_status() -> Dict[str, Any]:
+    """Get current learning cycle status and progress."""
+    from learning.repository import get_latest_learning_job
+    
+    job = get_latest_learning_job()
+    if not job:
+        return {
+            "status": "idle",
+            "current_phase": None,
+            "progress_pct": 0,
+            "started_at": None,
+            "estimated_completion": None,
+            "last_completed": None,
+            "error": None,
+            "phases": {
+                "meta_model_training": {"status": "pending", "progress_pct": 0, "duration_ms": None},
+                "allocator_optimization": {"status": "pending", "progress_pct": 0, "duration_ms": None},
+                "overfit_detection": {"status": "pending", "progress_pct": 0, "duration_ms": None},
+                "knowledge_generation": {"status": "pending", "progress_pct": 0, "duration_ms": None}
+            },
+            "improvements": {
+                "new_champions": 0,
+                "allocation_changes": 0,
+                "overfit_detected": 0
+            },
+            "next_scheduled_run": None
+        }
+    
+    return {
+        "status": job.get("status", "idle"),
+        "current_phase": job.get("current_phase"),
+        "progress_pct": job.get("progress_pct", 0),
+        "started_at": job.get("started_at").isoformat() if job.get("started_at") else None,
+        "estimated_completion": job.get("estimated_completion").isoformat() if job.get("estimated_completion") else None,
+        "last_completed": job.get("completed_at").isoformat() if job.get("completed_at") else None,
+        "error": job.get("error"),
+        "phases": job.get("phases", {}),
+        "improvements": job.get("improvements", {
+            "new_champions": 0,
+            "allocation_changes": 0,
+            "overfit_detected": 0
+        }),
+        "next_scheduled_run": job.get("next_scheduled_run").isoformat() if job.get("next_scheduled_run") else None
+    }

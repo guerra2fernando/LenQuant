@@ -14,6 +14,7 @@ OVERFIT_COLLECTION = "learning.overfit_alerts"
 SUMMARY_COLLECTION = "learning.summaries"
 SETTINGS_COLLECTION = "settings"
 LEARNING_SETTINGS_ID = "learning_settings"
+LEARNING_JOBS_COLLECTION = "learning_jobs"
 
 DEFAULT_LEARNING_SETTINGS: Dict[str, Any] = {
     "meta_model": {
@@ -245,4 +246,45 @@ def update_learning_settings(payload: Dict[str, Any]) -> Dict[str, Any]:
     finally:
         ctx.__exit__(None, None, None)
     return get_learning_settings()
+
+
+def get_latest_learning_job() -> Optional[Dict[str, Any]]:
+    """Get the most recent learning job status."""
+    db, ctx = _db()
+    try:
+        doc = db[LEARNING_JOBS_COLLECTION].find_one(sort=[("started_at", -1)])
+    finally:
+        ctx.__exit__(None, None, None)
+    if not doc:
+        return None
+    return _with_iso_dates(doc)
+
+
+def record_learning_job(job_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Record a new learning job or update existing one."""
+    payload = job_data.copy()
+    payload.setdefault("started_at", datetime.utcnow())
+    payload.setdefault("status", "running")
+    payload.setdefault("progress_pct", 0)
+    
+    db, ctx = _db()
+    try:
+        job_id = payload.get("job_id")
+        if job_id:
+            # Update existing job
+            updated = db[LEARNING_JOBS_COLLECTION].find_one_and_update(
+                {"job_id": job_id},
+                {"$set": payload},
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
+            result = updated
+        else:
+            # Insert new job
+            inserted = db[LEARNING_JOBS_COLLECTION].insert_one(payload)
+            payload["_id"] = inserted.inserted_id
+            result = payload
+    finally:
+        ctx.__exit__(None, None, None)
+    return _with_iso_dates(result or payload)
 

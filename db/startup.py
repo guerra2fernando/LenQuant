@@ -183,6 +183,65 @@ def create_indexes() -> None:
         except Exception as e:
             logger.warning(f"Portfolio cache freshness index may already exist: {e}")
         
+        # UX Phase 1: User Setup Progress (Phase 1 - Critical Foundations)
+        try:
+            db["user_setup_progress"].create_index([("user_id", 1)], unique=True)
+            logger.info("✓ Created user_setup_progress indexes")
+        except Exception as e:
+            logger.warning(f"User setup progress indexes may already exist: {e}")
+        
+        # UX Phase 1: Exchange Connections (Phase 1 - Critical Foundations)
+        try:
+            db["exchange_connections"].create_index(
+                [("user_id", 1), ("exchange", 1)], 
+                unique=True
+            )
+            db["exchange_connections"].create_index([("status", 1)])
+            db["exchange_connections"].create_index([("last_tested", -1)])
+            logger.info("✓ Created exchange_connections indexes")
+        except Exception as e:
+            logger.warning(f"Exchange connections indexes may already exist: {e}")
+        
+        # UX Phase 3: Forecast Outcomes (Phase 3 - Actionable Insights)
+        try:
+            db["forecast_outcomes"].create_index([("forecast_id", 1)])
+            db["forecast_outcomes"].create_index(
+                [("symbol", 1), ("horizon", 1), ("evaluated_at", -1)]
+            )
+            db["forecast_outcomes"].create_index([("was_correct", 1)])
+            db["forecast_outcomes"].create_index([("evaluated_at", -1)])
+            logger.info("✓ Created forecast_outcomes indexes")
+        except Exception as e:
+            logger.warning(f"Forecast outcomes indexes may already exist: {e}")
+        
+        # UX Phase 3: Active Strategies (Phase 3 - Actionable Insights)
+        try:
+            db["active_strategies"].create_index([("strategy_id", 1)])
+            db["active_strategies"].create_index([("mode", 1), ("status", 1)])
+            db["active_strategies"].create_index([("status", 1), ("activated_at", -1)])
+            db["active_strategies"].create_index([("user_id", 1), ("mode", 1)])
+            logger.info("✓ Created active_strategies indexes")
+        except Exception as e:
+            logger.warning(f"Active strategies indexes may already exist: {e}")
+        
+        # UX Phase 6: Learning Jobs (Phase 6 - Background Automation)
+        try:
+            db["learning_jobs"].create_index([("job_id", 1)], unique=True)
+            db["learning_jobs"].create_index([("status", 1), ("started_at", -1)])
+            db["learning_jobs"].create_index([("started_at", -1)])
+            logger.info("✓ Created learning_jobs indexes")
+        except Exception as e:
+            logger.warning(f"Learning jobs indexes may already exist: {e}")
+        
+        # UX Phase 6: Scheduled Tasks (Phase 6 - Background Automation)
+        try:
+            db["scheduled_tasks"].create_index([("task_type", 1)], unique=True)
+            db["scheduled_tasks"].create_index([("enabled", 1), ("next_run_at", 1)])
+            db["scheduled_tasks"].create_index([("next_run_at", 1)])
+            logger.info("✓ Created scheduled_tasks indexes")
+        except Exception as e:
+            logger.warning(f"Scheduled tasks indexes may already exist: {e}")
+        
         logger.info("Database indexes initialized")
 
 

@@ -6,7 +6,7 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 
 import { NotificationProvider } from "@/components/NotificationCenter";
-import { ToastProvider } from "@/components/ToastProvider";
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeProvider } from "@/lib/mode-context";
 import { Layout } from "../components/Layout";
@@ -64,18 +64,17 @@ export default function App({ Component, pageProps }: AppProps) {
         <ModeProvider>
           <NotificationProvider>
             <BrowserNotificationPermission />
-            <ToastProvider>
-              {/* @ts-ignore */}
-              {Component.auth === false ? (
-                <Component {...pageProps} />
-              ) : (
-                <Auth>
-                  <Layout title={pageProps.title} description={pageProps.description}>
-                    <Component {...pageProps} />
-                  </Layout>
-                </Auth>
-              )}
-            </ToastProvider>
+            {/* @ts-ignore */}
+            {Component.auth === false ? (
+              <Component {...pageProps} />
+            ) : (
+              <Auth>
+                <Layout title={pageProps.title} description={pageProps.description}>
+                  <Component {...pageProps} />
+                </Layout>
+              </Auth>
+            )}
+            <Toaster />
           </NotificationProvider>
         </ModeProvider>
       </ThemeProvider>

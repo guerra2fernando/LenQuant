@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ToastProvider";
 import { postJson } from "@/lib/api";
+import { toast } from "sonner";
 import { formatNumber } from "@/lib/utils";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { Wallet, Plus, Minus, RotateCcw } from "lucide-react";
@@ -24,7 +24,6 @@ export function PaperWalletControls({
 }: PaperWalletControlsProps) {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const { pushToast } = useToast();
 
   const handleAdjust = async (operation: "add" | "remove" | "reset") => {
     setLoading(true);
@@ -38,10 +37,8 @@ export function PaperWalletControls({
       if (operation !== "reset") {
         const amountNum = parseFloat(amount);
         if (isNaN(amountNum) || amountNum <= 0) {
-          pushToast({
-            title: "Invalid amount",
+          toast.error("Invalid amount", {
             description: "Please enter a positive number",
-            variant: "error",
           });
           setLoading(false);
           return;
@@ -50,20 +47,16 @@ export function PaperWalletControls({
       }
       
       const result = await postJson("/api/trading/wallet/adjust", payload);
-      
-      pushToast({
-        title: "Wallet adjusted",
+
+      toast.success("Wallet adjusted", {
         description: `New balance: $${formatNumber(result.new_balance, 2)}`,
-        variant: "success",
       });
       
       setAmount("");
       onBalanceChanged();
     } catch (error: any) {
-      pushToast({
-        title: "Adjustment failed",
+      toast.error("Adjustment failed", {
         description: error.message || "Failed to adjust wallet",
-        variant: "error",
       });
     } finally {
       setLoading(false);

@@ -2,14 +2,16 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Bell, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import { Bell, TrendingUp, TrendingDown, Zap, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/components/ToastProvider";
 import { fetcher, postJson } from "@/lib/api";
+import { toast } from "sonner";
 import { formatNumber, formatPercent } from "@/lib/utils";
+import { SignalExplanationTooltip } from "@/components/SignalExplanationTooltip";
+import { SignalExplanationModal } from "@/components/SignalExplanationModal";
 
 type SmartNotificationsProps = {
   symbol: string;
@@ -25,7 +27,8 @@ export function SmartNotifications({
   confidenceThreshold = 0.8,
 }: SmartNotificationsProps) {
   const [executing, setExecuting] = useState<string | null>(null);
-  const { pushToast } = useToast();
+  const [explanationModalOpen, setExplanationModalOpen] = useState(false);
+  const [selectedSignal, setSelectedSignal] = useState<any>(null);
 
   // Fetch forecasts for symbol
   const { data: forecastData } = useSWR(
@@ -68,16 +71,12 @@ export function SmartNotifications({
       };
 
       await postJson("/api/trading/orders", payload);
-      pushToast({
-        title: "Order executed",
+      toast.success("Order executed", {
         description: `${signal.direction.toUpperCase()} ${signal.symbol}`,
-        variant: "success",
       });
     } catch (error: any) {
-      pushToast({
-        title: "Execution failed",
+      toast.error("Execution failed", {
         description: error.message,
-        variant: "error",
       });
     } finally {
       setExecuting(null);
@@ -126,6 +125,15 @@ export function SmartNotifications({
                           <TrendingDown className="h-4 w-4 text-red-500" />
                         )}
                         <span className="font-medium">{signal.symbol}</span>
+                        <SignalExplanationTooltip
+                          signal={{
+                            confidence: signal.confidence,
+                            direction: signal.direction === "buy" ? "up" : "down",
+                            expected_move: signal.expectedReturn,
+                            features_count: signal.models?.length ?? 3,
+                            training_samples: "10,000+",
+                          }}
+                        />
                       </div>
 
                       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
@@ -151,28 +159,55 @@ export function SmartNotifications({
                     </div>
                   </div>
 
-                  <Button
-                    size="sm"
-                    className="mt-3 w-full"
-                    onClick={() => handleExecute(signal)}
-                    disabled={executing === signal.symbol}
-                    variant={signal.direction === "buy" ? "default" : "destructive"}
-                  >
-                    {executing === signal.symbol ? (
-                      "Executing..."
-                    ) : (
-                      <>
-                        <Zap className="mr-1 h-3 w-3" />
-                        Execute {signal.direction.toUpperCase()}
-                      </>
-                    )}
-                  </Button>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedSignal(signal);
+                        setExplanationModalOpen(true);
+                      }}
+                    >
+                      <HelpCircle className="mr-1 h-3 w-3" />
+                      Why?
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleExecute(signal)}
+                      disabled={executing === signal.symbol}
+                      variant={signal.direction === "buy" ? "default" : "destructive"}
+                    >
+                      {executing === signal.symbol ? (
+                        "Executing..."
+                      ) : (
+                        <>
+                          <Zap className="mr-1 h-3 w-3" />
+                          Execute
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           </ScrollArea>
         )}
       </CardContent>
+
+      {/* Signal Explanation Modal */}
+      {selectedSignal && (
+        <SignalExplanationModal
+          open={explanationModalOpen}
+          onOpenChange={setExplanationModalOpen}
+          symbol={selectedSignal.symbol}
+          horizon={interval}
+          initialData={{
+            confidence: selectedSignal.confidence,
+            predicted_return: selectedSignal.predReturn,
+            direction: selectedSignal.direction,
+          }}
+        />
+      )}
     </Card>
   );
 }

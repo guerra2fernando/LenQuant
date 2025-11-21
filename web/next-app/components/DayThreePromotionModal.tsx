@@ -23,7 +23,7 @@ import type {
   PromotionGuardRailCheck,
 } from "@/types/cohorts";
 import { TooltipExplainer } from "./TooltipExplainer";
-import { useToast } from "./ToastProvider";
+import { toast } from "sonner";
 
 type DayThreePromotionModalProps = {
   open: boolean;
@@ -66,7 +66,6 @@ export function DayThreePromotionModal({
   onClose,
   onPromoted,
 }: DayThreePromotionModalProps) {
-  const { pushToast } = useToast();
   const { data, error, isValidating, mutate } = useSWR<IntradayCohortDetail>(
     open && cohortId ? `/api/experiments/cohorts/${cohortId}` : null,
     fetcher,
@@ -148,20 +147,16 @@ export function DayThreePromotionModal({
         approval_notes: approvalNotes?.trim() || undefined,
         acknowledge_risks: true,
       });
-      pushToast({
-        title: "Promotion request recorded",
+      toast.success("Promotion request recorded", {
         description: `Day-3 promotion queued for cohort ${cohortId}.`,
-        variant: "success",
       });
       await mutate();
       onPromoted?.();
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to promote candidate.";
-      pushToast({
-        title: "Promotion failed",
+      toast.error("Promotion failed", {
         description: message,
-        variant: "destructive",
       });
     } finally {
       setSubmitting(false);

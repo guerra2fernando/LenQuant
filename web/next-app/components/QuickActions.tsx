@@ -1,10 +1,52 @@
 import React, { useState } from "react";
+import useSWR from "swr";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
+import { useMode } from "@/lib/mode-context";
+import { fetcher } from "@/lib/api";
 
-const QUICK_PROMPTS: Array<{ label: string; prompt: string }> = [
+// Types for API response
+type PromptItem = {
+  label: string;
+  prompt: string;
+  context_relevant?: boolean;
+};
+
+type QuickPromptsResponse = {
+  prompts: PromptItem[];
+};
+
+// Fallback prompts if API fails
+const BEGINNER_PROMPTS: Array<{ label: string; prompt: string }> = [
+  {
+    label: "What should I trade?",
+    prompt: "What are the best trading opportunities right now based on AI forecasts?",
+  },
+  {
+    label: "Explain my portfolio",
+    prompt: "Explain my current portfolio performance and what each position means.",
+  },
+  {
+    label: "How does this work?",
+    prompt: "How does the LenQuant trading system work? Explain in simple terms.",
+  },
+  {
+    label: "Is now a good time to trade?",
+    prompt: "Based on current market conditions, is now a good time to open new positions?",
+  },
+  {
+    label: "Should I take profits?",
+    prompt: "Should I take profits on any of my current positions? What do you recommend?",
+  },
+  {
+    label: "How accurate are the forecasts?",
+    prompt: "How accurate have the AI forecasts been recently? Show me the track record.",
+  },
+];
+
+const ADVANCED_PROMPTS: Array<{ label: string; prompt: string }> = [
   {
     label: "Explain today's top drawdown",
     prompt: "What caused the largest drawdown in the virtual portfolio today?",
@@ -22,6 +64,14 @@ const QUICK_PROMPTS: Array<{ label: string; prompt: string }> = [
     prompt:
       "What changed this week across strategy evolution and promotions? Summarize winners, losers, and promotions.",
   },
+  {
+    label: "Why did strategy X perform well?",
+    prompt: "Analyze the top-performing strategy from last week. What factors contributed to its success?",
+  },
+  {
+    label: "Model performance metrics",
+    prompt: "Show me detailed model performance metrics including accuracy, precision, and recent drift indicators.",
+  },
 ];
 
 type QuickActionsProps = {
@@ -37,7 +87,26 @@ export function QuickActions({
   onReviewPromotion,
   isLaunching,
 }: QuickActionsProps) {
+  const { isEasyMode } = useMode();
   const [bankroll, setBankroll] = useState<string>("1000");
+  
+  // Fetch dynamic prompts from API (Phase 2 UX Conciliation)
+  const userMode = isEasyMode ? "easy" : "advanced";
+  const { data: promptsData } = useSWR<QuickPromptsResponse>(`/api/assistant/quick-prompts?user_mode=${userMode}`, fetcher);
+  
+  // Use API prompts if available, otherwise fallback to static
+  const apiPrompts = promptsData?.prompts || [];
+  const dynamicPrompts = apiPrompts
+    .filter((p: any) => p.context_relevant) // Prioritize context-relevant
+    .slice(0, 6)
+    .map((p: any) => ({
+      label: p.label,
+      prompt: p.prompt,
+    }));
+  
+  const QUICK_PROMPTS = dynamicPrompts.length > 0 
+    ? dynamicPrompts 
+    : (isEasyMode ? BEGINNER_PROMPTS : ADVANCED_PROMPTS);
 
   const handleLaunch = async () => {
     if (!onLaunchIntraday) {
@@ -54,10 +123,13 @@ export function QuickActions({
     <div className="space-y-4 rounded-lg border border-border bg-background/60 p-3">
       <div>
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Quick prompts
+          {isEasyMode ? "Ask the Assistant" : "Quick prompts"}
           <TooltipExplainer 
-            term="Quick prompts" 
-            explanation="Pre-written questions you can use to quickly ask the AI assistant common queries about system performance, confidence levels, and recent changes. Click any prompt to instantly ask that question without typing it yourself. These are starting points - you can still ask anything you want in your own words."
+            term={isEasyMode ? "Ask the Assistant" : "Quick prompts"}
+            explanation={isEasyMode 
+              ? "Start with these common questions to learn how to use LenQuant and get trading advice. The AI assistant can answer in plain English and guide you through every step."
+              : "Pre-written technical queries for power users to quickly analyze system performance, model accuracy, and strategy evolution. Click any to instantly ask that question."
+            }
             size="sm"
           />
         </h4>
@@ -75,15 +147,16 @@ export function QuickActions({
         </div>
       </div>
 
-      <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Intraday automation
-          <TooltipExplainer 
-            term="Intraday automation" 
-            explanation="Quick actions to launch and manage intraday strategy cohorts. 'Launch cohort' starts a group of strategies trading on minute/hour timeframes with the specified bankroll. 'Review Day-3 promotion' opens the approval workflow for strategies that have completed their 3-day testing period and passed guard rails. These shortcuts streamline common workflow operations."
-            size="sm"
-          />
-        </h4>
+      {!isEasyMode && (
+        <div>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Intraday automation
+            <TooltipExplainer 
+              term="Intraday automation" 
+              explanation="Quick actions to launch and manage intraday strategy cohorts. 'Launch cohort' starts a group of strategies trading on minute/hour timeframes with the specified bankroll. 'Review Day-3 promotion' opens the approval workflow for strategies that have completed their 3-day testing period and passed guard rails. These shortcuts streamline common workflow operations."
+              size="sm"
+            />
+          </h4>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Input
             type="number"
@@ -110,10 +183,11 @@ export function QuickActions({
             Review Day-3 promotion
           </Button>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Launch a 30-agent intraday cohort with the selected bankroll and monitor it for Day-3 guard rails.
-        </p>
-      </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Launch a 30-agent intraday cohort with the selected bankroll and monitor it for Day-3 guard rails.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

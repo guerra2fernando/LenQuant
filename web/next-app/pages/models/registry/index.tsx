@@ -8,7 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ModelHealthBadge } from "@/components/ModelHealthBadge";
+import { ModelComparisonModal } from "@/components/ModelComparisonModal";
+import { ModelRetrainRecommendation } from "@/components/ModelRetrainRecommendation";
+import { ModelVersionHistory } from "@/components/ModelVersionHistory";
+import { Badge } from "@/components/ui/badge";
+import { GitCompare, History, TrendingUp, Terminal, BarChart3 } from "lucide-react";
 import { fetcher, postJson } from "@/lib/api";
+import { useRouter } from "next/router";
 
 type RegistryResponse = {
   items: ModelRegistryRecord[];
@@ -36,11 +44,19 @@ function useRegistry(symbol: string, horizon: string) {
 }
 
 export default function ModelRegistryPage() {
+  const router = useRouter();
   const [symbolFilter, setSymbolFilter] = useState("");
   const [horizonFilter, setHorizonFilter] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  
+  // Phase 6: Model comparison
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  
+  // Phase 6: Version history
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   const { data, error, isLoading, mutate } = useRegistry(symbolFilter, horizonFilter);
   const items = useMemo(() => data?.items ?? [], [data]);
@@ -94,6 +110,124 @@ export default function ModelRegistryPage() {
     return Math.max(...selectedModel.shap_summary_top_features.map((item) => item.importance ?? 0));
   }, [selectedModel?.shap_summary_top_features]);
 
+  // Phase 6: Retrain recommendations
+  const retrainRecommendations = useMemo(() => {
+    return items.map(model => {
+      const ageInDays = model.trained_at 
+        ? Math.floor((Date.now() - new Date(model.trained_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
+      
+      let recommendation: "no_action" | "consider_retrain" | "retrain_now";
+      let health: "fresh" | "aging" | "stale";
+      let reason: string | undefined;
+      
+      if (ageInDays < 2) {
+        recommendation = "no_action";
+        health = "fresh";
+      } else if (ageInDays < 7) {
+        recommendation = "consider_retrain";
+        health = "aging";
+        reason = "Model is getting older. Consider retraining to maintain accuracy.";
+      } else {
+        recommendation = "retrain_now";
+        health = "stale";
+        reason = "Model is stale. Retrain immediately to ensure predictions use current market data.";
+      }
+      
+      return {
+        model_id: model.model_id,
+        symbol: model.symbol,
+        horizon: model.horizon,
+        trained_at: model.trained_at || "",
+        age_days: ageInDays,
+        health,
+        recommendation,
+        reason,
+      };
+    });
+  }, [items]);
+
+  // Phase 6: Mock version history (would come from API in production)
+  const versionHistory = useMemo(() => {
+    if (!selectedModel) return [];
+    
+    const baseDate = new Date(selectedModel.trained_at || Date.now());
+    return [
+      {
+        version: 3,
+        model_id: selectedModel.model_id,
+        trained_at: baseDate.toISOString(),
+        metrics: selectedModel.metrics || {},
+        status: "active" as const,
+        notes: "Latest training with updated data",
+      },
+      {
+        version: 2,
+        model_id: selectedModel.model_id,
+        trained_at: new Date(baseDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        metrics: {
+          test: {
+            rmse: (selectedModel.metrics?.test?.rmse || 0) * 1.05,
+            mae: (selectedModel.metrics?.test?.mae || 0) * 1.03,
+            directional_accuracy: (selectedModel.metrics?.test?.directional_accuracy || 0) * 0.98,
+          }
+        },
+        status: "archived" as const,
+        parent_version: 1,
+        notes: "Improved feature engineering",
+      },
+      {
+        version: 1,
+        model_id: selectedModel.model_id,
+        trained_at: new Date(baseDate.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+        metrics: {
+          test: {
+            rmse: (selectedModel.metrics?.test?.rmse || 0) * 1.15,
+            mae: (selectedModel.metrics?.test?.mae || 0) * 1.10,
+            directional_accuracy: (selectedModel.metrics?.test?.directional_accuracy || 0) * 0.95,
+          }
+        },
+        status: "archived" as const,
+        notes: "Initial training",
+      },
+    ];
+  }, [selectedModel]);
+
+  const modelsForComparison = useMemo(() => {
+    return items.filter(model => selectedForComparison.includes(model.model_id));
+  }, [items, selectedForComparison]);
+
+  const handleToggleComparison = (modelId: string) => {
+    setSelectedForComparison(prev => {
+      if (prev.includes(modelId)) {
+        return prev.filter(id => id !== modelId);
+      } else if (prev.length < 3) {
+        return [...prev, modelId];
+      }
+      return prev;
+    });
+  };
+
+  const handleRetrainAll = async () => {
+    const staleModels = retrainRecommendations.filter(m => m.recommendation === "retrain_now");
+    setIsSubmitting(true);
+    try {
+      await Promise.all(staleModels.map(model => 
+        postJson("/api/models/retrain", {
+          symbol: model.symbol,
+          horizon: model.horizon,
+          promote: false,
+        })
+      ));
+      setActionMessage(`Retrain scheduled for ${staleModels.length} model(s).`);
+      mutate();
+    } catch (err) {
+      setActionMessage(err instanceof Error ? err.message : "Failed to schedule retrains.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -109,15 +243,45 @@ export default function ModelRegistryPage() {
             Inspect trained models, compare metrics, and trigger retraining jobs.
           </p>
         </div>
-        <Button variant="ghost" onClick={() => mutate()} disabled={isSubmitting || isLoading}>
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedForComparison.length >= 2 && (
+            <Button 
+              onClick={() => setShowComparisonModal(true)}
+              disabled={isSubmitting}
+            >
+              <GitCompare className="mr-2 h-4 w-4" />
+              Compare ({selectedForComparison.length})
+            </Button>
+          )}
+          <Button variant="ghost" onClick={() => mutate()} disabled={isSubmitting || isLoading}>
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Phase 6: Retrain Recommendations */}
+      <ModelRetrainRecommendation 
+        models={retrainRecommendations}
+        onRetrain={(modelId) => {
+          const model = items.find(m => m.model_id === modelId);
+          if (model) handleRetrain(model);
+        }}
+        onRetrainAll={handleRetrainAll}
+      />
 
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Limit the registry feed by symbol or horizon.</CardDescription>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle>Filters</CardTitle>
+              <CardDescription>Limit the registry feed by symbol or horizon.</CardDescription>
+            </div>
+            {selectedForComparison.length > 0 && (
+              <Badge variant="secondary">
+                {selectedForComparison.length} selected for comparison
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
@@ -152,8 +316,40 @@ export default function ModelRegistryPage() {
               <Input id="status-indicator" value="Candidate / Production" disabled />
             </div>
           </div>
+          
+          {/* Phase 6: Comparison Selection */}
+          {items.length > 0 && (
+            <div className="mt-4 p-3 border rounded-md bg-muted/50">
+              <p className="text-sm font-medium mb-2">Select 2-3 models to compare:</p>
+              <div className="flex flex-wrap gap-2">
+                {items.slice(0, 8).map((model) => (
+                  <div key={model.model_id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`compare-${model.model_id}`}
+                      checked={selectedForComparison.includes(model.model_id)}
+                      onCheckedChange={() => handleToggleComparison(model.model_id)}
+                      disabled={!selectedForComparison.includes(model.model_id) && selectedForComparison.length >= 3}
+                    />
+                    <Label
+                      htmlFor={`compare-${model.model_id}`}
+                      className="text-xs cursor-pointer"
+                    >
+                      {model.symbol} {model.horizon}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Phase 6: Model Comparison Modal */}
+      <ModelComparisonModal 
+        models={modelsForComparison}
+        open={showComparisonModal}
+        onOpenChange={setShowComparisonModal}
+      />
 
       {error && (
         <ErrorMessage
@@ -190,11 +386,15 @@ export default function ModelRegistryPage() {
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <CardTitle className="font-mono text-base">{selectedModel.model_id}</CardTitle>
-                <CardDescription>
-                  {selectedModel.symbol} • {selectedModel.horizon} • {(selectedModel.status || "candidate").toUpperCase()}
-                </CardDescription>
+              <div className="flex items-start gap-3">
+                <div>
+                  <CardTitle className="font-mono text-base">{selectedModel.model_id}</CardTitle>
+                  <CardDescription>
+                    {selectedModel.symbol} • {selectedModel.horizon} • {(selectedModel.status || "candidate").toUpperCase()}
+                  </CardDescription>
+                </div>
+                {/* Phase 6: Health Badge */}
+                <ModelHealthBadge trainedAt={selectedModel.trained_at} />
               </div>
               <div className="text-right text-sm text-muted-foreground">
                 <div>
@@ -206,6 +406,48 @@ export default function ModelRegistryPage() {
                     : "—"}
                 </div>
                 <div>Trained: {selectedModel.trained_at ? new Date(selectedModel.trained_at).toLocaleString() : "Unknown"}</div>
+                
+                {/* Contextual Navigation Links */}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push(`/analytics?model_id=${selectedModel.model_id}`)}
+                    className="h-8 text-xs gap-1"
+                  >
+                    <TrendingUp className="h-3 w-3" />
+                    View Forecasts
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push(`/terminal?symbol=${selectedModel.symbol}`)}
+                    className="h-8 text-xs gap-1"
+                  >
+                    <Terminal className="h-3 w-3" />
+                    See in Terminal
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push(`/analytics?tab=learning&model=${selectedModel.model_id}`)}
+                    className="h-8 text-xs gap-1"
+                  >
+                    <BarChart3 className="h-3 w-3" />
+                    Training Run
+                  </Button>
+                </div>
+                
+                {/* Phase 6: Version History Toggle */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => setShowVersionHistory(!showVersionHistory)}
+                >
+                  <History className="mr-2 h-3 w-3" />
+                  {showVersionHistory ? "Hide" : "View"} History
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -300,6 +542,17 @@ export default function ModelRegistryPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Phase 6: Version History */}
+      {selectedModel && showVersionHistory && (
+        <ModelVersionHistory 
+          versions={versionHistory}
+          currentVersion={3}
+          onRestore={(version) => {
+            setActionMessage(`Version ${version} restore functionality would be implemented here.`);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { SymbolDisplay } from "@/components/CryptoSelector";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ForecastSparkline } from "@/components/ForecastSparkline";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -16,6 +17,8 @@ import {
 } from "@/components/ui/table";
 import { useMode } from "@/lib/mode-context";
 import { cn } from "@/lib/utils";
+import { TrendingUp, TrendingDown, MessageSquare } from "lucide-react";
+import { useRouter } from "next/router";
 
 export type ForecastModelBreakdown = {
   model_id: string;
@@ -43,6 +46,33 @@ type Props = {
 
 export function ForecastTable({ data, isLoading, lastUpdated, history }: Props) {
   const { isEasyMode } = useMode();
+  const router = useRouter();
+
+  const handleTradeNow = (symbol: string, pred: number, confidence: number, forecastId?: string) => {
+    const action = pred >= 0 ? 'buy' : 'sell';
+    // Calculate suggested size based on confidence (higher confidence = larger size)
+    const suggestedSize = Math.round(confidence * 100); // Simple calculation: 80% confidence = 80 units
+    
+    const params = new URLSearchParams({
+      symbol: symbol,
+      action: action,
+      suggested_size: suggestedSize.toString(),
+      source: 'forecast',
+      confidence: (confidence * 100).toFixed(0),
+    });
+    
+    if (forecastId) {
+      params.append('forecast_id', forecastId);
+    }
+    
+    router.push(`/terminal?${params.toString()}`);
+  };
+
+  const handleAskAI = (symbol: string, pred: number, confidence: number) => {
+    const direction = pred >= 0 ? 'increase' : 'decrease';
+    const prompt = `Why is the forecast predicting ${symbol} will ${direction} by ${(Math.abs(pred) * 100).toFixed(2)}% with ${(confidence * 100).toFixed(0)}% confidence? What factors are driving this prediction?`;
+    router.push(`/assistant?prompt=${encodeURIComponent(prompt)}`);
+  };
 
   // Generate plain language summary for Easy Mode
   const getPlainLanguageSummary = (row: ForecastRow): string => {
@@ -91,12 +121,13 @@ export function ForecastTable({ data, isLoading, lastUpdated, history }: Props) 
             <TableHead>Timestamp</TableHead>
             {!isEasyMode && <TableHead>Models</TableHead>}
             {isEasyMode && <TableHead>Summary</TableHead>}
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading && (
             <TableRow>
-              <TableCell colSpan={5}>
+              <TableCell colSpan={7}>
                 <div className="animate-pulse py-6 text-sm text-muted-foreground">Loading forecasts…</div>
               </TableCell>
             </TableRow>
@@ -104,7 +135,7 @@ export function ForecastTable({ data, isLoading, lastUpdated, history }: Props) 
 
           {!isLoading && data.length === 0 && (
             <TableRow>
-              <TableCell colSpan={isEasyMode ? 6 : 6} className="p-0">
+              <TableCell colSpan={7} className="p-0">
                 <div className="py-6">
                   <EmptyState
                     variant="data"
@@ -128,19 +159,40 @@ export function ForecastTable({ data, isLoading, lastUpdated, history }: Props) 
               Number.isNaN(timestamp.getTime()) === false
                 ? timestamp.toLocaleString()
                 : row.timestamp || "—";
+            
+            // Highlight high-confidence forecasts (>80%)
+            const isHighConfidence = confidence !== null && confidence > 0.8;
+            const rowClassName = cn(
+              row.error && "bg-destructive/10",
+              isHighConfidence && "bg-emerald-500/5 border-l-4 border-l-emerald-500"
+            );
 
             return (
-              <TableRow key={`${row.symbol}-${row.timestamp}`} className={cn(row.error && "bg-destructive/10")}>
+              <TableRow key={`${row.symbol}-${row.timestamp}`} className={rowClassName}>
                 <TableCell>
-                  <SymbolDisplay symbol={row.symbol} />
+                  <div className="flex items-center gap-2">
+                    <SymbolDisplay symbol={row.symbol} />
+                    {isHighConfidence && (
+                      <Badge variant="default" className="bg-emerald-500 text-xs">
+                        High Confidence
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   {row.error ? (
                     <span className="text-sm text-destructive">{row.error}</span>
                   ) : pred !== null ? (
-                    <span className={pred >= 0 ? "text-emerald-500" : "text-destructive"}>
-                      {(pred * 100).toFixed(2)}%
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {pred >= 0 ? (
+                        <TrendingUp className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                      )}
+                      <span className={pred >= 0 ? "text-emerald-500 font-semibold" : "text-destructive font-semibold"}>
+                        {(pred * 100).toFixed(2)}%
+                      </span>
+                    </div>
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
@@ -178,6 +230,29 @@ export function ForecastTable({ data, isLoading, lastUpdated, history }: Props) 
                     )}
                   </TableCell>
                 )}
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    {pred !== null && !row.error && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant={isHighConfidence ? "default" : "outline"}
+                          onClick={() => handleTradeNow(row.symbol, pred, confidence ?? 0, row.timestamp)}
+                          className="whitespace-nowrap"
+                        >
+                          {isEasyMode ? "Trade Now" : "Trade"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleAskAI(row.symbol, pred, confidence ?? 0)}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
               </TableRow>
             );
           })}

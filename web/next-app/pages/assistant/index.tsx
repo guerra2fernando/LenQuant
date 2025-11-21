@@ -6,16 +6,18 @@ import useSWR from "swr";
 
 import { AssistantToolbar } from "@/components/AssistantToolbar";
 import { ChatTranscript } from "@/components/ChatTranscript";
+import { ContextPanel } from "@/components/ContextPanel";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { PromptTemplatePreview } from "@/components/PromptTemplatePreview";
+import { ProactiveSuggestions } from "@/components/ProactiveSuggestions";
 import { QuickActions } from "@/components/QuickActions";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { useNotificationCenter } from "@/components/NotificationCenter";
-import { useToast } from "@/components/ToastProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 import { useMode } from "@/lib/mode-context";
 import { fetcher, postJson } from "@/lib/api";
 
@@ -33,7 +35,6 @@ export default function AssistantWorkspacePage() {
   const [error, setError] = useState<string | null>(null);
   const [isLaunchingCohort, setIsLaunchingCohort] = useState(false);
 
-  const { pushToast } = useToast();
   const { addNotification } = useNotificationCenter();
 
   const {
@@ -78,10 +79,8 @@ export default function AssistantWorkspacePage() {
         include_recommendations: true,
       };
       const response = await postJson("/api/assistant/query", payload);
-      pushToast({
-        title: "Assistant responded",
+      toast.success("Assistant responded", {
         description: response?.payload?.summary ?? "Response recorded.",
-        variant: "success",
       });
       addNotification({
         title: "Assistant response logged",
@@ -95,10 +94,8 @@ export default function AssistantWorkspacePage() {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : "Unable to contact assistant.";
       setError(errorMessage);
-      pushToast({
-        title: "Assistant request failed",
+      toast.error("Assistant request failed", {
         description: errorMessage,
-        variant: "destructive",
       });
       addNotification({
         title: "Assistant request failed",
@@ -118,11 +115,15 @@ export default function AssistantWorkspacePage() {
         modified_params: extra?.modified_params,
         user_id: "operator",
       });
-      pushToast({
-        title: `Recommendation ${decision}`,
-        description: `Recorded decision for ${rec_id}`,
-        variant: decision === "approve" ? "success" : "default",
-      });
+      if (decision === "approve") {
+        toast.success(`Recommendation ${decision}`, {
+          description: `Recorded decision for ${rec_id}`,
+        });
+      } else {
+        toast(`Recommendation ${decision}`, {
+          description: `Recorded decision for ${rec_id}`,
+        });
+      }
       addNotification({
         title: `Recommendation ${decision}`,
         message: `${rec_id} marked as ${decision}.`,
@@ -131,10 +132,8 @@ export default function AssistantWorkspacePage() {
       await refreshRecommendations();
     } catch (error) {
       console.error(error);
-      pushToast({
-        title: "Decision failed",
+      toast.error("Decision failed", {
         description: error?.message ?? "Unable to update recommendation.",
-        variant: "destructive",
       });
     }
   };
@@ -149,10 +148,8 @@ export default function AssistantWorkspacePage() {
         leverage_ceiling: 5,
       });
       const launchedId = response?.cohort?.cohort_id ?? "cohort";
-      pushToast({
-        title: "Intraday cohort launched",
+      toast.success("Intraday cohort launched", {
         description: `30 agents allocated across $${bankroll.toLocaleString()} (${launchedId}).`,
-        variant: "success",
       });
       addNotification({
         title: "Intraday cohort launched",
@@ -161,10 +158,8 @@ export default function AssistantWorkspacePage() {
       });
     } catch (launchError) {
       const message = launchError instanceof Error ? launchError.message : "Unable to launch cohort.";
-      pushToast({
-        title: "Launch failed",
+      toast.error("Launch failed", {
         description: message,
-        variant: "destructive",
       });
       addNotification({
         title: "Intraday launch failed",
@@ -194,6 +189,10 @@ export default function AssistantWorkspacePage() {
           Chat with the LenQuant assistant, review evidence, and approve grounded trade recommendations.
         </p>
       </div>
+      
+      {/* Context Panel */}
+      <ContextPanel />
+
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="space-y-6">
           <AssistantToolbar
@@ -268,6 +267,9 @@ export default function AssistantWorkspacePage() {
         </Card>
       </div>
       <aside className="space-y-6">
+        {/* Proactive Suggestions */}
+        <ProactiveSuggestions />
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">

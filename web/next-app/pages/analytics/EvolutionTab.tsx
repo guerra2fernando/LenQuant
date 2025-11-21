@@ -12,13 +12,20 @@ import { LineageGraph } from "@/components/LineageGraph";
 import { MutationQueueDrawer } from "@/components/MutationQueueDrawer";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
+import { EvolutionTimeline } from "@/components/EvolutionTimeline";
+import { EvolutionPresets } from "@/components/EvolutionPresets";
+import { PostRunSummaryModal } from "@/components/PostRunSummaryModal";
+import { GeneticDiversityChart } from "@/components/GeneticDiversityChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { fetcher, postJson } from "@/lib/api";
+import { ChevronDown, ChevronUp, ExternalLink, TrendingUp, FileText } from "lucide-react";
+import { useRouter } from "next/router";
 
 export default function EvolutionTab() {
+  const router = useRouter();
   const [symbol, setSymbol] = useState("BTC/USD");
   const [interval, setInterval] = useState("1m");
   const [accounts, setAccounts] = useState(12);
@@ -27,6 +34,13 @@ export default function EvolutionTab() {
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
+  
+  // Phase 5: New state for enhanced UX
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [showDiversity, setShowDiversity] = useState(false);
+  const [showPostRunModal, setShowPostRunModal] = useState(false);
+  const [lastRunSummary, setLastRunSummary] = useState(null);
 
   const { data: leaderboardData, mutate: refreshLeaderboard } = useSWR("/api/leaderboard/today?limit=15", fetcher, {
     refreshInterval: 60000,
@@ -161,6 +175,25 @@ export default function EvolutionTab() {
     };
   }, [activeTaskId, refreshLeaderboard, refreshQueue]);
 
+  // Phase 5: Mock data for new components (replace with real API calls)
+  const mockGenerations = [
+    { generation: 1, strategies: 15, champions: 3, avgFitness: 45.2, bestFitness: 67.8, timestamp: new Date(Date.now() - 86400000 * 3).toISOString() },
+    { generation: 2, strategies: 18, champions: 4, avgFitness: 52.1, bestFitness: 72.3, timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+    { generation: 3, strategies: 22, champions: 5, avgFitness: 58.7, bestFitness: 78.9, timestamp: new Date(Date.now() - 86400000).toISOString() },
+  ];
+
+  const mockDiversity = {
+    uniqueGenomes: 18,
+    totalStrategies: 22,
+    diversityScore: 0.72,
+    mutationRate: 0.15,
+    convergenceRisk: "low" as const,
+  };
+
+  const handlePresetSelect = (preset) => {
+    setAccounts(preset.accounts);
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -173,6 +206,13 @@ export default function EvolutionTab() {
         </h2>
         <p className="text-sm text-muted-foreground">Spawn strategy mutations, monitor fitness, and promote champions.</p>
       </div>
+
+      {/* Phase 5: Experiment Presets */}
+      <EvolutionPresets
+        symbol={symbol}
+        interval={interval}
+        onSelectPreset={handlePresetSelect}
+      />
 
       <div className="grid gap-4 lg:grid-cols-4">
         <Card className="lg:col-span-3">
@@ -275,8 +315,20 @@ export default function EvolutionTab() {
               ) : (
                 champions.map((entry) => (
                   <div key={entry.strategy_id} className="rounded-lg border border-border bg-muted/20 p-3">
-                    <p className="text-sm font-semibold text-foreground">{entry.strategy_id}</p>
-                    <p className="text-xs text-muted-foreground">Composite {entry.composite?.toFixed(2)}</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{entry.strategy_id}</p>
+                        <p className="text-xs text-muted-foreground">Composite {entry.composite?.toFixed(2)}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => router.push(`/analytics?tab=strategies&id=${entry.strategy_id}`)}
+                        className="h-7 w-7 p-0"
+                      >
+                        <TrendingUp className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}
@@ -312,8 +364,16 @@ export default function EvolutionTab() {
                 {openAlerts.length ? (
                   <ul className="space-y-1 text-sm text-muted-foreground">
                     {openAlerts.slice(0, 3).map((alert) => (
-                      <li key={alert._id ?? alert.strategy_id}>
-                        {alert.strategy_id} · {(alert.decay * 100).toFixed(0)}% decay
+                      <li key={alert._id ?? alert.strategy_id} className="flex items-center justify-between">
+                        <span>{alert.strategy_id} · {(alert.decay * 100).toFixed(0)}% decay</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => router.push(`/models/registry?search=${alert.strategy_id}`)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
                       </li>
                     ))}
                     {openAlerts.length > 3 ? <li className="text-xs">+{openAlerts.length - 3} more</li> : null}
@@ -329,19 +389,79 @@ export default function EvolutionTab() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <EvolutionLeaderboardTable
-            entries={leaderboardEntries}
-            selectedId={selectedStrategyId ?? leaderboardEntries[0]?.strategy_id}
-            onSelect={setSelectedStrategyId}
-          />
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Strategy Leaderboard</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/analytics?tab=strategies')}
+                  className="gap-1"
+                >
+                  <FileText className="h-3 w-3" />
+                  View All Strategies
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <EvolutionLeaderboardTable
+                entries={leaderboardEntries}
+                selectedId={selectedStrategyId ?? leaderboardEntries[0]?.strategy_id}
+                onSelect={setSelectedStrategyId}
+              />
+            </CardContent>
+          </Card>
           <FitnessScatterChart points={scatterPoints} />
         </div>
         <MutationQueueDrawer items={queueItems} />
       </div>
 
-      <GenomeComparisonPanel strategy={selectedStrategy} runs={selectedRuns} />
+      {/* Phase 5: Collapsible Advanced Sections */}
+      <div className="space-y-4">
+        <Button
+          variant="outline"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="w-full justify-between"
+        >
+          <span>Advanced Evolution Analysis</span>
+          {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
 
-      <LineageGraph nodes={lineageNodes} links={lineageLinks} />
+        {showAdvanced && (
+          <div className="space-y-6">
+            <GenomeComparisonPanel strategy={selectedStrategy} runs={selectedRuns} />
+            
+            {/* Phase 5: Timeline Toggle */}
+            <div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTimeline(!showTimeline)}
+                className="mb-4"
+              >
+                {showTimeline ? "Hide" : "Show"} Evolution Timeline
+              </Button>
+              {showTimeline && <EvolutionTimeline generations={mockGenerations} />}
+            </div>
+
+            {/* Phase 5: Diversity Toggle */}
+            <div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDiversity(!showDiversity)}
+                className="mb-4"
+              >
+                {showDiversity ? "Hide" : "Show"} Genetic Diversity
+              </Button>
+              {showDiversity && <GeneticDiversityChart metrics={mockDiversity} />}
+            </div>
+
+            <LineageGraph nodes={lineageNodes} links={lineageLinks} />
+          </div>
+        )}
+      </div>
 
       <Card>
         <CardHeader>
@@ -367,6 +487,13 @@ export default function EvolutionTab() {
           <Badge variant="outline">Total {queueItems.length}</Badge>
         </CardContent>
       </Card>
+
+      {/* Phase 5: Post-Run Summary Modal */}
+      <PostRunSummaryModal
+        open={showPostRunModal}
+        onOpenChange={setShowPostRunModal}
+        summary={lastRunSummary}
+      />
     </div>
   );
 }

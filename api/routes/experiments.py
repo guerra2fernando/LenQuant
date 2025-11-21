@@ -137,7 +137,49 @@ class ReprioritizePayload(BaseModel):
 
 @router.get("/queue")
 def get_queue(status: Optional[str] = None) -> Dict[str, Any]:
-    return {"queue": fetch_queue(status=status)}
+    queue_items = fetch_queue(status=status)
+    
+    # Check for active runs by looking for running celery tasks
+    active_run = None
+    try:
+        # Find the most recent running queue item
+        for item in queue_items:
+            if item.get("status") == "running":
+                # Estimate progress based on completed strategies
+                completed = item.get("completed_strategies", 0)
+                total = item.get("total_strategies", 20)
+                progress_pct = (completed / total * 100) if total > 0 else 0
+                
+                # Estimate completion time
+                elapsed_seconds = 0
+                if item.get("started_at"):
+                    started_at = item.get("started_at")
+                    if isinstance(started_at, datetime):
+                        elapsed_seconds = (datetime.utcnow() - started_at).total_seconds()
+                
+                estimated_total_seconds = (elapsed_seconds / progress_pct * 100) if progress_pct > 0 else 0
+                estimated_remaining = max(0, estimated_total_seconds - elapsed_seconds)
+                
+                active_run = {
+                    "run_id": item.get("_id"),
+                    "status": "running",
+                    "progress": {
+                        "current_account": completed,
+                        "total_accounts": total,
+                        "current_strategy": item.get("current_strategy", ""),
+                        "completed_strategies": completed,
+                        "total_strategies": total,
+                        "progress_pct": round(progress_pct, 1),
+                        "estimated_completion": (datetime.utcnow() + timedelta(seconds=estimated_remaining)).isoformat() if estimated_remaining > 0 else None,
+                        "elapsed_ms": int(elapsed_seconds * 1000)
+                    },
+                    "started_at": started_at.isoformat() if isinstance(started_at, datetime) else started_at
+                }
+                break
+    except Exception as e:
+        logger.warning(f"Error getting active run progress: {e}")
+    
+    return {"queue": queue_items, "active_run": active_run}
 
 
 @router.post("/run")

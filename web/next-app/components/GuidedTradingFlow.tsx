@@ -1,14 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ArrowRight, CheckCircle2, TrendingUp, TrendingDown, Eye } from "lucide-react";
+import useSWR from "swr";
 
-import { SymbolDisplay } from "@/components/CryptoSelector";
+import { SymbolDisplay, CryptoSelector } from "@/components/CryptoSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { useMode } from "@/lib/mode-context";
-import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { fetcher } from "@/lib/api";
+import { cn, formatNumber } from "@/lib/utils";
 
 type TradingAction = "buy" | "sell" | "positions" | "recommendations";
 
@@ -27,14 +30,62 @@ export function GuidedTradingFlow({ onActionSelect, onSubmitOrder }: GuidedTradi
   const { isEasyMode } = useMode();
   const [selectedAction, setSelectedAction] = useState<TradingAction | null>(null);
   const [step, setStep] = useState<number>(1);
-  const [orderData, setOrderData] = useState<OrderData>({ symbol: "", side: "buy", size: "" });
+  const [orderData, setOrderData] = useState<OrderData>({ symbol: "BTC/USD", side: "buy", size: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const handleSymbolChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setOrderData({ ...orderData, symbol: event.target.value.toUpperCase() });
+  const [dollarAmount, setDollarAmount] = useState<string>("");
+  const [coinAmount, setCoinAmount] = useState<string>("");
+  const [availableSymbols, setAvailableSymbols] = useState<string[]>(["BTC/USD", "ETH/USD"]);
+
+  // Fetch available symbols
+  const { data: symbolsData } = useSWR<{ symbols: string[] }>(
+    "/api/market/symbols",
+    fetcher
+  );
+
+  // Fetch current price for selected symbol
+  const { data: priceData } = useSWR<{ price: number; symbol: string; timestamp: string }>(
+    orderData.symbol ? `/api/market/latest-price?symbol=${encodeURIComponent(orderData.symbol)}` : null,
+    fetcher,
+    { refreshInterval: 5000 }
+  );
+
+  const currentPrice = priceData?.price ?? 0;
+
+  // Update available symbols when data loads
+  useEffect(() => {
+    if (symbolsData?.symbols) {
+      setAvailableSymbols(symbolsData.symbols);
+    }
+  }, [symbolsData]);
+
+  // Handle symbol change from CryptoSelector
+  const handleSymbolChange = (symbol: string) => {
+    setOrderData({ ...orderData, symbol });
+    // Reset amounts when symbol changes
+    setDollarAmount("");
+    setCoinAmount("");
   };
 
-  const handleSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setOrderData({ ...orderData, size: event.target.value });
+  // Handle dollar amount change - convert to coin amount
+  const handleDollarAmountChange = (value: string) => {
+    setDollarAmount(value);
+    if (currentPrice > 0 && value) {
+      const coinValue = parseFloat(value) / currentPrice;
+      setCoinAmount(coinValue.toFixed(8));
+    } else {
+      setCoinAmount("");
+    }
+  };
+
+  // Handle coin amount change - convert to dollar amount
+  const handleCoinAmountChange = (value: string) => {
+    setCoinAmount(value);
+    if (currentPrice > 0 && value) {
+      const dollarValue = parseFloat(value) * currentPrice;
+      setDollarAmount(dollarValue.toFixed(2));
+    } else {
+      setDollarAmount("");
+    }
   };
 
 
@@ -50,19 +101,31 @@ export function GuidedTradingFlow({ onActionSelect, onSubmitOrder }: GuidedTradi
   };
 
   const handleSubmitOrder = async () => {
-    if (!orderData.symbol || !orderData.size) {
+    if (!orderData.symbol || !coinAmount || !dollarAmount) {
+      toast.error("Validation Error", {
+        description: "Please fill in all required fields",
+      });
       return;
     }
+
     setIsSubmitting(true);
     try {
       await onSubmitOrder?.({
         symbol: orderData.symbol,
         side: orderData.side,
-        size: parseFloat(orderData.size),
+        size: parseFloat(coinAmount), // Use coin amount for the order
       });
+
+      toast.success("Order Submitted Successfully!", {
+        description: `${orderData.side.toUpperCase()} ${coinAmount} ${orderData.symbol}`,
+      });
+
       setStep(2); // Show success
-    } catch (error) {
+    } catch (error: any) {
       console.error("Order submission error:", error);
+      toast.error("Order Failed", {
+        description: error.message || "Failed to submit order",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -180,13 +243,18 @@ The assistant analyzes data from all your strategies and forecasts to suggest th
                 <span className="font-semibold">Side:</span> {orderData.side === "buy" ? "Buy" : "Sell"}
               </div>
               <div>
-                <span className="font-semibold">Size:</span> {orderData.size}
+                <span className="font-semibold">Dollar Amount:</span> ${formatNumber(parseFloat(dollarAmount), 2)} USD
+              </div>
+              <div>
+                <span className="font-semibold">Coin Amount:</span> {formatNumber(parseFloat(coinAmount), 8)} {orderData.symbol.split('/')[0]}
               </div>
             </div>
             <Button className="mt-4" onClick={() => {
               setSelectedAction(null);
               setStep(1);
-              setOrderData({ symbol: "", side: "buy", size: "" });
+              setOrderData({ symbol: "BTC/USD", side: "buy", size: "" });
+              setDollarAmount("");
+              setCoinAmount("");
             }}>
               Place Another Order
             </Button>
@@ -211,31 +279,62 @@ The assistant analyzes data from all your strategies and forecasts to suggest th
           {step === 1 ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="symbol">What cryptocurrency do you want to {selectedAction}?</Label>
-                <Input
-                  id="symbol"
-                  placeholder="e.g., BTC/USD, ETH/USDT"
-                  value={orderData.symbol}
-                  onChange={handleSymbolChange}
+                <Label>What cryptocurrency do you want to {selectedAction}?</Label>
+                <CryptoSelector
+                  availableSymbols={availableSymbols}
+                  selectedSymbols={[orderData.symbol]}
+                  onSelectionChange={(symbols) => handleSymbolChange(symbols[0] || "")}
+                  placeholder="Select a cryptocurrency..."
+                  className="w-full"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enter the trading pair (e.g., BTC/USD means Bitcoin priced in USDT)
+                  Choose the trading pair you want to {selectedAction}
                 </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="size">How much do you want to {selectedAction}? (USD)</Label>
-                <Input
-                  id="size"
-                  type="number"
-                  placeholder="e.g., 100"
-                  value={orderData.size}
-                  onChange={handleSizeChange}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Enter the dollar amount you want to {selectedAction === "buy" ? "spend" : "sell"}
-                </p>
+
+              {/* Current Price Display */}
+              {orderData.symbol && currentPrice > 0 && (
+                <div className="rounded-lg border bg-background p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Current Price:</span>
+                    <span className="font-semibold">${formatNumber(currentPrice, 2)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Amount Inputs */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dollar-amount">Dollar Amount (USD)</Label>
+                  <Input
+                    id="dollar-amount"
+                    type="number"
+                    placeholder="e.g., 100"
+                    value={dollarAmount}
+                    onChange={(e) => handleDollarAmountChange(e.target.value)}
+                    step="0.01"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    How much money to {selectedAction === "buy" ? "spend" : "receive"}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="coin-amount">Coin Amount</Label>
+                  <Input
+                    id="coin-amount"
+                    type="number"
+                    placeholder="e.g., 0.001"
+                    value={coinAmount}
+                    onChange={(e) => handleCoinAmountChange(e.target.value)}
+                    step="0.00000001"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Equivalent {orderData.symbol.split('/')[0]} amount
+                  </p>
+                </div>
               </div>
-              <Button onClick={() => setStep(2)} disabled={!orderData.symbol || !orderData.size} className="w-full">
+
+              <Button onClick={() => setStep(2)} disabled={!orderData.symbol || !dollarAmount || !coinAmount} className="w-full">
                 Continue <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </>
@@ -253,9 +352,19 @@ The assistant analyzes data from all your strategies and forecasts to suggest th
                     <SymbolDisplay symbol={orderData.symbol} logoSize={16} />
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amount:</span>
-                    <span className="font-medium">${orderData.size} USD</span>
+                    <span className="text-muted-foreground">Dollar Amount:</span>
+                    <span className="font-medium">${formatNumber(parseFloat(dollarAmount), 2)} USD</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Coin Amount:</span>
+                    <span className="font-medium">{formatNumber(parseFloat(coinAmount), 8)} {orderData.symbol.split('/')[0]}</span>
+                  </div>
+                  {currentPrice > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Price per Coin:</span>
+                      <span className="font-medium">${formatNumber(currentPrice, 2)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2">

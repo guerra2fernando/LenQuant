@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
+import { useRouter } from "next/router";
 import { TradingChart } from "@/components/TradingChart";
 import { QuickStats } from "@/components/QuickStats";
 import { StrategySelector } from "@/components/StrategySelector";
@@ -15,6 +16,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
 import { fetcher } from "@/lib/api";
 import { useMode } from "@/lib/mode-context";
+import { OnboardingOverlay } from "@/components/OnboardingOverlay";
+import { TerminalHelpDrawer } from "@/components/TerminalHelpDrawer";
+import { HelpCircle } from "lucide-react";
 
 const INTERVALS = [
   { value: "1m", label: "1 Minute" },
@@ -33,12 +37,70 @@ const TRADING_MODES = [
 
 export default function TerminalPage() {
   const { isEasyMode } = useMode();
+  const router = useRouter();
   const [selectedSymbol, setSelectedSymbol] = useState<string>("BTC/USD");
   const [selectedInterval, setSelectedInterval] = useState<string>("1h");
   const [showPredictions, setShowPredictions] = useState(true);
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
   const [tradingMode, setTradingMode] = useState<string>("paper");
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.8);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [helpContext, setHelpContext] = useState<"chart" | "signals" | "order" | "positions" | null>(null);
+  const [forecastContext, setForecastContext] = useState<{
+    action?: string;
+    suggestedSize?: string;
+    confidence?: string;
+    source?: string;
+  } | null>(null);
+
+  // Handle query parameters from forecast "Trade This" button
+  useEffect(() => {
+    if (router.isReady && router.query) {
+      const { symbol, action, suggested_size, source, confidence, forecast_id } = router.query;
+      
+      // Set symbol if provided
+      if (symbol && typeof symbol === 'string') {
+        setSelectedSymbol(symbol);
+      }
+      
+      // Store forecast context to pass to QuickOrderPanel
+      if (source === 'forecast') {
+        setForecastContext({
+          action: typeof action === 'string' ? action : undefined,
+          suggestedSize: typeof suggested_size === 'string' ? suggested_size : undefined,
+          confidence: typeof confidence === 'string' ? confidence : undefined,
+          source: typeof source === 'string' ? source : undefined,
+        });
+      }
+    }
+  }, [router.isReady, router.query]);
+
+  // Check if user has seen onboarding
+  const { data: setupProgress } = useSWR("/api/user/setup-progress", fetcher);
+  
+  useEffect(() => {
+    // Check API for tour completion status
+    if (setupProgress) {
+      const tourCompletions = (setupProgress as any).tour_completions;
+      if (tourCompletions && !tourCompletions.terminal) {
+        setShowOnboarding(true);
+      } else if (!tourCompletions) {
+        // If tour_completions field doesn't exist yet, show onboarding
+        setShowOnboarding(true);
+      }
+    }
+  }, [setupProgress]);
+
+  const handleOnboardingComplete = () => {
+    // The OnboardingOverlay component now handles API calls
+    setShowOnboarding(false);
+  };
+
+  const handleOnboardingSkip = () => {
+    // Still hide the overlay, but don't mark as complete in backend
+    setShowOnboarding(false);
+  };
 
   console.log('[Terminal] Render - Symbol:', selectedSymbol, 'Interval:', selectedInterval, 'Mode:', tradingMode);
 
@@ -127,6 +189,20 @@ export default function TerminalPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Help Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setHelpContext(null);
+                setShowHelp(true);
+              }}
+              className="gap-2"
+            >
+              <HelpCircle className="h-4 w-4" />
+              Help
+            </Button>
+
             {/* Trading Mode Badge */}
             <Badge 
               variant={tradingMode === "live" ? "destructive" : "outline"}
@@ -193,6 +269,25 @@ export default function TerminalPage() {
                     ))}
                   </select>
                 </div>
+                {/* Contextual Links */}
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push(isEasyMode ? `/insights?symbol=${selectedSymbol}` : `/analytics?symbol=${selectedSymbol}`)}
+                    className="h-7 text-xs"
+                  >
+                    View Forecasts
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push(`/analytics?tab=strategies&symbol=${selectedSymbol}`)}
+                    className="h-7 text-xs"
+                  >
+                    Strategy Signals
+                  </Button>
+                </div>
               </div>
 
               {/* Interval Selector */}
@@ -235,7 +330,7 @@ export default function TerminalPage() {
           {/* Left: Chart + Quick Stats in Easy Mode */}
           <div className="space-y-4">
             {isEasyMode && <QuickStats symbol={selectedSymbol} />}
-            
+
             <TradingChart
               symbol={selectedSymbol}
               interval={selectedInterval}
@@ -253,15 +348,12 @@ export default function TerminalPage() {
                   symbol={selectedSymbol}
                   interval={selectedInterval}
                   mode={tradingMode}
-                  confidenceThreshold={0.85} 
+                  confidenceThreshold={0.85}
                 />
-                <QuickOrderPanel 
-                  symbol={selectedSymbol} 
-                  mode={tradingMode} 
-                />
-                <PositionTabs 
-                  selectedSymbol={selectedSymbol} 
-                  mode={tradingMode} 
+                <QuickOrderPanel
+                  symbol={selectedSymbol}
+                  mode={tradingMode}
+                  forecastContext={forecastContext}
                 />
               </>
             ) : (
@@ -276,13 +368,10 @@ export default function TerminalPage() {
                 <StrategyAutomationPanel 
                   selectedStrategies={selectedStrategies} 
                 />
-                <QuickOrderPanel 
-                  symbol={selectedSymbol} 
-                  mode={tradingMode} 
-                />
-                <PositionTabs 
-                  selectedSymbol={selectedSymbol} 
-                  mode={tradingMode} 
+                <QuickOrderPanel
+                  symbol={selectedSymbol}
+                  mode={tradingMode}
+                  forecastContext={forecastContext}
                 />
                 <StrategySelector
                   selectedStrategies={selectedStrategies}
@@ -292,6 +381,41 @@ export default function TerminalPage() {
             )}
           </div>
         </div>
+
+        {/* Full Width Positions Panel at Bottom */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Positions & Orders</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/portfolio')}
+              className="h-7 text-xs"
+            >
+              View in Portfolio →
+            </Button>
+          </div>
+          <PositionTabs
+            selectedSymbol={selectedSymbol}
+            mode={tradingMode}
+          />
+        </div>
+
+        {/* Onboarding Overlay */}
+        {showOnboarding && (
+          <OnboardingOverlay
+            page="terminal"
+            onComplete={handleOnboardingComplete}
+            onSkip={handleOnboardingSkip}
+          />
+        )}
+
+        {/* Help Drawer */}
+        <TerminalHelpDrawer
+          isOpen={showHelp}
+          onClose={() => setShowHelp(false)}
+          context={helpContext}
+        />
       </div>
   );
 }
