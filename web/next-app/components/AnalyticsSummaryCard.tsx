@@ -7,13 +7,21 @@ import { BarChart3, TrendingUp, Brain, Activity, ArrowRight } from "lucide-react
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { fetcher } from "@/lib/api";
+import { useSymbols } from "@/lib/hooks";
 
 export function AnalyticsSummaryCard() {
   const router = useRouter();
+  const { symbols } = useSymbols();
 
-  const { data: forecastsData } = useSWR("/api/forecast/batch?limit=50", fetcher, {
-    refreshInterval: 30000,
-  });
+  const { data: forecastsData } = useSWR(
+    symbols.length > 0
+      ? `/api/forecast/batch?symbols=${encodeURIComponent(symbols.join(","))}&horizon=1h&limit=50`
+      : null,
+    fetcher,
+    {
+      refreshInterval: 30000,
+    }
+  );
   const { data: strategiesData } = useSWR("/api/strategies/performance/summary", fetcher, {
     refreshInterval: 30000,
   });

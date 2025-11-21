@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
+import { useSymbols } from "@/lib/hooks";
 import { useToast } from "@/hooks/use-toast";
 import { TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 
@@ -28,11 +29,14 @@ const CHECK_INTERVAL = 60_000; // Check every minute
 
 export function ForecastAlertSystem() {
   const { toast } = useToast();
+  const { symbols } = useSymbols();
   const [previousForecasts, setPreviousForecasts] = useState<Map<string, Forecast>>(new Map());
   const [alertedChanges, setAlertedChanges] = useState<Set<string>>(new Set());
 
   const { data: forecastData } = useSWR(
-    "/api/forecast/batch?limit=20&horizon=1h",
+    symbols.length > 0
+      ? `/api/forecast/batch?symbols=${encodeURIComponent(symbols.join(","))}&limit=20&horizon=1h`
+      : null,
     fetcher,
     {
       refreshInterval: CHECK_INTERVAL,

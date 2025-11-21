@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { SymbolDisplay } from "@/components/CryptoSelector";
 import { TrendingUp, TrendingDown, Sparkles, AlertTriangle } from "lucide-react";
 import { fetcher } from "@/lib/api";
+import { useSymbols } from "@/lib/hooks";
 import { useRouter } from "next/router";
 import { useMode } from "@/lib/mode-context";
 
@@ -39,10 +40,17 @@ type Opportunity = {
 export function OpportunitiesRightNow() {
   const { isEasyMode } = useMode();
   const router = useRouter();
+  const { symbols } = useSymbols();
 
-  const { data: forecastData } = useSWR("/api/forecast/batch?limit=20", fetcher, {
-    refreshInterval: 20_000,
-  });
+  const { data: forecastData } = useSWR(
+    symbols.length > 0
+      ? `/api/forecast/batch?symbols=${encodeURIComponent(symbols.join(","))}&horizon=1h&limit=20`
+      : null,
+    fetcher,
+    {
+      refreshInterval: 20_000,
+    }
+  );
 
   const { data: allocatorData } = useSWR("/api/learning/allocator", fetcher, {
     refreshInterval: 60_000,

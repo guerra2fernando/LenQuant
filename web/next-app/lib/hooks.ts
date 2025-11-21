@@ -114,3 +114,32 @@ export function useRegimeBatch(symbols: string[], interval: string = "1h") {
   };
 }
 
+// Symbols management hook
+export function useSymbols() {
+  // Default fallback symbols for when API isn't ready
+  const FALLBACK_SYMBOLS = ["BTC/USD", "ETH/USDT", "SOL/USDT"];
+
+  const { data: overview, error, isLoading } = useSWR<{
+    available_symbols: string[];
+    default_symbols: string[];
+  }>("/api/admin/overview", fetcher, {
+    refreshInterval: 300000, // Refresh every 5 minutes
+    revalidateOnFocus: true,
+  });
+
+  const availableSymbols = overview?.available_symbols ?? [];
+  const defaultSymbols = overview?.default_symbols ?? FALLBACK_SYMBOLS;
+
+  // Use available symbols if we have them, otherwise use defaults
+  const symbols = availableSymbols.length > 0 ? availableSymbols : defaultSymbols;
+
+  return {
+    symbols,
+    availableSymbols,
+    defaultSymbols,
+    isLoading,
+    isError: !!error,
+    error,
+  };
+}
+

@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { useMode } from "@/lib/mode-context";
 import { fetcher } from "@/lib/api";
-import { useRegime } from "@/lib/hooks";
+import { useRegime, useSymbols } from "@/lib/hooks";
 import { MacroRegimeCard } from "@/components/MacroRegimeCard";
 
 type ForecastBatchResponse = {
@@ -51,10 +51,10 @@ export default function InsightsPage() {
   const router = useRouter();
   const { isEasyMode } = useMode();
   const [mounted, setMounted] = useState(false);
+  const { symbols } = useSymbols();
 
   // Forecasts data
-  const DEFAULT_SYMBOLS = ["BTC/USD", "ETH/USDT", "SOL/USDT"];
-  const { data: forecastData, isLoading: isLoadingForecasts } = useBatchForecast("1h", DEFAULT_SYMBOLS);
+  const { data: forecastData, isLoading: isLoadingForecasts } = useBatchForecast("1h", symbols);
   const forecastRows: ForecastRow[] = useMemo(
     () => (forecastData as ForecastBatchResponse | undefined)?.forecasts ?? [],
     [forecastData],

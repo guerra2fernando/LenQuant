@@ -28,8 +28,19 @@ export function ExchangeStatusBadge() {
     );
   }
 
-  const isConnected = data?.connected === true;
-  const health = data?.health || "unknown";
+  // Extract Binance status from new API structure
+  const exchangeName = "binance";
+  const binanceStatus = data?.exchanges?.[exchangeName] || {};
+  const isConnected = binanceStatus.connected === true;
+
+  // Determine health from status
+  const statusToHealth: Record<string, string> = {
+    "connected": "healthy",
+    "error": "unhealthy",
+    "disconnected": "unknown",
+    "not_configured": "unknown",
+  };
+  const health = statusToHealth[binanceStatus.status] || "unknown";
 
   // Determine the status and color
   let statusColor = "bg-red-500";

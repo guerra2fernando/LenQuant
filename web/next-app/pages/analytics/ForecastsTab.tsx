@@ -10,9 +10,9 @@ import { TooltipExplainer } from "@/components/TooltipExplainer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildApiUrl, fetcher } from "@/lib/api";
+import { useSymbols } from "@/lib/hooks";
 
 const HORIZONS = ["1m", "1h", "1d"] as const;
-const DEFAULT_SYMBOLS = ["BTC/USD", "ETH/USDT", "SOL/USDT"];
 const HISTORY_LENGTH = 60;
 
 type RawForecast = ForecastRow & {
@@ -38,7 +38,7 @@ function useBatchForecast(horizon: string, symbols: string[]) {
 
 export default function ForecastsTab() {
   const [horizon, setHorizon] = useState<(typeof HORIZONS)[number]>("1h");
-  const [symbols] = useState(DEFAULT_SYMBOLS);
+  const { symbols } = useSymbols();
   const { data, isLoading, error, mutate } = useBatchForecast(horizon, symbols);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isExporting, setIsExporting] = useState(false);

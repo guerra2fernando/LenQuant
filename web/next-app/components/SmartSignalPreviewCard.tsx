@@ -8,13 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bell, TrendingUp, TrendingDown } from "lucide-react";
 import { fetcher } from "@/lib/api";
+import { useSymbols } from "@/lib/hooks";
 import { SymbolDisplay } from "./CryptoSelector";
 import { formatPercent } from "@/lib/utils";
 
 export function SmartSignalPreviewCard() {
+  const { symbols } = useSymbols();
+
   // Use server-side filtering for better performance
   const { data: forecastData } = useSWR(
-    "/api/forecast/batch?min_confidence=0.8&sort_by=confidence&sort_order=desc&limit=1", 
+    symbols.length > 0
+      ? `/api/forecast/batch?symbols=${encodeURIComponent(symbols.join(","))}&horizon=1h&min_confidence=0.8&sort_by=confidence&sort_order=desc&limit=1`
+      : null,
     fetcher
   );
 
