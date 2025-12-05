@@ -15,10 +15,11 @@ services:
       --tcp-keepalive 60
       --timeout 300
       --repl-disable-tcp-nodelay no
+      --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -28,8 +29,17 @@ services:
     restart: unless-stopped
     ports:
       - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=lenquant
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   api:
     build:
@@ -38,9 +48,9 @@ services:
     env_file:
       - ../.env
     environment:
-      - MONGO_URI=mongodb://mongo:27017/lenquant
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MONGO_URI=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/lenquant?authSource=admin
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_EXPERIMENT_QUEUE=experiments
       # Authentication variables
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -50,6 +60,7 @@ services:
       - JWT_EXPIRATION_MINUTES=${JWT_EXPIRATION_MINUTES:-60}
       - ALLOWED_GOOGLE_EMAILS=${ALLOWED_GOOGLE_EMAILS}
       - SYSTEM_ADMIN_TOKEN=${SYSTEM_ADMIN_TOKEN}
+      - EXCHANGE_API_ENCRYPTION_KEY=${EXCHANGE_API_ENCRYPTION_KEY}
     ports:
       - "8000:8000"
     depends_on:
@@ -82,10 +93,11 @@ services:
     env_file:
       - ../.env
     environment:
-      - MONGO_URI=mongodb://mongo:27017/lenquant
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MONGO_URI=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/lenquant?authSource=admin
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_EXPERIMENT_QUEUE=experiments
+      - EXCHANGE_API_ENCRYPTION_KEY=${EXCHANGE_API_ENCRYPTION_KEY}
     depends_on:
       - mongo
       - redis
@@ -96,12 +108,11 @@ services:
     ports:
       - "5555:5555"
     environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - FLOWER_BASIC_AUTH=${FLOWER_BASIC_AUTH:-admin:admin}
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - FLOWER_BASIC_AUTH=${FLOWER_BASIC_AUTH}
     depends_on:
       - redis
 
 volumes:
   mongo-data:
   redis-data:
-
