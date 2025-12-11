@@ -5,7 +5,7 @@ The macro analysis package provides market regime detection, sentiment analysis,
 
 ## Current Status: Phase 1 Complete ✅
 
-### Phase 1: Market Regime Detection Foundation
+### Market Regime Detection Foundation
 **Completed:** November 2025
 
 #### Components Built

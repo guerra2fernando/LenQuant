@@ -1,4 +1,4 @@
-"""Unit tests for Phase 3: Risk Manager Regime Integration.
+"""Unit tests for Risk Manager Regime Integration.
 
 Tests regime multiplier logic, position sizing adjustments, and monitoring metrics.
 """

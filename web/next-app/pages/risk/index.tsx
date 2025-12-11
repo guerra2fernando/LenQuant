@@ -43,7 +43,7 @@ export default function RiskDashboardPage() {
     await Promise.all([refreshBreaches(), refreshSummary()]);
   };
 
-  // Phase 1: Calculate pre-breach warnings
+  // Calculate pre-breach warnings
   const totalExposure = Object.values(openExposure).reduce((sum, value) => sum + value, 0);
   const maxExposure = metrics.max_open_exposure_usd ?? 1;
   const exposurePercent = (totalExposure / maxExposure) * 100;
@@ -71,7 +71,7 @@ export default function RiskDashboardPage() {
             Monitor exposure limits, track breaches, and review risk metrics across all trading modes.
           </p>
         </div>
-        {/* Phase 1: Quick link to adjust limits */}
+        {/* Quick link to adjust limits */}
         <div className="flex gap-2">
           <Link href="/settings?tab=trading">
             <Button variant="outline" size="sm">
@@ -86,7 +86,7 @@ export default function RiskDashboardPage() {
         </div>
       </div>
 
-      {/* Phase 1: Pre-breach Warnings */}
+      {/* Pre-breach Warnings */}
       {(showExposureWarning || showDailyLossWarning) && (
         <Alert variant="warning" className="border-yellow-500/50 bg-yellow-500/10">
           <AlertTriangle className="h-4 w-4 text-yellow-600" />

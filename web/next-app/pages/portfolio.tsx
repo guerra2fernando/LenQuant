@@ -201,7 +201,7 @@ export default function PortfolioPage() {
         
         {["paper", "testnet", "live"].map((mode) => (
           <TabsContent key={mode} value={mode} className="space-y-4">
-            {/* Phase 1: Portfolio Actions Card */}
+            {/* Portfolio Actions Card */}
             <PortfolioActionsCard 
               mode={mode}
               balance={modeData.wallet_balance || 0}
@@ -209,7 +209,7 @@ export default function PortfolioPage() {
               isExchangeConnected={exchangeStatus?.connected === true}
             />
 
-            {/* Phase 1: Position Insights */}
+            {/* Position Insights */}
             <PositionInsightsCard positions={modeData.positions || []} />
 
             {/* Mode Summary Cards */}

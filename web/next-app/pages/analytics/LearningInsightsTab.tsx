@@ -236,7 +236,7 @@ export default function LearningInsightsTab() {
 
       <OpportunitiesRightNow />
 
-      {/* Phase 6: Learning Impact Chart */}
+      {/* Learning Impact Chart */}
       {showTechnicalView && <LearningImpactChart metrics={learningImpact} />}
 
       {/* Beginner View: Plain English Summary */}

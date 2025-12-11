@@ -137,7 +137,7 @@ export default function LearningTab(): JSX.Element {
         </Card>
       )}
 
-      {/* Phase 6: Schedule Configuration */}
+      {/* Schedule Configuration */}
       <ScheduleConfigurationCard />
 
       {draft && (

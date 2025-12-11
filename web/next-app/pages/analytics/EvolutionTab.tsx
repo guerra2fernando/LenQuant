@@ -35,7 +35,7 @@ export default function EvolutionTab() {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
   
-  // Phase 5: New state for enhanced UX
+  // New state for enhanced UX
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [showDiversity, setShowDiversity] = useState(false);
@@ -175,7 +175,7 @@ export default function EvolutionTab() {
     };
   }, [activeTaskId, refreshLeaderboard, refreshQueue]);
 
-  // Phase 5: Mock data for new components (replace with real API calls)
+  // Mock data for new components (replace with real API calls)
   const mockGenerations = [
     { generation: 1, strategies: 15, champions: 3, avgFitness: 45.2, bestFitness: 67.8, timestamp: new Date(Date.now() - 86400000 * 3).toISOString() },
     { generation: 2, strategies: 18, champions: 4, avgFitness: 52.1, bestFitness: 72.3, timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
@@ -207,7 +207,7 @@ export default function EvolutionTab() {
         <p className="text-sm text-muted-foreground">Spawn strategy mutations, monitor fitness, and promote champions.</p>
       </div>
 
-      {/* Phase 5: Experiment Presets */}
+      {/* Experiment Presets */}
       <EvolutionPresets
         symbol={symbol}
         interval={interval}
@@ -417,7 +417,7 @@ export default function EvolutionTab() {
         <MutationQueueDrawer items={queueItems} />
       </div>
 
-      {/* Phase 5: Collapsible Advanced Sections */}
+      {/* Collapsible Advanced Sections */}
       <div className="space-y-4">
         <Button
           variant="outline"
@@ -432,7 +432,7 @@ export default function EvolutionTab() {
           <div className="space-y-6">
             <GenomeComparisonPanel strategy={selectedStrategy} runs={selectedRuns} />
             
-            {/* Phase 5: Timeline Toggle */}
+            {/* Timeline Toggle */}
             <div>
               <Button
                 variant="outline"
@@ -445,7 +445,7 @@ export default function EvolutionTab() {
               {showTimeline && <EvolutionTimeline generations={mockGenerations} />}
             </div>
 
-            {/* Phase 5: Diversity Toggle */}
+            {/* Diversity Toggle */}
             <div>
               <Button
                 variant="outline"
@@ -488,7 +488,7 @@ export default function EvolutionTab() {
         </CardContent>
       </Card>
 
-      {/* Phase 5: Post-Run Summary Modal */}
+      {/* Post-Run Summary Modal */}
       <PostRunSummaryModal
         open={showPostRunModal}
         onOpenChange={setShowPostRunModal}

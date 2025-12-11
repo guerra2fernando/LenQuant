@@ -46,7 +46,7 @@ export default function KnowledgePage() {
     fetcher,
   );
   
-  // Phase 6: Filters
+  // Filters
   const [filters, setFilters] = useState({
     tags: [] as string[],
     winnersOnly: false,
@@ -68,7 +68,7 @@ export default function KnowledgePage() {
       .slice(0, 6);
   }, [selectedEntry]);
 
-  // Phase 6: Export function
+  // Export function
   const handleExportAll = () => {
     const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -80,7 +80,7 @@ export default function KnowledgePage() {
     toast.success("Knowledge base exported");
   };
 
-  // Phase 6: Mock enhanced entries with tags (would come from API)
+  // Mock enhanced entries with tags (would come from API)
   const enhancedEntries = useMemo(() => {
     return entries.map((entry, idx) => ({
       _id: entry.period,

@@ -1,5 +1,5 @@
 """
-Tests for Phase 4: Strategy Evolution Regime Scoring
+Tests for Strategy Evolution Regime Scoring
 
 Tests regime-aware strategy evaluation, promotion, and leaderboard functionality.
 """

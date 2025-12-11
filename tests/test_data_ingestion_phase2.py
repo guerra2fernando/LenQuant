@@ -1,4 +1,4 @@
-"""Unit tests for Phase 2: Real-time Progress Tracking."""
+"""Unit tests for Real-time Progress Tracking."""
 from __future__ import annotations
 
 import pytest

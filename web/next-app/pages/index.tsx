@@ -244,10 +244,10 @@ export default function Home(): JSX.Element {
           </Link>
         )}
 
-        {/* Phase 1: Setup Progress Card (shown until complete) */}
+        {/* Setup Progress Card (shown until complete) */}
         <SetupProgressCard />
 
-        {/* Phase 1: Recommended Next Action */}
+        {/*  Recommended Next Action */}
         <RecommendedActionCard />
 
         {/* Quick Actions */}
@@ -314,7 +314,7 @@ export default function Home(): JSX.Element {
           </Link>
         </div>
 
-        {/* Phase 1: Three-column layout for new cards */}
+        {/* Three-column layout for new cards */}
         {hasData && (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <TradingPairsCard />
@@ -323,16 +323,16 @@ export default function Home(): JSX.Element {
           </div>
         )}
 
-        {/* Phase 1: System Health Card */}
+        {/*System Health Card */}
         {hasData && <SystemHealthCard />}
 
-        {/* Phase 2: Analytics Summary Card */}
+        {/* Analytics Summary Card */}
         {hasData && <AnalyticsSummaryCard />}
 
-        {/* Phase 5: Evolution Progress Card */}
+        {/* Evolution Progress Card */}
         {hasData && <EvolutionProgressCard />}
 
-        {/* Phase 6: Learning Progress Card */}
+        {/* Learning Progress Card */}
         <LearningProgressCard />
 
         {/* System Status Indicator */}
@@ -427,10 +427,10 @@ export default function Home(): JSX.Element {
         </Link>
       )}
 
-      {/* Phase 1: Setup Progress Card (shown until complete) */}
+      {/* Setup Progress Card (shown until complete) */}
       <SetupProgressCard />
 
-      {/* Phase 1: Recommended Next Action */}
+      {/* Recommended Next Action */}
       <RecommendedActionCard />
 
       {/* Quick Actions */}
@@ -497,7 +497,7 @@ export default function Home(): JSX.Element {
         </Link>
       </div>
 
-      {/* Phase 1: Three-column layout for new cards */}
+      {/* Three-column layout for new cards */}
       {hasData && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <TradingPairsCard />
@@ -506,16 +506,16 @@ export default function Home(): JSX.Element {
         </div>
       )}
 
-      {/* Phase 1: System Health Card */}
+      {/* System Health Card */}
       {hasData && <SystemHealthCard />}
 
-      {/* Phase 2: Analytics Summary Card */}
+      {/* Analytics Summary Card */}
       {hasData && <AnalyticsSummaryCard />}
 
-      {/* Phase 5: Evolution Progress Card */}
+      {/* Evolution Progress Card */}
       {hasData && <EvolutionProgressCard />}
 
-      {/* Phase 6: Learning Progress Card */}
+      {/* Learning Progress Card */}
       <LearningProgressCard />
 
       {/* System Status Indicator */}

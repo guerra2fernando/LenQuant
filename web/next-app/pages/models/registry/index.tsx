@@ -51,11 +51,11 @@ export default function ModelRegistryPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   
-  // Phase 6: Model comparison
+  // Model comparison
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   
-  // Phase 6: Version history
+  // Version history
   const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   const { data, error, isLoading, mutate } = useRegistry(symbolFilter, horizonFilter);
@@ -110,7 +110,7 @@ export default function ModelRegistryPage() {
     return Math.max(...selectedModel.shap_summary_top_features.map((item) => item.importance ?? 0));
   }, [selectedModel?.shap_summary_top_features]);
 
-  // Phase 6: Retrain recommendations
+  // Retrain recommendations
   const retrainRecommendations = useMemo(() => {
     return items.map(model => {
       const ageInDays = model.trained_at 
@@ -147,7 +147,7 @@ export default function ModelRegistryPage() {
     });
   }, [items]);
 
-  // Phase 6: Mock version history (would come from API in production)
+  // Mock version history (would come from API in production)
   const versionHistory = useMemo(() => {
     if (!selectedModel) return [];
     
@@ -259,7 +259,7 @@ export default function ModelRegistryPage() {
         </div>
       </div>
 
-      {/* Phase 6: Retrain Recommendations */}
+      {/* Retrain Recommendations */}
       <ModelRetrainRecommendation 
         models={retrainRecommendations}
         onRetrain={(modelId) => {
@@ -317,7 +317,7 @@ export default function ModelRegistryPage() {
             </div>
           </div>
           
-          {/* Phase 6: Comparison Selection */}
+          {/* Comparison Selection */}
           {items.length > 0 && (
             <div className="mt-4 p-3 border rounded-md bg-muted/50">
               <p className="text-sm font-medium mb-2">Select 2-3 models to compare:</p>
@@ -344,7 +344,7 @@ export default function ModelRegistryPage() {
         </CardContent>
       </Card>
 
-      {/* Phase 6: Model Comparison Modal */}
+      {/* Model Comparison Modal */}
       <ModelComparisonModal 
         models={modelsForComparison}
         open={showComparisonModal}
@@ -393,7 +393,7 @@ export default function ModelRegistryPage() {
                     {selectedModel.symbol} • {selectedModel.horizon} • {(selectedModel.status || "candidate").toUpperCase()}
                   </CardDescription>
                 </div>
-                {/* Phase 6: Health Badge */}
+                {/* Health Badge */}
                 <ModelHealthBadge trainedAt={selectedModel.trained_at} />
               </div>
               <div className="text-right text-sm text-muted-foreground">
@@ -438,7 +438,7 @@ export default function ModelRegistryPage() {
                   </Button>
                 </div>
                 
-                {/* Phase 6: Version History Toggle */}
+                {/* Version History Toggle */}
                 <Button
                   size="sm"
                   variant="outline"
@@ -543,7 +543,7 @@ export default function ModelRegistryPage() {
         </Card>
       ) : null}
 
-      {/* Phase 6: Version History */}
+      {/* Version History */}
       {selectedModel && showVersionHistory && (
         <ModelVersionHistory 
           versions={versionHistory}

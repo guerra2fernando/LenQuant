@@ -1,5 +1,5 @@
 """
-Tests for Phase 1: Core Async Data Ingestion Infrastructure.
+Tests for Core Async Data Ingestion Infrastructure.
 
 These tests verify the basic functionality of the asynchronous data ingestion system.
 """
