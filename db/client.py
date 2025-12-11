@@ -5,6 +5,7 @@ import os
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Iterator, List, Optional
+from urllib.parse import urlparse
 
 import pandas as pd
 from pymongo import MongoClient
@@ -24,8 +25,20 @@ def mongo_client() -> Iterator[MongoClient]:
 
 
 def get_database_name(default: str = "cryptotrader") -> str:
+    """
+    Return the database name from MONGO_URI, stripping any query params
+    (e.g. ?authSource=admin) so we don't accidentally treat them as part
+    of the DB name (which was creating databases like
+    "lenquant?authSource=admin").
+    """
     uri = _mongo_uri()
-    return uri.rsplit("/", 1)[-1] if "/" in uri else default
+    parsed = urlparse(uri)
+    # parsed.path includes a leading '/', e.g. '/lenquant'
+    path = parsed.path.lstrip("/")
+    if not path:
+        return default
+    # If there are extra path segments, take the first one
+    return path.split("/", 1)[0]
 
 
 def get_ohlcv_df(symbol: str, interval: str, limit: int | None = None) -> pd.DataFrame:
