@@ -61,12 +61,12 @@ def update_user_login(user_id: str) -> None:
 
 
 def is_email_allowed(email: str) -> bool:
-    """Check if email is in whitelist (Phase 1)."""
+    """Check if email is in whitelist."""
     import os
     
     allowed_emails = os.getenv("ALLOWED_GOOGLE_EMAILS", "")
     if not allowed_emails:
-        # If no whitelist, allow all (Phase 2 behavior)
+        # If no whitelist, allow all 
         return True
     
     allowed_list = [e.strip() for e in allowed_emails.split(",")]

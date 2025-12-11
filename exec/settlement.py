@@ -1,4 +1,4 @@
-"""Ledger, settlement, and accounting utilities for Phase 5 trading."""
+"""Ledger, settlement, and accounting utilities for trading."""
 from __future__ import annotations
 
 import hashlib
@@ -141,7 +141,7 @@ class SettlementEngine:
             "realized_pnl": float(realized_pnl),
             "updated_at": now,
             "metadata": metadata or {},
-            # Attribution fields for Phase 3 portfolio hierarchy
+            # Attribution fields
             "strategy_id": strategy_id,
             "cohort_id": cohort_id,
             "genome_id": genome_id,
@@ -406,4 +406,4 @@ class SettlementEngine:
                 payload[key] = value.isoformat()
         return payload
 
-"""Ledger, settlement, and accounting utilities for Phase 5 trading."""
+"""Ledger, settlement, and accounting utilities for trading."""

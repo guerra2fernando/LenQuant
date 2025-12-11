@@ -233,7 +233,6 @@ def notify_ingestion_complete(job_id: str, symbol: str, interval: str):
     try:
         # For now, we don't have user_id context in background tasks
         # We'll broadcast to admin user or skip user-specific notification
-        # In Phase 3, we can improve this to track which user initiated the job
         logger.info(f"Data ingestion completed: {symbol} {interval} (job: {job_id})")
     except Exception as e:
         logger.error(f"Failed to send ingestion completion notification: {e}")

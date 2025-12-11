@@ -1,4 +1,4 @@
-"""Experiment orchestration utilities for Phase 2."""
+"""Experiment orchestration utilities"""
 
 from .experiment_runner import ExperimentRequest, run_experiment_cycle
 

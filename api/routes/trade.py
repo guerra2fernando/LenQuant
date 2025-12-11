@@ -139,7 +139,7 @@ def run_reconciliation(modes: Optional[List[str]] = None) -> Dict[str, Any]:
 
 
 # ========================================================================
-# Portfolio Management Endpoints (Phase 1)
+# Portfolio Management Endpoints 
 # ========================================================================
 
 
@@ -428,7 +428,7 @@ def get_cohort_performance(mode: Optional[str] = None) -> Dict[str, Any]:
     """
     Aggregate P&L and position counts by cohort.
     Useful for understanding which cohorts are profitable.
-    Phase 3: Hierarchy & Attribution feature.
+     Hierarchy & Attribution feature.
     """
     from exec.settlement import POSITIONS_COLLECTION
     
@@ -473,7 +473,7 @@ def get_cohort_performance(mode: Optional[str] = None) -> Dict[str, Any]:
 
 
 # ========================================================================
-# Portfolio Caching Endpoints (Phase 4)
+# Portfolio Caching Endpoints 
 # ========================================================================
 
 PORTFOLIO_CACHE_COLLECTION = "portfolio_snapshots"
@@ -485,7 +485,7 @@ def get_cached_portfolio_summary() -> Dict[str, Any]:
     Fetch pre-calculated portfolio from cache.
     Much faster than real-time calculation.
     Falls back to real-time if cache is stale or missing.
-    Phase 4: Real-time & Caching feature.
+    Real-time & Caching feature.
     """
     import logging
     

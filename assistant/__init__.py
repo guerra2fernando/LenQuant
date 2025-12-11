@@ -1,4 +1,4 @@
-"""Assistant Phase 4 utilities: retrieval, explanation, action management."""
+"""Assistant utilities: retrieval, explanation, action management."""
 
 from .action_manager import ActionManager
 from .explainer import AssistantExplainer

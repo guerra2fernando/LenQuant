@@ -81,7 +81,7 @@ async def login_with_google(request: GoogleLoginRequest) -> Token:
         name = idinfo.get("name", email.split("@")[0])
         picture = idinfo.get("picture")
         
-        # Check if email is allowed (Phase 1 whitelist)
+        # Check if email is allowed
         if not is_email_allowed(email):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -98,7 +98,7 @@ async def login_with_google(request: GoogleLoginRequest) -> Token:
                 email=email,
                 name=name,
                 picture=picture,
-                is_admin=True,  # Phase 1: First user is admin
+                is_admin=True,  
             )
             user = create_user(user)
         else:

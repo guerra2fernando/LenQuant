@@ -1,4 +1,4 @@
-"""Autonomous evolution engine for Phase 6."""
+"""Autonomous evolution engine """
 from __future__ import annotations
 
 from .engine import EvolutionEngine, EvolutionSchedulerState

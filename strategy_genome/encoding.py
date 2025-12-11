@@ -1,4 +1,4 @@
-"""Helpers for representing strategy genomes used in Phase 2."""
+"""Helpers for representing strategy genomes"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

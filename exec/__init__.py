@@ -1,4 +1,4 @@
-"""Trading execution package for Phase 5."""
+"""Trading execution package."""
 
 from .connector import CCXTConnector, ExchangeConnector, PaperConnector
 from .order_manager import OrderManager, OrderRequest, OrderResponse, OrderStatus
@@ -31,7 +31,7 @@ __all__ = [
     "LedgerSnapshot",
     "TradeAuditor",
 ]
-"""Trading execution package for Phase 5."""
+"""Trading execution package"""
 
 from .connector import CCXTConnector, ExchangeConnector, PaperConnector
 from .order_manager import OrderManager, OrderRequest, OrderResponse, OrderStatus

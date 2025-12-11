@@ -1,4 +1,4 @@
-"""Risk management logic and trading settings for Phase 5."""
+"""Risk management logic and trading settings"""
 from __future__ import annotations
 
 import logging

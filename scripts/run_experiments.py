@@ -7,7 +7,7 @@ from manager.experiment_runner import ExperimentRequest, run_experiment_cycle
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run Phase 2 experiment cycle.")
+    parser = argparse.ArgumentParser(description="Run experiment cycle.")
     parser.add_argument("--symbol", default="BTC/USD")
     parser.add_argument("--interval", default="1m")
     parser.add_argument("--horizon", default=None)

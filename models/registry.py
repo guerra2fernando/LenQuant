@@ -1,4 +1,4 @@
-"""Mongo-backed model registry helpers for Phase 1."""
+"""Mongo-backed model registry helpers"""
 from __future__ import annotations
 
 from datetime import datetime

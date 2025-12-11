@@ -53,13 +53,13 @@ db.parent_wallet_snapshots.createIndex({ mode: 1, timestamp: -1 }, { name: "pare
 db.portfolio_snapshots.createIndex({ mode: 1 }, { name: "portfolio_cache_by_mode", unique: true })
 db.portfolio_snapshots.createIndex({ cached_at: -1 }, { name: "portfolio_cache_freshness" })
 
-// UX Improvements - Phase 1: Critical Foundations
+// UX Improvements 
 db.user_setup_progress.createIndex({ user_id: 1 }, { unique: true })
 db.exchange_connections.createIndex({ user_id: 1, exchange: 1 }, { unique: true })
 db.exchange_connections.createIndex({ status: 1 })
 db.exchange_connections.createIndex({ last_tested: -1 })
 
-// UX Improvements - Phase 3: Actionable Insights
+// UX Improvements 
 db.forecast_outcomes.createIndex({ forecast_id: 1 })
 db.forecast_outcomes.createIndex({ symbol: 1, horizon: 1, evaluated_at: -1 })
 db.forecast_outcomes.createIndex({ was_correct: 1 })
@@ -69,7 +69,7 @@ db.active_strategies.createIndex({ mode: 1, status: 1 })
 db.active_strategies.createIndex({ status: 1, activated_at: -1 })
 db.active_strategies.createIndex({ user_id: 1, mode: 1 })
 
-// UX Improvements - Phase 6: Background Automation
+// UX Improvements 
 db.learning_jobs.createIndex({ job_id: 1 }, { unique: true })
 db.learning_jobs.createIndex({ status: 1, started_at: -1 })
 db.learning_jobs.createIndex({ started_at: -1 })

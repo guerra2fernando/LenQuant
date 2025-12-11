@@ -97,7 +97,7 @@ celery_app.conf.update(
             'schedule': crontab(hour=3, minute=0),  # Daily at 3:00 AM
         },
 
-        # Portfolio snapshot caching - runs every 10 seconds (Phase 4)
+        # Portfolio snapshot caching - runs every 10 seconds 
         'cache-portfolio-every-10-seconds': {
             'task': 'manager.tasks.cache_portfolio_snapshot',
             'schedule': 10.0,  # Every 10 seconds

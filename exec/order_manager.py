@@ -1,4 +1,4 @@
-"""Order lifecycle management for Phase 5 trading."""
+"""Order lifecycle management for trading."""
 from __future__ import annotations
 
 import logging
