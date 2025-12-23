@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+from urllib.parse import urlparse, urlunparse
 
 import ccxt  # type: ignore
 from pymongo import MongoClient
@@ -63,6 +64,26 @@ def _get_interval_seconds(interval: str) -> int:
     return int(exchange.parse_timeframe(interval))
 
 
+def _clean_mongo_uri(uri: str) -> str:
+    """
+    Remove database name from MongoDB URI to avoid parsing issues.
+    Returns URI without database name in path, preserving query params.
+    """
+    parsed = urlparse(uri)
+    # Remove database name from path (keep only the leading /)
+    clean_path = "/"
+    # Reconstruct URI without database name
+    clean_uri = urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        clean_path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment
+    ))
+    return clean_uri
+
+
 def detect_data_gaps(
     symbol: str,
     interval: str,
@@ -96,7 +117,9 @@ def detect_data_gaps(
         f"(interval={interval_seconds}s, threshold={threshold_seconds}s)"
     )
     
-    with MongoClient(config.mongo_uri) as client:
+    # Clean URI to remove database name from path (prevents issues with query params)
+    clean_uri = _clean_mongo_uri(config.mongo_uri)
+    with MongoClient(clean_uri) as client:
         db = client.get_database(config.database)
         collection = db["ohlcv"]
         
@@ -172,7 +195,9 @@ def detect_recent_data_gaps(
     
     logger.info(f"Detecting gaps for {symbol} {interval} since {cutoff_date}")
     
-    with MongoClient(config.mongo_uri) as client:
+    # Clean URI to remove database name from path (prevents issues with query params)
+    clean_uri = _clean_mongo_uri(config.mongo_uri)
+    with MongoClient(clean_uri) as client:
         db = client.get_database(config.database)
         collection = db["ohlcv"]
         
@@ -234,7 +259,9 @@ def get_all_symbols_gaps(
     config = config or IngestConfig.from_env()
     all_gaps: Dict[str, List[DataGap]] = {}
     
-    with MongoClient(config.mongo_uri) as client:
+    # Clean URI to remove database name from path (prevents issues with query params)
+    clean_uri = _clean_mongo_uri(config.mongo_uri)
+    with MongoClient(clean_uri) as client:
         db = client.get_database(config.database)
         
         # Get all enabled symbols

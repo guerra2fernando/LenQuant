@@ -6,6 +6,7 @@ import time
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
 from typing import Callable, Iterable, Optional
+from urllib.parse import urlparse, urlunparse
 
 import ccxt  # type: ignore
 from pymongo import MongoClient, UpdateOne
@@ -34,6 +35,26 @@ def get_rate_limiter(config: Optional[IngestConfig] = None) -> RateLimiter:
 def _exchange(name: str) -> ccxt.Exchange:
     exchange_class = getattr(ccxt, name)
     return exchange_class({"enableRateLimit": True})
+
+
+def _clean_mongo_uri(uri: str) -> str:
+    """
+    Remove database name from MongoDB URI to avoid parsing issues.
+    Returns URI without database name in path, preserving query params.
+    """
+    parsed = urlparse(uri)
+    # Remove database name from path (keep only the leading /)
+    clean_path = "/"
+    # Reconstruct URI without database name
+    clean_uri = urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        clean_path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment
+    ))
+    return clean_uri
 
 
 def _build_ops(symbol: str, timeframe: str, rows: Iterable[list], source: str) -> list[UpdateOne]:
@@ -190,7 +211,9 @@ def fetch_symbol_interval(
         expected_batches,
     )
 
-    with MongoClient(config.mongo_uri) as client:
+    # Clean URI to remove database name from path (prevents issues with query params)
+    clean_uri = _clean_mongo_uri(config.mongo_uri)
+    with MongoClient(clean_uri) as client:
         db = client.get_database(config.database)
         collection = db["ohlcv"]
 

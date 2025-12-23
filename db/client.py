@@ -5,7 +5,7 @@ import os
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Iterator, List, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import pandas as pd
 from pymongo import MongoClient
@@ -15,9 +15,32 @@ def _mongo_uri() -> str:
     return os.getenv("MONGO_URI", "mongodb://localhost:27017/cryptotrader")
 
 
+def _clean_mongo_uri(uri: str) -> str:
+    """
+    Remove database name from MongoDB URI to avoid parsing issues.
+    Returns URI without database name in path, preserving query params.
+    """
+    parsed = urlparse(uri)
+    # Remove database name from path (keep only the leading /)
+    clean_path = "/"
+    # Reconstruct URI without database name
+    clean_uri = urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        clean_path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment
+    ))
+    return clean_uri
+
+
 @contextmanager
 def mongo_client() -> Iterator[MongoClient]:
-    client = MongoClient(_mongo_uri())
+    # Clean URI to remove database name from path (prevents issues with query params)
+    uri = _mongo_uri()
+    clean_uri = _clean_mongo_uri(uri)
+    client = MongoClient(clean_uri)
     try:
         yield client
     finally:
@@ -29,7 +52,7 @@ def get_database_name(default: str = "cryptotrader") -> str:
     Return the database name from MONGO_URI, stripping any query params
     (e.g. ?authSource=admin) so we don't accidentally treat them as part
     of the DB name (which was creating databases like
-    "lenquant?authSource=admin").
+    "lenquant?authSource=ad").
     """
     uri = _mongo_uri()
     parsed = urlparse(uri)
