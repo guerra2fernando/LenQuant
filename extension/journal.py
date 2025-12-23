@@ -537,3 +537,4 @@ class JournalRepository:
         
         return summary
 
+

@@ -205,8 +205,21 @@ def fetch_symbol_interval(
 
                 ops = _build_ops(symbol, timeframe, candles, config.source)
                 if ops:
-                    collection.bulk_write(ops, ordered=False)
-                    total += len(ops)
+                    try:
+                        collection.bulk_write(ops, ordered=False)
+                        total += len(ops)
+                    except Exception as e:
+                        error_msg = str(e)
+                        if "collection dropped" in error_msg.lower():
+                            logger.error(
+                                "Collection 'ohlcv' was dropped during bulk write operation for %s %s. "
+                                "Stopping data fetch to prevent further errors. Error: %s",
+                                symbol, timeframe, error_msg
+                            )
+                            break
+                        else:
+                            # Re-raise other errors
+                            raise
 
                 batches_completed += 1
                 

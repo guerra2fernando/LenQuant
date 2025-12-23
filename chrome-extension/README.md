@@ -38,6 +38,13 @@ Transform your trading with intelligent market analysis, behavioral guardrails, 
 - **Works on Production**: Connects directly to LenQuant servers at `lenquant.com`
 - **Local Development**: Switch to `localhost:8000` for testing
 
+### 🌐 Self-Sufficient Mode (NEW!)
+- **Works Without Pre-Loaded Data**: Discover new symbols on Binance - no need to pre-load them in LenQuant
+- **Client-Side Fallback**: If LenQuant backend has no data for a symbol, extension fetches OHLCV directly from Binance API
+- **DOM Data Extraction**: Reads your current leverage, position, and margin type directly from Binance page
+- **Ephemeral Analysis**: Backend can analyze client-provided data without storing it
+- **Hybrid Mode**: Uses LenQuant data when available (richer history), falls back to client-side for new symbols
+
 ---
 
 ## 🚀 Installation
@@ -119,6 +126,7 @@ The extension communicates with these LenQuant API endpoints:
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/extension/context` | Fast path analysis with regime multiplier |
+| `POST /api/extension/analyze-ephemeral` | **NEW:** Analyze client-provided OHLCV (no storage) |
 | `GET /api/extension/leverage` | Dedicated leverage recommendation |
 | `POST /api/extension/explain` | AI trade explanation |
 | `POST /api/extension/journal` | Event logging |
@@ -135,6 +143,43 @@ The extension communicates with these LenQuant API endpoints:
 | `GET /api/extension/analytics` | Performance analytics |
 | `WS /ws/extension/{session_id}` | Real-time streaming |
 
+### Ephemeral Analysis Endpoint (NEW)
+
+The `POST /api/extension/analyze-ephemeral` endpoint allows analyzing any symbol without requiring LenQuant to have pre-collected data:
+
+```json
+// Request
+POST /api/extension/analyze-ephemeral
+{
+  "symbol": "NEWCOIN/USDT",
+  "timeframe": "1m",
+  "candles": [
+    {"timestamp": 1703333400000, "open": 0.50, "high": 0.52, "low": 0.49, "close": 0.51, "volume": 10000},
+    // ... 50+ candles from Binance API
+  ],
+  "dom_leverage": 10,
+  "dom_position": {"side": "long", "pnl": 5.25}
+}
+
+// Response
+{
+  "trade_allowed": true,
+  "market_state": "trend",
+  "trend_direction": "up",
+  "suggested_leverage_band": [5, 15],
+  "setup_candidates": ["pullback_continuation"],
+  "risk_flags": [],
+  "source": "ephemeral",
+  ...
+}
+```
+
+This endpoint:
+- Does **NOT** require the symbol to be tracked by LenQuant
+- Does **NOT** store the candles in the database
+- Provides full regime detection and risk analysis
+- Useful for exploring new/rare symbols on Binance
+
 ---
 
 ## 🏗️ Architecture
@@ -144,14 +189,54 @@ The extension communicates with these LenQuant API endpoints:
 ```
 chrome-extension/
 ├── manifest.json      # Extension manifest (MV3)
-├── background.js      # Service worker - API & WebSocket
-├── content.js         # DOM injection & observation
+├── background.js      # Service worker - API & WebSocket + client-side fallback
+├── binance-api.js     # Client-side Binance API fetcher (utility module)
+├── content.js         # DOM injection, observation & data extraction
 ├── panel.css          # Panel styles (Binance dark theme)
 ├── popup.html/js      # Extension popup
 ├── options.html/js    # Settings page
 └── icons/             # Extension icons
     └── generate-icons.html  # Icon generator tool
 ```
+
+### Hybrid Analysis Mode
+
+The extension uses a **hybrid approach** for maximum flexibility:
+
+```
+User views NEWCOIN/USDT on Binance
+    │
+    ▼
+Try LenQuant Backend (/api/extension/context)
+    │
+    ├─► Success? → Return backend analysis (richer history, ML features)
+    │
+    └─► Failed OR "insufficient data"?
+            │
+            ▼
+        Fallback to Client-Side Analysis
+            │
+            ├─► Fetch OHLCV from Binance Public API
+            ├─► Calculate indicators locally
+            └─► Return client-side analysis
+```
+
+This means:
+- **Known symbols** (BTC, ETH, etc.): Use LenQuant's pre-collected data with full regime detection
+- **New/rare symbols**: Extension fetches directly from Binance API and calculates locally
+- **Offline mode**: Can work even if LenQuant backend is unreachable
+
+### DOM Data Extraction
+
+The extension extracts data directly from Binance's page:
+
+| Data | Source | Usage |
+|------|--------|-------|
+| **Symbol** | URL + DOM | Trading pair identification |
+| **Timeframe** | Chart toolbar | Analysis interval |
+| **Leverage** | Leverage button | Compare to recommended band |
+| **Position** | Position panel | Track open PnL |
+| **Margin Type** | Cross/Isolated toggle | Risk context |
 
 ### Integration with LenQuant
 

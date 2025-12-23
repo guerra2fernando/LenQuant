@@ -61,6 +61,227 @@ def get_analyzer() -> ExtensionAnalyzer:
 # ============================================================================
 
 
+class EphemeralAnalysisRequest(BaseModel):
+    """Request for ephemeral analysis with client-provided OHLCV data."""
+    symbol: str
+    timeframe: str
+    candles: List[Dict[str, Any]] = Field(..., description="OHLCV candles from client")
+    dom_leverage: Optional[int] = None
+    dom_position: Optional[Dict[str, Any]] = None
+
+
+@router.post("/analyze-ephemeral")
+def analyze_ephemeral(payload: EphemeralAnalysisRequest) -> Dict[str, Any]:
+    """
+    Ephemeral analysis endpoint - analyzes client-provided OHLCV data.
+    
+    This endpoint:
+    - Does NOT require pre-collected data in LenQuant database
+    - Does NOT store the provided candles
+    - Provides full regime detection and risk analysis
+    - Useful for symbols not tracked by LenQuant
+    
+    The client fetches OHLCV from Binance API and sends it here for analysis.
+    """
+    import time
+    import pandas as pd
+    import numpy as np
+    from features.indicators import add_basic_indicators
+    from macro.regime import RegimeDetector, RegimeFeatures, TrendRegime, VolatilityRegime
+    
+    start_time = time.time()
+    logger.info("Ephemeral analysis: %s %s (%d candles)", 
+                payload.symbol, payload.timeframe, len(payload.candles))
+    
+    try:
+        # Convert candles to DataFrame
+        if len(payload.candles) < 50:
+            return {
+                "trade_allowed": False,
+                "market_state": "undefined",
+                "risk_flags": ["insufficient_data"],
+                "suggested_leverage_band": [1, 5],
+                "confidence_pattern": 0,
+                "reason": f"Insufficient data. Need 50+ candles, got {len(payload.candles)}.",
+                "latency_ms": int((time.time() - start_time) * 1000),
+                "source": "ephemeral",
+            }
+        
+        df = pd.DataFrame(payload.candles)
+        
+        # Ensure required columns
+        required = ['open', 'high', 'low', 'close', 'volume']
+        for col in required:
+            if col not in df.columns:
+                return {
+                    "trade_allowed": False,
+                    "market_state": "error",
+                    "risk_flags": ["invalid_data"],
+                    "reason": f"Missing required column: {col}",
+                    "latency_ms": int((time.time() - start_time) * 1000),
+                    "source": "ephemeral",
+                }
+        
+        # Convert types
+        for col in required:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Add indicators
+        df = add_basic_indicators(df)
+        
+        # Compute regime features
+        regime_detector = RegimeDetector()
+        df = regime_detector.compute_features(df)
+        
+        latest = df.iloc[-1]
+        
+        # Extract features
+        features = RegimeFeatures(
+            atr=float(latest.get("atr", 0) or 0),
+            atr_pct=float(latest.get("atr_pct", 0) or 0),
+            adx=float(latest.get("adx", 0) or 0),
+            bb_width=float(latest.get("bb_width", 0) or 0),
+            ma_slope_short=float(latest.get("ma_slope_short", 0) or 0),
+            ma_slope_long=float(latest.get("ma_slope_long", 0) or 0),
+            volatility_std=float(latest.get("volatility_std", 0) or 0),
+        )
+        
+        # Detect regimes
+        trend_regime, trend_conf = regime_detector.detect_trend_regime(features)
+        historical_vol = df["volatility_std"].iloc[:-1] if "volatility_std" in df.columns else None
+        vol_regime, vol_conf = regime_detector.detect_volatility_regime(features, historical_vol)
+        
+        # Market state classification
+        market_state_map = {
+            (TrendRegime.TRENDING_UP, VolatilityRegime.NORMAL_VOLATILITY): "trend",
+            (TrendRegime.TRENDING_UP, VolatilityRegime.HIGH_VOLATILITY): "trend_volatile",
+            (TrendRegime.TRENDING_DOWN, VolatilityRegime.NORMAL_VOLATILITY): "trend",
+            (TrendRegime.TRENDING_DOWN, VolatilityRegime.HIGH_VOLATILITY): "trend_volatile",
+            (TrendRegime.SIDEWAYS, VolatilityRegime.LOW_VOLATILITY): "range",
+            (TrendRegime.SIDEWAYS, VolatilityRegime.NORMAL_VOLATILITY): "range",
+            (TrendRegime.SIDEWAYS, VolatilityRegime.HIGH_VOLATILITY): "chop",
+        }
+        market_state = market_state_map.get((trend_regime, vol_regime), "range")
+        
+        # Trend direction
+        trend_direction = None
+        if trend_regime == TrendRegime.TRENDING_UP:
+            trend_direction = "up"
+        elif trend_regime == TrendRegime.TRENDING_DOWN:
+            trend_direction = "down"
+        
+        # Setup detection
+        setup_candidates = []
+        close = float(latest.get("close", 0))
+        ema_9 = latest.get("ema_9")
+        ema_21 = latest.get("ema_21")
+        
+        if trend_regime in [TrendRegime.TRENDING_UP, TrendRegime.TRENDING_DOWN]:
+            if ema_9 is not None and ema_21 is not None:
+                ema_zone = (min(float(ema_9), float(ema_21)), max(float(ema_9), float(ema_21)))
+                zone_width = ema_zone[1] - ema_zone[0]
+                if ema_zone[0] - zone_width * 0.5 <= close <= ema_zone[1] + zone_width * 0.5:
+                    setup_candidates.append("pullback_continuation")
+        
+        if trend_regime == TrendRegime.SIDEWAYS and len(df) >= 20:
+            high_20 = df["high"].tail(20).max()
+            low_20 = df["low"].tail(20).min()
+            range_size = high_20 - low_20
+            if range_size > 0:
+                if (high_20 - close) / range_size < 0.1 or (close - low_20) / range_size < 0.1:
+                    setup_candidates.append("range_breakout")
+        
+        # Risk flags
+        risk_flags = []
+        if "volume" in df.columns:
+            vol = latest.get("volume", 0)
+            avg_vol = df["volume"].tail(20).mean()
+            if avg_vol and vol and vol < avg_vol * 0.3:
+                risk_flags.append("low_volume")
+        
+        atr_pct = features.atr_pct if features.atr_pct and not np.isnan(features.atr_pct) else 0
+        if atr_pct > 5.0:
+            risk_flags.append("extreme_volatility")
+        
+        rsi = latest.get("rsi_14")
+        if rsi is not None and not pd.isna(rsi):
+            if float(rsi) > 80:
+                risk_flags.append("overbought")
+            elif float(rsi) < 20:
+                risk_flags.append("oversold")
+        
+        # Leverage band
+        max_lev = 20
+        if vol_regime == VolatilityRegime.HIGH_VOLATILITY:
+            max_lev = 8
+        elif atr_pct > 3.0:
+            max_lev = 10
+        elif atr_pct > 2.0:
+            max_lev = 15
+        if market_state == "chop":
+            max_lev = 5
+        min_lev = max(1, max_lev // 3)
+        
+        # Trade allowed
+        trade_allowed = market_state not in ["chop", "undefined"] and "extreme_volatility" not in risk_flags
+        
+        # Confidence
+        confidence = (trend_conf + vol_conf) / 2.0
+        
+        # Reason
+        state_desc = {
+            "trend": "Clean trending market",
+            "trend_volatile": "Trending with elevated volatility",
+            "range": "Ranging market",
+            "chop": "Choppy/uncertain conditions",
+        }
+        reason_parts = [state_desc.get(market_state, market_state)]
+        if setup_candidates:
+            reason_parts.append(f"Setup: {setup_candidates[0]}")
+        if risk_flags:
+            reason_parts.append(f"Caution: {', '.join(risk_flags[:2])}")
+        if not trade_allowed:
+            reason_parts.append("Wait for better conditions")
+        
+        latency_ms = int((time.time() - start_time) * 1000)
+        
+        return {
+            "trade_allowed": trade_allowed,
+            "market_state": market_state,
+            "trend_direction": trend_direction,
+            "volatility_regime": vol_regime.value,
+            "setup_candidates": setup_candidates,
+            "risk_flags": risk_flags,
+            "confidence_pattern": int(confidence * 100),
+            "suggested_leverage_band": [min_lev, max_lev],
+            "reason": ". ".join(reason_parts),
+            "regime_features": {
+                "atr": features.atr,
+                "atr_pct": features.atr_pct,
+                "adx": features.adx,
+                "rsi_14": float(rsi) if rsi is not None else None,
+                "ema_alignment": "bullish" if ema_9 and ema_21 and float(ema_9) > float(ema_21) else "bearish",
+            },
+            "latency_ms": latency_ms,
+            "source": "ephemeral",
+            "cached": False,
+            "dom_leverage": payload.dom_leverage,
+            "dom_position": payload.dom_position,
+        }
+        
+    except Exception as exc:
+        logger.error("Ephemeral analysis error: %s", exc, exc_info=True)
+        return {
+            "trade_allowed": False,
+            "market_state": "error",
+            "risk_flags": ["analysis_error"],
+            "suggested_leverage_band": [1, 5],
+            "reason": f"Analysis error: {str(exc)[:100]}",
+            "latency_ms": int((time.time() - start_time) * 1000),
+            "source": "ephemeral",
+        }
+
+
 @router.get("/context", response_model=FastAnalysisResponse)
 def get_context_analysis(
     symbol: str = Query(..., description="Trading pair (e.g., BTCUSDT)"),

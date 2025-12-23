@@ -47,7 +47,7 @@ def fetch_recent_data_task(self) -> Dict[str, Any]:
                     )
                     total_fetched += count
                 except Exception as e:
-                    self.logger.error(f"Failed to fetch {symbol} {interval}: {e}")
+                    logger.error(f"Failed to fetch {symbol} {interval}: {e}")
             
             symbols_processed += 1
 

@@ -382,3 +382,4 @@ class BehaviorAnalyzer:
             cursor = db["extension_trade_journal"].find(query).sort("opened_at", -1).limit(50)
             return list(cursor)
 
+

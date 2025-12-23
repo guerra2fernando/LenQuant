@@ -19,10 +19,158 @@ const CONFIG = {
 let currentContext = {
   symbol: null,
   timeframe: null,
+  leverage: null,
+  position: null,
 };
 let currentAnalysis = null;
 let panel = null;
 let sessionId = null;
+
+// ============================================================================
+// DOM Data Extraction (Leverage, Positions, etc.)
+// ============================================================================
+
+/**
+ * Extract current leverage setting from Binance DOM.
+ * Binance shows leverage in multiple places - we try several selectors.
+ */
+function extractLeverage() {
+  // Try various selectors for leverage display
+  const selectors = [
+    // Leverage button/display
+    '[class*="leverage"]',
+    '[data-testid*="leverage"]',
+    '.leverage-display',
+    '.cross-isolated .leverage',
+    // The leverage selector button often shows "10x", "20x" etc
+  ];
+  
+  for (const selector of selectors) {
+    try {
+      const elements = document.querySelectorAll(selector);
+      for (const el of elements) {
+        const text = el.textContent?.trim();
+        // Match patterns like "10x", "20X", "125x"
+        const match = text?.match(/(\d+)[xX]/);
+        if (match) {
+          return parseInt(match[1], 10);
+        }
+      }
+    } catch (e) {
+      // Continue to next selector
+    }
+  }
+  
+  // Fallback: look for any element with "x" suffix that looks like leverage
+  const allElements = document.querySelectorAll('*');
+  for (const el of allElements) {
+    if (el.children.length === 0) { // Only leaf nodes
+      const text = el.textContent?.trim();
+      if (text && /^(\d{1,3})[xX]$/.test(text)) {
+        const match = text.match(/^(\d{1,3})[xX]$/);
+        if (match) {
+          const lev = parseInt(match[1], 10);
+          if (lev >= 1 && lev <= 125) { // Valid Binance leverage range
+            return lev;
+          }
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract current position info from Binance DOM.
+ */
+function extractPosition() {
+  try {
+    // Look for position panel elements
+    const positionSelectors = [
+      '[class*="position-table"]',
+      '[class*="positions"]',
+      '[data-testid*="position"]',
+    ];
+    
+    for (const selector of positionSelectors) {
+      const container = document.querySelector(selector);
+      if (container) {
+        // Try to find position rows
+        const rows = container.querySelectorAll('tr, [class*="row"]');
+        for (const row of rows) {
+          const text = row.textContent;
+          // Look for long/short indicators and PnL
+          const isLong = /long/i.test(text);
+          const isShort = /short/i.test(text);
+          const pnlMatch = text.match(/([+-]?[\d,]+\.?\d*)\s*(?:USDT|USD)/);
+          
+          if ((isLong || isShort) && pnlMatch) {
+            return {
+              side: isLong ? 'long' : 'short',
+              pnl: parseFloat(pnlMatch[1].replace(/,/g, '')),
+              hasPosition: true,
+            };
+          }
+        }
+      }
+    }
+    
+    return { hasPosition: false };
+    
+  } catch (e) {
+    console.error('[LenQuant] Position extraction error:', e);
+    return { hasPosition: false };
+  }
+}
+
+/**
+ * Extract margin type (Cross/Isolated) from DOM.
+ */
+function extractMarginType() {
+  const selectors = [
+    '[class*="cross"]',
+    '[class*="isolated"]',
+    '[data-testid*="margin"]',
+  ];
+  
+  for (const selector of selectors) {
+    const elements = document.querySelectorAll(selector);
+    for (const el of elements) {
+      const text = el.textContent?.toLowerCase();
+      if (text?.includes('cross')) return 'cross';
+      if (text?.includes('isolated')) return 'isolated';
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Capture screenshot of the chart area for AI analysis.
+ */
+async function captureChartScreenshot() {
+  try {
+    // Request screenshot from background script (uses chrome.tabs.captureVisibleTab)
+    const response = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
+    return response?.screenshot || null;
+  } catch (e) {
+    console.error('[LenQuant] Screenshot capture error:', e);
+    return null;
+  }
+}
+
+/**
+ * Get all DOM-extracted data in one call.
+ */
+function extractAllDOMData() {
+  return {
+    leverage: extractLeverage(),
+    position: extractPosition(),
+    marginType: extractMarginType(),
+    timestamp: Date.now(),
+  };
+}
 
 // ============================================================================
 // DOM Observation
@@ -92,6 +240,9 @@ class BinanceContextObserver {
   }
   
   captureContext() {
+    // Extract DOM data (leverage, position, etc.)
+    const domData = extractAllDOMData();
+    
     const newContext = {
       exchange: 'binance',
       market: 'futures',
@@ -99,12 +250,17 @@ class BinanceContextObserver {
       contract: 'PERP',
       timeframe: this.extractTimeframe(),
       timestamp: Date.now(),
+      // Include DOM-extracted data
+      leverage: domData.leverage,
+      position: domData.position,
+      marginType: domData.marginType,
     };
     
-    // Check if context changed
+    // Check if context changed (including leverage changes)
     if (
       newContext.symbol !== currentContext.symbol ||
-      newContext.timeframe !== currentContext.timeframe
+      newContext.timeframe !== currentContext.timeframe ||
+      newContext.leverage !== currentContext.leverage
     ) {
       currentContext = newContext;
       
@@ -168,17 +324,32 @@ class BinanceContextObserver {
   
   async onContextChange(context) {
     try {
-      // Notify background script
+      // Show loading state
+      if (panel && panel.container) {
+        panel.container.querySelector('.lq-state-value').textContent = 'Analyzing...';
+      }
+      
+      // Notify background script with full context including DOM data
       const response = await chrome.runtime.sendMessage({
         type: 'CONTEXT_CHANGED',
         symbol: context.symbol,
         timeframe: context.timeframe,
         context,
+        domData: {
+          leverage: context.leverage,
+          position: context.position,
+          marginType: context.marginType,
+        },
       });
       
       if (response.analysis) {
         currentAnalysis = response.analysis;
         updatePanel(response.analysis);
+        
+        // Show source indicator (backend vs client-side)
+        if (response.analysis.source === 'client') {
+          console.log('[LenQuant] Using client-side analysis (backend unavailable or no data)');
+        }
       }
       
       // Check for cooldown
@@ -190,6 +361,11 @@ class BinanceContextObserver {
       
     } catch (error) {
       console.error('[LenQuant] Context change handler error:', error);
+      // On error, try to show something useful
+      if (panel && panel.container) {
+        panel.container.querySelector('.lq-state-value').textContent = 'Connection error';
+        panel.container.querySelector('.lq-reason-text').textContent = 'Unable to reach backend. Trying client-side analysis...';
+      }
     }
   }
 }
@@ -258,10 +434,16 @@ class TradingPanel {
           </div>
           
           <div class="lq-leverage-section">
-            <span class="lq-leverage-label">Leverage Band:</span>
-            <span class="lq-leverage-value">--</span>
+            <div class="lq-leverage-header">
+              <span class="lq-leverage-label">Leverage Band:</span>
+              <span class="lq-leverage-value">--</span>
+            </div>
             <div class="lq-leverage-bar">
               <div class="lq-leverage-fill"></div>
+            </div>
+            <div class="lq-current-leverage" style="display: none;">
+              <span class="lq-current-leverage-label">Your leverage:</span>
+              <span class="lq-current-leverage-value">--</span>
             </div>
             <div class="lq-regime-info">
               <span class="lq-regime-multiplier"></span>
@@ -597,9 +779,36 @@ function updatePanel(analysis) {
   // Update latency
   panel.container.querySelector('.lq-latency').textContent = `${analysis.latency_ms}ms`;
   
-  // Update connection status
-  panel.container.querySelector('.lq-sync-status').textContent = 
-    analysis.cached ? 'Cached' : 'Live';
+  // Update connection status - show source
+  const sourceText = analysis.source === 'client' ? 'Client' : analysis.cached ? 'Cached' : 'Live';
+  panel.container.querySelector('.lq-sync-status').textContent = sourceText;
+  
+  // Show user's current leverage if available
+  const currentLeverageSection = panel.container.querySelector('.lq-current-leverage');
+  const currentLeverageValue = panel.container.querySelector('.lq-current-leverage-value');
+  
+  if (analysis.dom_leverage && currentLeverageSection && currentLeverageValue) {
+    const userLev = analysis.dom_leverage;
+    const [minRec, maxRec] = analysis.suggested_leverage_band;
+    
+    currentLeverageValue.textContent = `${userLev}x`;
+    
+    // Color code: green if within range, yellow if borderline, red if too high
+    if (userLev > maxRec) {
+      currentLeverageValue.className = 'lq-current-leverage-value lq-leverage-warning';
+      currentLeverageValue.title = `Your leverage (${userLev}x) exceeds recommended max (${maxRec}x)`;
+    } else if (userLev >= minRec) {
+      currentLeverageValue.className = 'lq-current-leverage-value lq-leverage-ok';
+      currentLeverageValue.title = 'Your leverage is within recommended range';
+    } else {
+      currentLeverageValue.className = 'lq-current-leverage-value lq-leverage-conservative';
+      currentLeverageValue.title = 'Your leverage is conservative';
+    }
+    
+    currentLeverageSection.style.display = 'flex';
+  } else if (currentLeverageSection) {
+    currentLeverageSection.style.display = 'none';
+  }
 }
 
 function calculateGrade(analysis) {

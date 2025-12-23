@@ -493,6 +493,77 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Current Leverage Display */
+.lq-current-leverage {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.lq-current-leverage-label {
+  color: #848e9c;
+}
+
+.lq-current-leverage-value {
+  font-weight: 600;
+}
+
+.lq-current-leverage-value.lq-leverage-ok {
+  color: #0ecb81;
+}
+
+.lq-current-leverage-value.lq-leverage-warning {
+  color: #f6465d;
+}
+
+.lq-current-leverage-value.lq-leverage-conservative {
+  color: #848e9c;
+}
+
+/* Leverage Header */
+.lq-leverage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+/* Source Indicator Styles */
+.lq-sync-status.source-client {
+  color: #f0b90b;
+}
+
+.lq-sync-status.source-backend {
+  color: #0ecb81;
+}
+
+.lq-sync-status.source-error {
+  color: #f6465d;
+}
+
+/* Data Source Badge */
+.lq-source-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+
+.lq-source-badge.client {
+  background: rgba(240, 185, 11, 0.2);
+  color: #f0b90b;
+}
+
+.lq-source-badge.backend {
+  background: rgba(14, 203, 129, 0.2);
+  color: #0ecb81;
+}
+
 /* Responsive */
 @media (max-height: 800px) {
   #lenquant-panel {
