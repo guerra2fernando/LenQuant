@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 from typing import List
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -78,7 +79,10 @@ class IngestConfig:
     @classmethod
     def from_env(cls) -> "IngestConfig":
         mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/cryptotrader")
-        db_name = mongo_uri.rsplit("/", 1)[-1] if "/" in mongo_uri else "cryptotrader"
+        # Parse the URI so query params (e.g. ?authSource=admin) don't become part of the DB name
+        parsed = urlparse(mongo_uri)
+        path = parsed.path.lstrip("/")
+        db_name = path.split("/", 1)[0] if path else "cryptotrader"
         lookback_days = int(os.getenv("DEFAULT_LOOKBACK_DAYS", "30"))
         batch_size = int(os.getenv("INGEST_BATCH_SIZE", "1000"))
         rate_limit = int(os.getenv("EXCHANGE_RATE_LIMIT_PER_MINUTE", "1000"))

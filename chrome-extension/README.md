@@ -38,7 +38,7 @@ Transform your trading with intelligent market analysis, behavioral guardrails, 
 - **Works on Production**: Connects directly to LenQuant servers at `lenquant.com`
 - **Local Development**: Switch to `localhost:8000` for testing
 
-### 🌐 Self-Sufficient Mode (NEW!)
+### 🌐 Self-Sufficient Mode
 - **Works Without Pre-Loaded Data**: Discover new symbols on Binance - no need to pre-load them in LenQuant
 - **Client-Side Fallback**: If LenQuant backend has no data for a symbol, extension fetches OHLCV directly from Binance API
 - **DOM Data Extraction**: Reads your current leverage, position, and margin type directly from Binance page
