@@ -33,27 +33,37 @@ let sessionId = null;
 /**
  * Extract current leverage setting from Binance DOM.
  * Binance shows leverage in multiple places - we try several selectors.
+ * Priority: Look for the actual leverage button near the order entry form.
  */
 function extractLeverage() {
-  // Try various selectors for leverage display
-  const selectors = [
-    // Leverage button/display
-    '[class*="leverage"]',
-    '[data-testid*="leverage"]',
-    '.leverage-display',
-    '.cross-isolated .leverage',
-    // The leverage selector button often shows "10x", "20x" etc
+  // Priority 1: Look for leverage button in the trading panel area
+  // Binance typically shows leverage near Cross/Isolated mode selector
+  const prioritySelectors = [
+    // Binance's leverage button often has these patterns
+    'button[class*="leverage"]',
+    'div[class*="leverage"] button',
+    '[class*="contractLeverage"]',
+    '[class*="marginLeverage"]',
+    // The button near margin type selector
+    '[class*="margin-type"] + button',
+    '[class*="marginType"] ~ button',
+    // Look in the order form area
+    '[class*="orderForm"] [class*="leverage"]',
+    '[class*="trade-panel"] [class*="leverage"]',
   ];
   
-  for (const selector of selectors) {
+  for (const selector of prioritySelectors) {
     try {
       const elements = document.querySelectorAll(selector);
       for (const el of elements) {
         const text = el.textContent?.trim();
-        // Match patterns like "10x", "20X", "125x"
         const match = text?.match(/(\d+)[xX]/);
         if (match) {
-          return parseInt(match[1], 10);
+          const lev = parseInt(match[1], 10);
+          if (lev >= 1 && lev <= 125) {
+            console.log('[LenQuant] Found leverage via priority selector:', lev, selector);
+            return lev;
+          }
         }
       }
     } catch (e) {
@@ -61,23 +71,84 @@ function extractLeverage() {
     }
   }
   
-  // Fallback: look for any element with "x" suffix that looks like leverage
-  const allElements = document.querySelectorAll('*');
-  for (const el of allElements) {
-    if (el.children.length === 0) { // Only leaf nodes
-      const text = el.textContent?.trim();
-      if (text && /^(\d{1,3})[xX]$/.test(text)) {
-        const match = text.match(/^(\d{1,3})[xX]$/);
-        if (match) {
-          const lev = parseInt(match[1], 10);
-          if (lev >= 1 && lev <= 125) { // Valid Binance leverage range
-            return lev;
+  // Priority 2: Look for buttons containing only "XXx" pattern
+  const buttons = document.querySelectorAll('button, [role="button"]');
+  for (const btn of buttons) {
+    const text = btn.textContent?.trim();
+    // Match exact patterns like "20x", "125x" - the button's full text
+    if (text && /^\d{1,3}[xX]$/.test(text)) {
+      const match = text.match(/^(\d{1,3})[xX]$/);
+      if (match) {
+        const lev = parseInt(match[1], 10);
+        if (lev >= 1 && lev <= 125) {
+          console.log('[LenQuant] Found leverage via button text:', lev);
+          return lev;
+        }
+      }
+    }
+  }
+  
+  // Priority 3: Look for elements near "Cross" or "Isolated" text
+  const marginElements = document.querySelectorAll('[class*="cross"], [class*="isolated"], [class*="margin"]');
+  for (const marginEl of marginElements) {
+    // Check siblings and nearby elements
+    const parent = marginEl.parentElement;
+    if (parent) {
+      const siblings = parent.querySelectorAll('*');
+      for (const sib of siblings) {
+        if (sib.children.length === 0) {
+          const text = sib.textContent?.trim();
+          if (text && /^(\d{1,3})[xX]$/.test(text)) {
+            const lev = parseInt(text.match(/^(\d{1,3})[xX]$/)[1], 10);
+            if (lev >= 1 && lev <= 125) {
+              console.log('[LenQuant] Found leverage near margin selector:', lev);
+              return lev;
+            }
           }
         }
       }
     }
   }
   
+  // Priority 4: Scan for any element showing leverage pattern
+  // But be more strict - only leaf nodes with exact match
+  const walker = document.createTreeWalker(
+    document.body,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+  
+  let foundLeverages = [];
+  let node;
+  while (node = walker.nextNode()) {
+    const text = node.textContent?.trim();
+    if (text && /^(\d{1,3})[xX]$/.test(text)) {
+      const match = text.match(/^(\d{1,3})[xX]$/);
+      if (match) {
+        const lev = parseInt(match[1], 10);
+        if (lev >= 1 && lev <= 125) {
+          foundLeverages.push(lev);
+        }
+      }
+    }
+  }
+  
+  // If multiple leverages found, prefer higher ones (usually the actual leverage)
+  // as lower numbers might be from other UI elements
+  if (foundLeverages.length > 0) {
+    // Filter out common non-leverage numbers (1, 2, 3, 4, 5 which could be timeframes etc)
+    const filtered = foundLeverages.filter(l => l > 5);
+    if (filtered.length > 0) {
+      const result = Math.max(...filtered);
+      console.log('[LenQuant] Found leverages:', foundLeverages, 'Using:', result);
+      return result;
+    }
+    // Fall back to max of all found
+    return Math.max(...foundLeverages);
+  }
+  
+  console.log('[LenQuant] Could not detect leverage');
   return null;
 }
 
@@ -378,6 +449,8 @@ class TradingPanel {
   constructor() {
     this.container = null;
     this.collapsed = false;
+    this.isDragging = false;
+    this.dragOffset = { x: 0, y: 0 };
   }
   
   inject() {
@@ -390,10 +463,97 @@ class TradingPanel {
     
     document.body.appendChild(this.container);
     
+    // Restore saved position
+    this.restorePosition();
+    
     // Attach event listeners
     this.attachEventListeners();
     
+    // Setup draggable functionality
+    this.setupDraggable();
+    
     console.log('[LenQuant] Panel injected');
+  }
+  
+  setupDraggable() {
+    const header = this.container.querySelector('.lq-header');
+    if (!header) return;
+    
+    header.style.cursor = 'move';
+    
+    const onMouseDown = (e) => {
+      // Don't drag if clicking buttons
+      if (e.target.closest('.lq-btn-icon')) return;
+      
+      this.isDragging = true;
+      const rect = this.container.getBoundingClientRect();
+      this.dragOffset = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      
+      // Prevent text selection while dragging
+      e.preventDefault();
+    };
+    
+    const onMouseMove = (e) => {
+      if (!this.isDragging) return;
+      
+      const newX = e.clientX - this.dragOffset.x;
+      const newY = e.clientY - this.dragOffset.y;
+      
+      // Keep panel within viewport bounds
+      const maxX = window.innerWidth - this.container.offsetWidth;
+      const maxY = window.innerHeight - this.container.offsetHeight;
+      
+      const boundedX = Math.max(0, Math.min(newX, maxX));
+      const boundedY = Math.max(0, Math.min(newY, maxY));
+      
+      this.container.style.left = `${boundedX}px`;
+      this.container.style.top = `${boundedY}px`;
+      this.container.style.right = 'auto';
+    };
+    
+    const onMouseUp = () => {
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.savePosition();
+      }
+    };
+    
+    header.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+  
+  savePosition() {
+    const rect = this.container.getBoundingClientRect();
+    const position = {
+      left: rect.left,
+      top: rect.top
+    };
+    localStorage.setItem('lenquant_panel_position', JSON.stringify(position));
+  }
+  
+  restorePosition() {
+    try {
+      const saved = localStorage.getItem('lenquant_panel_position');
+      if (saved) {
+        const position = JSON.parse(saved);
+        // Validate position is within current viewport
+        const maxX = window.innerWidth - 320; // panel width
+        const maxY = window.innerHeight - 200;
+        
+        if (position.left >= 0 && position.left <= maxX && 
+            position.top >= 0 && position.top <= maxY) {
+          this.container.style.left = `${position.left}px`;
+          this.container.style.top = `${position.top}px`;
+          this.container.style.right = 'auto';
+        }
+      }
+    } catch (e) {
+      console.log('[LenQuant] Could not restore panel position');
+    }
   }
   
   getTemplate() {
@@ -460,14 +620,48 @@ class TradingPanel {
             <span class="lq-reason-text">Waiting for context...</span>
           </div>
           
+          <div class="lq-quick-action" style="display: none;">
+            <div class="lq-quick-action-header">
+              <span class="lq-quick-action-title">📊 Quick Trade Info</span>
+              <span class="lq-quick-action-confidence">--% conf</span>
+            </div>
+            <div class="lq-quick-action-grid">
+              <div class="lq-quick-action-item lq-bias-indicator">
+                <span class="lq-quick-label">Bias</span>
+                <span class="lq-quick-value lq-bias-value">--</span>
+              </div>
+              <div class="lq-quick-action-item">
+                <span class="lq-quick-label">Wait</span>
+                <span class="lq-quick-value lq-wait-value">--</span>
+              </div>
+              <div class="lq-quick-action-item">
+                <span class="lq-quick-label">Entry Zone</span>
+                <span class="lq-quick-value lq-entry-value">--</span>
+              </div>
+              <div class="lq-quick-action-item">
+                <span class="lq-quick-label">Stop Loss</span>
+                <span class="lq-quick-value lq-sl-value">--</span>
+              </div>
+              <div class="lq-quick-action-item">
+                <span class="lq-quick-label">Take Profit 1</span>
+                <span class="lq-quick-value lq-tp1-value">--</span>
+              </div>
+              <div class="lq-quick-action-item">
+                <span class="lq-quick-label">Take Profit 2</span>
+                <span class="lq-quick-value lq-tp2-value">--</span>
+              </div>
+            </div>
+            <div class="lq-quick-action-note"></div>
+          </div>
+          
           <div class="lq-actions">
-            <button class="lq-btn lq-btn-explain">🔍 Explain</button>
-            <button class="lq-btn lq-btn-bookmark">📑 Bookmark</button>
+            <button class="lq-btn lq-btn-explain" title="Get AI-powered detailed trade plan with entry, stop loss, and targets">🔍 Explain</button>
+            <button class="lq-btn lq-btn-bookmark" title="Save this analysis with a note for later review in Journal">📑 Bookmark</button>
           </div>
           
           <div class="lq-actions lq-actions-secondary">
-            <button class="lq-btn lq-btn-secondary lq-btn-break">⏸️ Take Break</button>
-            <button class="lq-btn lq-btn-secondary lq-btn-sync">🔄 Sync</button>
+            <button class="lq-btn lq-btn-secondary lq-btn-break" title="Start a cooldown period to prevent emotional/revenge trading">⏸️ Take Break</button>
+            <button class="lq-btn lq-btn-secondary lq-btn-sync" title="Import your actual trades from Binance to match with analyses">🔄 Sync</button>
           </div>
           
           <div class="lq-explanation" style="display: none;">
@@ -722,7 +916,7 @@ function updatePanel(analysis) {
   const setupValue = panel.container.querySelector('.lq-setup-value');
   setupValue.textContent = analysis.setup_candidates.length > 0 
     ? analysis.setup_candidates[0].replace(/_/g, ' ')
-    : 'No setup detected';
+    : 'No Setup Detected';
   
   // Update risk flags
   const riskContainer = panel.container.querySelector('.lq-risk-flags');
@@ -776,6 +970,9 @@ function updatePanel(analysis) {
   // Update reason
   panel.container.querySelector('.lq-reason-text').textContent = analysis.reason;
   
+  // Update Quick Action Info Section
+  updateQuickActionInfo(analysis);
+  
   // Update latency
   panel.container.querySelector('.lq-latency').textContent = `${analysis.latency_ms}ms`;
   
@@ -809,6 +1006,192 @@ function updatePanel(analysis) {
   } else if (currentLeverageSection) {
     currentLeverageSection.style.display = 'none';
   }
+}
+
+/**
+ * Update Quick Action Info section with trade suggestions.
+ */
+function updateQuickActionInfo(analysis) {
+  const quickAction = panel.container.querySelector('.lq-quick-action');
+  if (!quickAction) return;
+  
+  // Only show if we have enough data and trading is allowed
+  const hasSetup = analysis.setup_candidates && analysis.setup_candidates.length > 0;
+  const hasFeatures = analysis.regime_features;
+  
+  if (!analysis.trade_allowed || analysis.market_state === 'chop' || analysis.market_state === 'undefined') {
+    quickAction.style.display = 'none';
+    return;
+  }
+  
+  quickAction.style.display = 'block';
+  
+  // Get regime features for calculations
+  const features = analysis.regime_features || {};
+  const atrPct = features.atr_pct || 2.0;
+  const rsi = features.rsi_14 || 50;
+  
+  // Determine bias
+  let bias = 'neutral';
+  let biasClass = 'neutral';
+  if (analysis.trend_direction === 'up') {
+    bias = '🟢 LONG';
+    biasClass = 'bullish';
+  } else if (analysis.trend_direction === 'down') {
+    bias = '🔴 SHORT';
+    biasClass = 'bearish';
+  } else if (analysis.market_state === 'range') {
+    // For ranging, check RSI
+    if (rsi > 70) {
+      bias = '🔴 SHORT (fade)';
+      biasClass = 'bearish';
+    } else if (rsi < 30) {
+      bias = '🟢 LONG (fade)';
+      biasClass = 'bullish';
+    } else {
+      bias = '⏳ WAIT';
+      biasClass = 'neutral';
+    }
+  }
+  
+  // Update bias
+  const biasValue = quickAction.querySelector('.lq-bias-value');
+  if (biasValue) {
+    biasValue.textContent = bias;
+    biasValue.className = `lq-quick-value lq-bias-value ${biasClass}`;
+  }
+  
+  // Calculate confidence class
+  const confidence = analysis.confidence_pattern || 50;
+  const confEl = quickAction.querySelector('.lq-quick-action-confidence');
+  if (confEl) {
+    confEl.textContent = `${confidence}% conf`;
+    const confClass = confidence >= 70 ? 'high' : confidence >= 50 ? 'medium' : 'low';
+    confEl.className = `lq-quick-action-confidence ${confClass}`;
+  }
+  
+  // Calculate wait time based on timeframe and conditions
+  const timeframe = currentContext.timeframe || '1m';
+  let waitTime = 'Ready';
+  if (analysis.risk_flags.includes('overbought') || analysis.risk_flags.includes('oversold')) {
+    waitTime = 'Wait for reversal';
+  } else if (analysis.market_state === 'range') {
+    waitTime = 'At boundary';
+  } else if (hasSetup) {
+    waitTime = 'Ready';
+  } else {
+    // Suggest waiting based on timeframe
+    const tfMinutes = { '1m': 5, '5m': 15, '15m': 30, '1h': 60, '4h': 120 };
+    const waitMin = tfMinutes[timeframe] || 5;
+    waitTime = `~${waitMin} min`;
+  }
+  
+  const waitEl = quickAction.querySelector('.lq-wait-value');
+  if (waitEl) waitEl.textContent = waitTime;
+  
+  // Try to get current price from DOM or use placeholder
+  let currentPrice = getCurrentPrice();
+  
+  if (currentPrice) {
+    // Calculate levels based on ATR
+    const atr = (currentPrice * atrPct) / 100;
+    const isLong = analysis.trend_direction === 'up' || 
+                   (analysis.market_state === 'range' && rsi < 30);
+    
+    // Entry zone: near current price
+    const entryLow = isLong ? currentPrice - atr * 0.3 : currentPrice - atr * 0.3;
+    const entryHigh = isLong ? currentPrice + atr * 0.2 : currentPrice + atr * 0.2;
+    
+    // Stop loss: 1-1.5 ATR from entry
+    const slDistance = atr * (analysis.market_state === 'range' ? 1.0 : 1.5);
+    const sl = isLong ? currentPrice - slDistance : currentPrice + slDistance;
+    
+    // Take profit levels
+    const tp1 = isLong ? currentPrice + atr * 1.5 : currentPrice - atr * 1.5;
+    const tp2 = isLong ? currentPrice + atr * 2.5 : currentPrice - atr * 2.5;
+    
+    // Format prices
+    const decimals = currentPrice < 1 ? 6 : currentPrice < 100 ? 4 : 2;
+    
+    const entryEl = quickAction.querySelector('.lq-entry-value');
+    if (entryEl) entryEl.textContent = `${formatPrice(entryLow, decimals)} - ${formatPrice(entryHigh, decimals)}`;
+    
+    const slEl = quickAction.querySelector('.lq-sl-value');
+    if (slEl) slEl.textContent = formatPrice(sl, decimals);
+    
+    const tp1El = quickAction.querySelector('.lq-tp1-value');
+    if (tp1El) tp1El.textContent = formatPrice(tp1, decimals);
+    
+    const tp2El = quickAction.querySelector('.lq-tp2-value');
+    if (tp2El) tp2El.textContent = formatPrice(tp2, decimals);
+  } else {
+    // Show percentages instead
+    const entryEl = quickAction.querySelector('.lq-entry-value');
+    if (entryEl) entryEl.textContent = 'Current ±0.3%';
+    
+    const slEl = quickAction.querySelector('.lq-sl-value');
+    if (slEl) slEl.textContent = `-${(atrPct * 1.2).toFixed(1)}%`;
+    
+    const tp1El = quickAction.querySelector('.lq-tp1-value');
+    if (tp1El) tp1El.textContent = `+${(atrPct * 1.5).toFixed(1)}%`;
+    
+    const tp2El = quickAction.querySelector('.lq-tp2-value');
+    if (tp2El) tp2El.textContent = `+${(atrPct * 2.5).toFixed(1)}%`;
+  }
+  
+  // Add note
+  const noteEl = quickAction.querySelector('.lq-quick-action-note');
+  if (noteEl) {
+    let note = '';
+    if (analysis.risk_flags.length > 0) {
+      note = `⚠️ ${formatRiskFlag(analysis.risk_flags[0])} - reduce size`;
+    } else if (hasSetup) {
+      note = `✅ ${analysis.setup_candidates[0].replace(/_/g, ' ')} detected`;
+    } else if (analysis.market_state === 'range') {
+      note = '📊 Trade range boundaries, not middle';
+    }
+    noteEl.textContent = note;
+  }
+}
+
+/**
+ * Try to get current price from Binance DOM.
+ */
+function getCurrentPrice() {
+  // Try to find price display elements
+  const priceSelectors = [
+    '[class*="lastPrice"]',
+    '[class*="mark-price"]',
+    '[class*="currentPrice"]',
+    '[data-testid*="price"]',
+    '.price',
+  ];
+  
+  for (const selector of priceSelectors) {
+    try {
+      const el = document.querySelector(selector);
+      if (el) {
+        const text = el.textContent?.replace(/[,\s]/g, '');
+        const price = parseFloat(text);
+        if (!isNaN(price) && price > 0) {
+          return price;
+        }
+      }
+    } catch (e) {
+      // Continue
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Format price with appropriate decimals.
+ */
+function formatPrice(price, decimals = 2) {
+  if (price >= 1000) return price.toFixed(1);
+  if (price >= 100) return price.toFixed(2);
+  return price.toFixed(decimals);
 }
 
 function calculateGrade(analysis) {
@@ -1014,10 +1397,66 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('[LenQuant] Signal update:', message.payload);
       break;
       
+    case 'TRIGGER_ANALYSIS':
+      // Manual trigger from popup - force immediate analysis
+      console.log('[LenQuant] Manual analysis trigger');
+      triggerManualAnalysis().then(result => {
+        sendResponse(result);
+      });
+      return true; // Keep channel open for async response
+      
     default:
       break;
   }
 });
+
+/**
+ * Manually trigger analysis (from popup Quick Analyze button).
+ */
+async function triggerManualAnalysis() {
+  if (!currentContext.symbol) {
+    // Try to capture context first
+    const observer = new BinanceContextObserver();
+    observer.captureContext();
+    
+    // Wait a bit for context to be captured
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  if (!currentContext.symbol) {
+    return { success: false, error: 'Could not detect symbol' };
+  }
+  
+  try {
+    // Show panel if hidden
+    if (panel && panel.container) {
+      panel.container.style.display = 'block';
+      panel.container.querySelector('.lq-state-value').textContent = 'Analyzing...';
+    }
+    
+    // Force fresh analysis
+    const domData = extractAllDOMData();
+    const response = await chrome.runtime.sendMessage({
+      type: 'CONTEXT_CHANGED',
+      symbol: currentContext.symbol,
+      timeframe: currentContext.timeframe || '1m',
+      context: { ...currentContext, forceRefresh: true },
+      domData,
+    });
+    
+    if (response.analysis) {
+      currentAnalysis = response.analysis;
+      updatePanel(response.analysis);
+      return { success: true, symbol: currentContext.symbol };
+    }
+    
+    return { success: false, error: 'Analysis failed' };
+    
+  } catch (error) {
+    console.error('[LenQuant] Manual analysis error:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 // ============================================================================
 // Initialization
