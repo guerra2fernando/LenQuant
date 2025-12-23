@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LenQuant Assistant</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 320px;
+      min-height: 200px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(180deg, #1e2329 0%, #0b0e11 100%);
+      color: #eaecef;
+    }
+    
+    .popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      background: #181a20;
+      border-bottom: 1px solid #2b3139;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #f0b90b 0%, #c99c07 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #181a20;
+    }
+    
+    .logo-text {
+      font-weight: 700;
+      font-size: 16px;
+      color: #f0b90b;
+    }
+    
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .status-badge.connected {
+      background: rgba(14, 203, 129, 0.1);
+      color: #0ecb81;
+    }
+    
+    .status-badge.disconnected {
+      background: rgba(246, 70, 93, 0.1);
+      color: #f6465d;
+    }
+    
+    .popup-content {
+      padding: 16px;
+    }
+    
+    .section {
+      margin-bottom: 20px;
+    }
+    
+    .section-title {
+      font-size: 11px;
+      color: #848e9c;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #2b3139;
+    }
+    
+    .stat-label {
+      color: #848e9c;
+    }
+    
+    .stat-value {
+      font-weight: 600;
+    }
+    
+    .stat-value.positive { color: #0ecb81; }
+    .stat-value.negative { color: #f6465d; }
+    
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #f0b90b 0%, #c99c07 100%);
+      color: #181a20;
+    }
+    
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #fcd535 0%, #f0b90b 100%);
+    }
+    
+    .btn-secondary {
+      background: #2b3139;
+      color: #eaecef;
+    }
+    
+    .btn-secondary:hover {
+      background: #3a4048;
+    }
+    
+    .quick-links {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .quick-link {
+      flex: 1;
+      padding: 10px;
+      background: #1e2329;
+      border: 1px solid #2b3139;
+      border-radius: 6px;
+      text-align: center;
+      text-decoration: none;
+      color: #b7bdc6;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    
+    .quick-link:hover {
+      background: #2b3139;
+      color: #eaecef;
+    }
+    
+    .popup-footer {
+      padding: 12px 16px;
+      background: #181a20;
+      border-top: 1px solid #2b3139;
+      font-size: 10px;
+      color: #474d57;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="popup-header">
+    <div class="logo">
+      <div class="logo-icon">LQ</div>
+      <span class="logo-text">LenQuant</span>
+    </div>
+    <span class="status-badge connected" id="status-badge">Connected</span>
+  </div>
+  
+  <div class="popup-content">
+    <div class="section">
+      <div class="section-title">Session Stats</div>
+      <div class="stat-row">
+        <span class="stat-label">Analyses Today</span>
+        <span class="stat-value" id="analyses-count">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Bookmarks</span>
+        <span class="stat-value" id="bookmarks-count">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Alerts Shown</span>
+        <span class="stat-value" id="alerts-count">0</span>
+      </div>
+    </div>
+    
+    <div class="section">
+      <button class="btn btn-primary" id="btn-dashboard">
+        Open LenQuant Dashboard
+      </button>
+      <button class="btn btn-secondary" id="btn-report">
+        View Today's Report
+      </button>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Quick Links</div>
+      <div class="quick-links">
+        <a href="#" class="quick-link" id="link-settings">⚙️ Settings</a>
+        <a href="#" class="quick-link" id="link-journal">📔 Journal</a>
+        <a href="#" class="quick-link" id="link-help">❓ Help</a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="popup-footer">
+    <span>v1.0.0</span>
+    <span id="session-id">Session: --</span>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
+

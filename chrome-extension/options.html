@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LenQuant Assistant - Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0b0e11;
+      color: #eaecef;
+      padding: 40px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      color: #f0b90b;
+      margin-bottom: 8px;
+    }
+    
+    .subtitle {
+      color: #848e9c;
+      margin-bottom: 32px;
+    }
+    
+    .section {
+      background: #1e2329;
+      border: 1px solid #2b3139;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #eaecef;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      color: #848e9c;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 12px;
+      background: #0b0e11;
+      border: 1px solid #2b3139;
+      border-radius: 8px;
+      color: #eaecef;
+      font-size: 14px;
+    }
+    
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: #f0b90b;
+    }
+    
+    .toggle-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #2b3139;
+    }
+    
+    .toggle-label {
+      color: #eaecef;
+    }
+    
+    .toggle-desc {
+      font-size: 12px;
+      color: #848e9c;
+      margin-top: 4px;
+    }
+    
+    .toggle {
+      width: 48px;
+      height: 24px;
+      background: #2b3139;
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .toggle.active {
+      background: #f0b90b;
+    }
+    
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: #eaecef;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+    }
+    
+    .toggle.active::after {
+      transform: translateX(24px);
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #f0b90b 0%, #c99c07 100%);
+      color: #181a20;
+    }
+    
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #fcd535 0%, #f0b90b 100%);
+    }
+    
+    .btn-secondary {
+      background: #2b3139;
+      color: #eaecef;
+      margin-left: 12px;
+    }
+    
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+    
+    .saved-message {
+      color: #0ecb81;
+      margin-right: auto;
+      display: none;
+    }
+    
+    .saved-message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>LenQuant Assistant</h1>
+  <p class="subtitle">Configure your trading assistant settings</p>
+  
+  <div class="section">
+    <div class="section-title">Connection</div>
+    
+    <div class="form-group">
+      <label for="api-url">LenQuant API URL</label>
+      <input type="text" id="api-url" value="https://lenquant.com" placeholder="https://lenquant.com">
+    </div>
+    
+    <div class="form-group">
+      <label for="ws-url">WebSocket URL</label>
+      <input type="text" id="ws-url" value="wss://lenquant.com" placeholder="wss://lenquant.com">
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Display</div>
+    
+    <div class="toggle-group">
+      <div>
+        <div class="toggle-label">Show Panel on Load</div>
+        <div class="toggle-desc">Automatically show the assistant panel when visiting Binance Futures</div>
+      </div>
+      <div class="toggle active" id="toggle-auto-show"></div>
+    </div>
+    
+    <div class="toggle-group">
+      <div>
+        <div class="toggle-label">Show Behavior Alerts</div>
+        <div class="toggle-desc">Display warnings for detected trading mistakes</div>
+      </div>
+      <div class="toggle active" id="toggle-behavior-alerts"></div>
+    </div>
+    
+    <div class="toggle-group">
+      <div>
+        <div class="toggle-label">Auto-Explain High Grade Setups</div>
+        <div class="toggle-desc">Automatically request AI explanation for A/B grade setups</div>
+      </div>
+      <div class="toggle" id="toggle-auto-explain"></div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Risk Settings</div>
+    
+    <div class="form-group">
+      <label for="max-leverage">Maximum Leverage Display</label>
+      <input type="number" id="max-leverage" value="20" min="1" max="125">
+    </div>
+    
+    <div class="toggle-group">
+      <div>
+        <div class="toggle-label">Sound Alerts</div>
+        <div class="toggle-desc">Play sound for critical warnings</div>
+      </div>
+      <div class="toggle" id="toggle-sound"></div>
+    </div>
+  </div>
+  
+  <div class="actions">
+    <span class="saved-message" id="saved-message">✓ Settings saved!</span>
+    <button class="btn btn-secondary" id="btn-reset">Reset to Defaults</button>
+    <button class="btn btn-primary" id="btn-save">Save Settings</button>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html>
+

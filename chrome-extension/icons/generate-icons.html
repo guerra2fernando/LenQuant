@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>LenQuant Icon Generator</title>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      padding: 40px; 
+      background: #0b0e11; 
+      color: #eaecef; 
+    }
+    .icon-container { 
+      display: flex; 
+      gap: 20px; 
+      margin: 20px 0; 
+    }
+    canvas { 
+      border: 1px solid #2b3139; 
+    }
+    button { 
+      padding: 12px 24px; 
+      background: #f0b90b; 
+      color: #181a20; 
+      border: none; 
+      border-radius: 8px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      cursor: pointer; 
+      margin: 8px; 
+    }
+    button:hover { 
+      background: #fcd535; 
+    }
+    .instructions {
+      background: #1e2329;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>LenQuant Extension Icon Generator</h1>
+  <p>Generate PNG icons for the Chrome extension.</p>
+  
+  <div class="icon-container">
+    <div>
+      <canvas id="icon16" width="16" height="16"></canvas>
+      <button onclick="download(16)">Download 16x16</button>
+    </div>
+    <div>
+      <canvas id="icon48" width="48" height="48"></canvas>
+      <button onclick="download(48)">Download 48x48</button>
+    </div>
+    <div>
+      <canvas id="icon128" width="128" height="128"></canvas>
+      <button onclick="download(128)">Download 128x128</button>
+    </div>
+  </div>
+  
+  <button onclick="downloadAll()">Download All Icons</button>
+  
+  <div class="instructions">
+    <h3>Instructions:</h3>
+    <ol>
+      <li>Click "Download All Icons" or download each icon individually</li>
+      <li>Save the PNG files to the <code>chrome-extension/icons/</code> folder</li>
+      <li>Rename them to: <code>icon16.png</code>, <code>icon48.png</code>, <code>icon128.png</code></li>
+      <li>Update <code>manifest.json</code> to include the icons (see template below)</li>
+    </ol>
+    <h3>Add to manifest.json:</h3>
+    <pre style="background:#0b0e11;padding:10px;border-radius:4px;overflow-x:auto;">
+"action": {
+  "default_popup": "popup.html",
+  "default_icon": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+},
+
+"icons": {
+  "16": "icons/icon16.png",
+  "48": "icons/icon48.png",
+  "128": "icons/icon128.png"
+},</pre>
+  </div>
+  
+  <script>
+    function drawIcon(size) {
+      const canvas = document.getElementById('icon' + size);
+      const ctx = canvas.getContext('2d');
+      
+      // Background
+      ctx.fillStyle = '#1e2329';
+      ctx.beginPath();
+      const radius = size * 0.15;
+      ctx.roundRect(0, 0, size, size, radius);
+      ctx.fill();
+      
+      // Text
+      ctx.fillStyle = '#f0b90b';
+      ctx.font = `bold ${size * 0.4}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('LQ', size / 2, size / 2 + size * 0.05);
+    }
+    
+    function download(size) {
+      const canvas = document.getElementById('icon' + size);
+      const link = document.createElement('a');
+      link.download = `icon${size}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    
+    function downloadAll() {
+      download(16);
+      setTimeout(() => download(48), 100);
+      setTimeout(() => download(128), 200);
+    }
+    
+    // Draw all icons on load
+    drawIcon(16);
+    drawIcon(48);
+    drawIcon(128);
+  </script>
+</body>
+</html>
+

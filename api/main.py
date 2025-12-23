@@ -25,6 +25,7 @@ from api.routes import (
     evolution,
     exchange,
     experiments,
+    extension,
     forecast,
     knowledge,
     leaderboard,
@@ -79,9 +80,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:8000",
         "https://lenquant.com",
         "https://www.lenquant.com",
+        "https://www.binance.com",
+        "https://binance.com",
     ],
+    # Allow chrome-extension:// origins with regex pattern
+    allow_origin_regex=r"^chrome-extension://.*$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -122,6 +128,9 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"]
 
 # Phase 6 UX Conciliation routers
 app.include_router(schedules.router, prefix="/api/schedules", tags=["schedules"])
+
+# Chrome Extension Integration routers
+app.include_router(extension.router, prefix="/api/extension", tags=["extension"])
 
 
 # WebSocket Notification Connection Manager
@@ -245,6 +254,13 @@ async def websocket_prices_endpoint(websocket: WebSocket, symbol: str):
     """WebSocket endpoint for real-time price streaming."""
     from api.routes.market import websocket_prices
     await websocket_prices(websocket, symbol)
+
+
+@app.websocket("/ws/extension/{session_id}")
+async def websocket_extension_endpoint(websocket: WebSocket, session_id: str):
+    """WebSocket endpoint for Chrome extension real-time streaming."""
+    from api.routes.extension import websocket_extension_stream
+    await websocket_extension_stream(websocket, session_id)
 
 
 @app.get("/api/status")
