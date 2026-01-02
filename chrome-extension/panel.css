@@ -16,43 +16,46 @@
 }
 
 .lq-panel {
-  background: linear-gradient(180deg, #1e2329 0%, #0b0e11 100%);
+  background: #0b0e11;
   border: 1px solid #2b3139;
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.95);
+  overflow-y: auto;
+  max-height: 80vh;
   transition: all 0.5s ease;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-/* Trade Signal Color Backgrounds */
+/* Trade Signal Color Backgrounds - Subtle top glow with solid dark body */
 .lq-panel.signal-strong-buy {
-  background: linear-gradient(180deg, rgba(14, 203, 129, 0.25) 0%, rgba(14, 203, 129, 0.08) 30%, #0b0e11 100%);
-  border-color: rgba(14, 203, 129, 0.5);
-  box-shadow: 0 8px 32px rgba(14, 203, 129, 0.2), inset 0 1px 0 rgba(14, 203, 129, 0.3);
+  background: linear-gradient(180deg, rgba(14, 203, 129, 0.25) 0%, rgba(14, 203, 129, 0.08) 40px, #0b0e11 80px);
+  border-color: rgba(14, 203, 129, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(14, 203, 129, 0.3);
 }
 
 .lq-panel.signal-buy {
-  background: linear-gradient(180deg, rgba(14, 203, 129, 0.15) 0%, rgba(14, 203, 129, 0.05) 25%, #0b0e11 100%);
-  border-color: rgba(14, 203, 129, 0.35);
-  box-shadow: 0 8px 32px rgba(14, 203, 129, 0.15);
+  background: linear-gradient(180deg, rgba(14, 203, 129, 0.18) 0%, rgba(14, 203, 129, 0.05) 40px, #0b0e11 80px);
+  border-color: rgba(14, 203, 129, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
 }
 
 .lq-panel.signal-neutral {
-  background: linear-gradient(180deg, rgba(240, 185, 11, 0.15) 0%, rgba(240, 185, 11, 0.05) 25%, #0b0e11 100%);
+  background: linear-gradient(180deg, rgba(240, 185, 11, 0.22) 0%, rgba(240, 185, 11, 0.06) 40px, #0b0e11 80px);
   border-color: rgba(240, 185, 11, 0.35);
-  box-shadow: 0 8px 32px rgba(240, 185, 11, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
 }
 
 .lq-panel.signal-caution {
-  background: linear-gradient(180deg, rgba(247, 147, 26, 0.15) 0%, rgba(247, 147, 26, 0.05) 25%, #0b0e11 100%);
+  background: linear-gradient(180deg, rgba(247, 147, 26, 0.22) 0%, rgba(247, 147, 26, 0.06) 40px, #0b0e11 80px);
   border-color: rgba(247, 147, 26, 0.35);
-  box-shadow: 0 8px 32px rgba(247, 147, 26, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
 }
 
 .lq-panel.signal-dont-trade {
-  background: linear-gradient(180deg, rgba(246, 70, 93, 0.2) 0%, rgba(246, 70, 93, 0.08) 30%, #0b0e11 100%);
-  border-color: rgba(246, 70, 93, 0.45);
-  box-shadow: 0 8px 32px rgba(246, 70, 93, 0.15), inset 0 1px 0 rgba(246, 70, 93, 0.2);
+  background: linear-gradient(180deg, rgba(246, 70, 93, 0.25) 0%, rgba(246, 70, 93, 0.08) 40px, #0b0e11 80px);
+  border-color: rgba(246, 70, 93, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(246, 70, 93, 0.3);
 }
 
 /* Signal Indicator Badge */
@@ -204,6 +207,17 @@
 .lq-btn-icon:hover {
   background: #2b3139;
   color: #eaecef;
+}
+
+.lq-btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Refresh button spin animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Content */

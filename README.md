@@ -4,12 +4,14 @@
 
 # LenQuant — Autonomous Crypto Trading Platform
 
-An intelligent, self-learning cryptocurrency trading system that uses machine learning to predict market movements, automatically execute trades, and continuously improve its strategies.
+An intelligent, self-learning cryptocurrency trading system that uses machine learning to predict market movements, automatically execute trades, and continuously improve its strategies. Includes a Chrome extension for real-time AI-powered trading assistance on Binance Futures.
 
 ## 🎯 What This System Does
 
 ### Simple Explanation
 LenQuant is like having an AI assistant that watches the crypto markets 24/7, learns from past price movements, predicts where prices might go, and can automatically buy or sell cryptocurrencies for you. It starts in "practice mode" (paper trading) so you can test it safely before using real money.
+
+The system includes a **Chrome extension** that integrates directly into Binance Futures, providing real-time market analysis, behavioral guardrails, and AI-powered trade recommendations while you trade.
 
 ### Advanced Explanation
 A production-ready autonomous trading platform featuring:
@@ -17,6 +19,7 @@ A production-ready autonomous trading platform featuring:
 - **Strategy evolution engine** that automatically creates, tests, and improves trading strategies using genetic algorithms
 - **Learning engine** with Bayesian optimization and meta-modeling to understand why successful strategies work
 - **AI assistant** powered by LLMs (OpenAI/Anthropic) that explains decisions and provides trade recommendations
+- **Chrome extension** for Binance Futures with real-time regime detection, leverage recommendations, and behavioral analysis
 - **Exchange integration** via ccxt supporting 100+ exchanges (Binance, Coinbase, Kraken, etc.) with paper trading, testnet, and live trading modes
 - **Risk management** with pre-trade checks, kill-switches, daily loss limits, and mandatory stop-loss enforcement
 - **Full auditability** with immutable logs, proof-of-execution storage, and daily reconciliation
@@ -45,6 +48,15 @@ The system uses the [ccxt library](https://github.com/ccxt/ccxt), which supports
 You can connect to any exchange that ccxt supports by configuring your API credentials in the settings.
 
 ### Core Features
+
+#### 🌐 Chrome Extension
+- **Real-time trading assistant** for Binance Futures
+- **Market regime detection** (trending, ranging, choppy) with sub-500ms latency
+- **AI-powered trade explanations** with entry/stop/targets and confidence scoring
+- **Behavioral analysis** to prevent revenge trading and overtrading
+- **Automatic journaling** of trades, setups, and market events
+- **Performance analytics** with daily/weekly/monthly reports
+- **Hybrid analysis mode** - works with or without pre-loaded data
 
 #### 📊 Data & Analytics
 - Historical price data ingestion from exchanges
@@ -79,6 +91,13 @@ You can connect to any exchange that ccxt supports by configuring your API crede
 - Explanations of system decisions
 - Historical analysis and insights
 - Approval workflows for trades
+
+#### 🌐 Chrome Extension (Binance Futures)
+- **Real-time market intelligence**: Sub-500ms regime classification and setup detection
+- **Behavioral guardrails**: Revenge trading detection, overtrading prevention, cooldown systems
+- **AI-powered trade planning**: On-demand explanations with entry triggers and targets
+- **Comprehensive journaling**: Automatic event logging and performance analytics
+- **Regime-aware trading**: Dynamic leverage recommendations based on market volatility
 
 #### 🛡️ Risk Management
 - Pre-trade risk checks (balance, exposure, limits)
@@ -132,10 +151,18 @@ cd web/next-app && npm run dev
 ### Initial Setup
 
 1. **Access the dashboard**: Open `http://localhost:3000`
-2. **Choose your mode**: Switch between "Easy Mode" (guided) or "Advanced Mode" (full control)
-3. **Set up data**: Use the "Get Started" page to bootstrap historical data
-4. **Configure trading**: Go to Settings → Trading to set up your exchange connection
-5. **Start with paper trading**: All trades default to paper mode until you enable live trading
+2. **Authenticate**: Sign in with Google OAuth (email must be whitelisted for access)
+3. **Choose your mode**: Switch between "Easy Mode" (guided) or "Advanced Mode" (full control)
+4. **Set up data**: Use the "Get Started" page to bootstrap historical data
+5. **Configure trading**: Go to Settings → Trading to set up your exchange connection
+6. **Start with paper trading**: All trades default to paper mode until you enable live trading
+
+### Chrome Extension Setup (Optional)
+
+1. **Install the extension**: Load `chrome-extension/` as an unpacked extension in Chrome
+2. **Connect to your instance**: Configure the extension to point to your LenQuant server
+3. **Navigate to Binance Futures**: The extension panel appears automatically on Binance Futures pages
+4. **Start trading with AI assistance**: Get real-time market analysis and trade recommendations
 
 ## 📖 User Interface
 
@@ -158,6 +185,17 @@ The platform offers two modes:
 Switch between modes anytime using the toggle in the header.
 
 ## 🔧 Configuration
+
+### Authentication Setup
+LenQuant uses Google OAuth for multi-user authentication with email whitelisting:
+
+1. **Configure Google OAuth**:
+   - Set `GOOGLE_CLIENT_ID` environment variable with your Google OAuth client ID
+   - Set `ALLOWED_GOOGLE_EMAILS` to comma-separated list of authorized email addresses
+   - Or leave `ALLOWED_GOOGLE_EMAILS` empty to allow any Google account
+
+2. **User Management**: Each authenticated user gets isolated data and trading permissions
+3. **Admin Users**: Users created during initial setup have admin privileges by default
 
 ### Exchange Setup
 1. Create API keys on your chosen exchange
@@ -182,9 +220,8 @@ Switch between modes anytime using the toggle in the header.
 ### Getting Started
 - **`docs/STARTING_SYSTEM.md`** — Complete guide to starting the system ⭐
 - **`docs/AUTHENTICATION.md`** — Google OAuth setup for public deployment 🔒
-- **`docs/AUTHENTICATION_PHASE1.md`** — Single-user authentication implementation
-- **`docs/AUTHENTICATION_PHASE2.md`** — Multi-user authentication implementation
 - **`docs/INFRASTRUCTURE.md`** — Production deployment and 24/7 operation
+- **`docs/chrome-extension-integration.md`** — Chrome extension technical documentation 🌐
 
 ### System Documentation
 - **`docs/full.md`** — Complete system overview
@@ -344,9 +381,11 @@ The system is symbol-agnostic — it works with any trading pair your exchange s
 
 - **Backend**: Python 3.11, FastAPI, Celery, MongoDB, Redis
 - **Frontend**: React, Next.js, Tailwind CSS, shadcn/ui
+- **Browser Extension**: Chrome Extension Manifest V3, JavaScript
 - **ML/AI**: LightGBM, XGBoost, scikit-learn, SHAP
 - **Trading**: ccxt (100+ exchange support)
 - **LLM**: OpenAI, Anthropic (configurable)
+- **Authentication**: Google OAuth 2.0, JWT tokens
 - **Deployment**: Docker, docker-compose
 
 ## 📊 System Status
@@ -357,9 +396,11 @@ The platform includes:
 - ✅ Strategy evolution engine
 - ✅ Learning and optimization engine
 - ✅ AI assistant with recommendations
+- ✅ Chrome extension for Binance Futures trading
 - ✅ Exchange integration (paper, testnet, live)
 - ✅ Risk management and safety guards
 - ✅ Dual-mode user interface (Easy/Advanced)
+- ✅ Multi-user authentication with Google OAuth
 - ✅ Comprehensive audit logging
 
 ## 🤝 Contributing

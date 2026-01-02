@@ -563,6 +563,7 @@ class TradingPanel {
         <div class="lq-header">
           <span class="lq-logo">LenQuant</span>
           <div class="lq-header-actions">
+            <button class="lq-btn-icon lq-refresh-btn" title="Refresh Analysis">↻</button>
             <button class="lq-btn-icon lq-collapse-btn" title="Collapse">−</button>
             <button class="lq-btn-icon lq-close-btn" title="Close">×</button>
           </div>
@@ -693,10 +694,14 @@ class TradingPanel {
   }
   
   attachEventListeners() {
+    // Refresh button
+    const refreshBtn = this.container.querySelector('.lq-refresh-btn');
+    refreshBtn.addEventListener('click', () => this.refreshAnalysis());
+
     // Collapse button
     const collapseBtn = this.container.querySelector('.lq-collapse-btn');
     collapseBtn.addEventListener('click', () => this.toggleCollapse());
-    
+
     // Close button
     const closeBtn = this.container.querySelector('.lq-close-btn');
     closeBtn.addEventListener('click', () => this.hide());
@@ -778,9 +783,50 @@ class TradingPanel {
   hide() {
     this.container.style.display = 'none';
   }
-  
+
   show() {
     this.container.style.display = 'block';
+  }
+
+  async refreshAnalysis() {
+    if (!currentContext.symbol) {
+      console.log('[LenQuant] No symbol to refresh');
+      return;
+    }
+
+    // Visual feedback - spin the refresh button
+    const refreshBtn = this.container.querySelector('.lq-refresh-btn');
+    refreshBtn.style.animation = 'spin 1s linear';
+    refreshBtn.disabled = true;
+
+    try {
+      // Show loading state
+      this.container.querySelector('.lq-state-value').textContent = 'Refreshing...';
+
+      // Force fresh analysis by calling context change with forceRefresh flag
+      const domData = extractAllDOMData();
+      const response = await chrome.runtime.sendMessage({
+        type: 'CONTEXT_CHANGED',
+        symbol: currentContext.symbol,
+        timeframe: currentContext.timeframe || '1m',
+        context: { ...currentContext, forceRefresh: true },
+        domData,
+      });
+
+      if (response && response.analysis) {
+        currentAnalysis = response.analysis;
+        updatePanelDisplay(response.analysis);
+      }
+    } catch (error) {
+      console.error('[LenQuant] Refresh failed:', error);
+      this.container.querySelector('.lq-state-value').textContent = 'Refresh failed';
+    } finally {
+      // Reset button after animation
+      setTimeout(() => {
+        refreshBtn.style.animation = '';
+        refreshBtn.disabled = false;
+      }, 1000);
+    }
   }
   
   async requestExplanation() {
@@ -1516,6 +1562,7 @@ function formatRiskFlag(flag) {
 // ============================================================================
 
 let cooldownOverlay = null;
+let cooldownTimer = null;
 
 function showCooldownOverlay(cooldown) {
   if (!cooldownOverlay) {
@@ -1609,21 +1656,70 @@ function showCooldownOverlay(cooldown) {
   
   // Update content
   const remaining = cooldown.remainingMin || cooldown.remaining_min || 0;
-  const minutes = Math.floor(remaining);
-  const seconds = Math.round((remaining - minutes) * 60);
-  
-  cooldownOverlay.querySelector('.lq-cooldown-time').textContent = 
-    `${minutes}:${seconds.toString().padStart(2, '0')} remaining`;
-  
-  cooldownOverlay.querySelector('.lq-cooldown-reason').textContent = 
+  const endTime = cooldown.endsAt ? new Date(cooldown.endsAt) : null;
+
+  cooldownOverlay.querySelector('.lq-cooldown-reason').textContent =
     cooldown.reason || 'Take a break to avoid emotional trading.';
-  
+
+  // Start countdown timer
+  startCooldownCountdown(endTime, remaining);
+
   cooldownOverlay.style.display = 'flex';
+}
+
+function startCooldownCountdown(endTime, initialMinutes) {
+  // Clear any existing timer
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+  }
+
+  let remainingMs;
+
+  if (endTime) {
+    // Use endTime for more accurate countdown
+    remainingMs = endTime.getTime() - Date.now();
+  } else {
+    // Fallback to initial minutes
+    remainingMs = initialMinutes * 60 * 1000;
+  }
+
+  function updateDisplay() {
+    if (remainingMs <= 0) {
+      // Cooldown ended
+      hideCooldownOverlay();
+      clearInterval(cooldownTimer);
+      cooldownTimer = null;
+      return;
+    }
+
+    const totalSeconds = Math.floor(remainingMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (cooldownOverlay) {
+      cooldownOverlay.querySelector('.lq-cooldown-time').textContent =
+        `${minutes}:${seconds.toString().padStart(2, '0')} remaining`;
+    }
+
+    remainingMs -= 1000;
+  }
+
+  // Update immediately
+  updateDisplay();
+
+  // Update every second
+  cooldownTimer = setInterval(updateDisplay, 1000);
 }
 
 function hideCooldownOverlay() {
   if (cooldownOverlay) {
     cooldownOverlay.style.display = 'none';
+  }
+
+  // Clear any running countdown timer
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+    cooldownTimer = null;
   }
 }
 
@@ -1764,6 +1860,31 @@ async function init() {
       // Ignore errors
     }
   }, 60000); // Check every minute
+
+  // Auto-refresh analysis every 30 seconds when we have a symbol
+  setInterval(async () => {
+    try {
+      if (currentContext.symbol && panel && panel.container && panel.container.style.display !== 'none') {
+        // Only auto-refresh if panel is visible and we have a symbol
+        const domData = extractAllDOMData();
+        const response = await chrome.runtime.sendMessage({
+          type: 'CONTEXT_CHANGED',
+          symbol: currentContext.symbol,
+          timeframe: currentContext.timeframe || '1m',
+          context: { ...currentContext, autoRefresh: true },
+          domData,
+        });
+
+        if (response && response.analysis) {
+          currentAnalysis = response.analysis;
+          updatePanelDisplay(response.analysis);
+          console.log('[LenQuant] Auto-refreshed analysis for', currentContext.symbol);
+        }
+      }
+    } catch (error) {
+      console.error('[LenQuant] Auto-refresh failed:', error);
+    }
+  }, 30000); // Auto-refresh every 30 seconds
   
   console.log('[LenQuant] Initialization complete');
 }
