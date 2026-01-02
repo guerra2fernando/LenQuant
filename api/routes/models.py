@@ -16,6 +16,44 @@ from db.client import get_database_name, mongo_client
 from models import model_utils, registry
 from models.model_utils import load_horizon_settings
 
+
+def _get_models_training_status() -> Dict[str, Any]:
+    """Check model training status."""
+    with mongo_client() as client:
+        db = client[get_database_name()]
+
+        # Count trained models
+        trained_models = list(db["model_registry"].find({}))
+        trained_count = len(trained_models)
+
+        # Get latest training timestamp
+        if trained_models:
+            latest_training = max(
+                (m.get("trained_at") for m in trained_models if m.get("trained_at")),
+                default=None
+            )
+        else:
+            latest_training = None
+
+        # Determine status
+        if trained_count == 0:
+            status = "pending"
+        elif latest_training:
+            age_hours = (datetime.utcnow() - latest_training).total_seconds() / 3600
+            if age_hours > 168:  # 7 days
+                status = "stale"
+            else:
+                status = "trained"
+        else:
+            status = "pending"
+
+        return {
+            "status": status,
+            "trained_count": trained_count,
+            "pending_count": 0,  # TODO: Track pending training jobs
+            "last_trained": latest_training.isoformat() if latest_training else None,
+        }
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -290,4 +328,10 @@ def list_retrain_jobs(limit: int = Query(10, ge=1, le=100)) -> Dict[str, Any]:
                 item["finished_at"] = finished.isoformat()
             jobs.append(item)
     return {"jobs": jobs}
+
+
+@router.get("/training/status")
+def get_training_status() -> Dict[str, Any]:
+    """Get current model training status and counts."""
+    return _get_models_training_status()
 

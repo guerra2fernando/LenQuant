@@ -5,13 +5,50 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from learning.allocator import AllocationError, rebalance_allocations, latest_allocation
-from learning.loop import LearningCycleSummary, run_learning_cycle
-from learning.meta_model import (
-    MetaModelNotFoundError,
-    MetaModelTrainingError,
-    train_meta_model,
-)
+# Try to import learning modules, but make them optional
+try:
+    from learning.allocator import AllocationError, rebalance_allocations, latest_allocation
+    from learning.loop import LearningCycleSummary, run_learning_cycle
+    from learning.meta_model import (
+        MetaModelNotFoundError,
+        MetaModelTrainingError,
+        train_meta_model,
+    )
+    LEARNING_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Learning module not available: {e}")
+    LEARNING_AVAILABLE = False
+    # Define dummy classes/functions for when learning is not available
+    class AllocationError(RuntimeError):
+        pass
+
+    class MetaModelNotFoundError(RuntimeError):
+        pass
+
+    class MetaModelTrainingError(RuntimeError):
+        pass
+
+    class LearningCycleSummary:
+        def __init__(self):
+            self.meta_model = None
+            self.optimizer = None
+            self.allocator = None
+            self.overfit_alerts = []
+            self.knowledge_entry = None
+            self.created_at = None
+
+    def rebalance_allocations():
+        raise HTTPException(status_code=503, detail="Learning module not available")
+
+    def latest_allocation():
+        return None
+
+    def run_learning_cycle(**kwargs):
+        raise HTTPException(status_code=503, detail="Learning module not available")
+
+    def train_meta_model():
+        raise HTTPException(status_code=503, detail="Learning module not available")
+
 from learning.repository import (
     acknowledge_overfit_alert,
     get_learning_settings,
@@ -69,6 +106,9 @@ def get_meta_model() -> Dict[str, Any]:
 
 @router.post("/meta-model/train")
 def post_meta_model_train(payload: MetaModelTrainRequest) -> Dict[str, Any]:
+    if not LEARNING_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Learning module not available - cvxpy dependency missing")
+
     if not payload.train:
         raise HTTPException(status_code=400, detail="Set 'train' to true to trigger training.")
     try:
@@ -100,6 +140,9 @@ def get_feature_importance() -> Dict[str, Any]:
 
 @router.get("/allocator")
 def get_allocator(refresh: bool = Query(default=False, description="Run a fresh optimisation pass before returning results.")) -> Dict[str, Any]:
+    if not LEARNING_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Learning module not available - cvxpy dependency missing")
+
     if refresh:
         try:
             result = rebalance_allocations()
@@ -113,12 +156,21 @@ def get_allocator(refresh: bool = Query(default=False, description="Run a fresh 
         }}
     snapshot = latest_allocation()
     if not snapshot:
-        raise HTTPException(status_code=404, detail="No allocation snapshot recorded yet.")
+        # Return empty snapshot instead of 404 for better UX
+        return {"snapshot": {
+            "weights": [],
+            "expected_portfolio_return": 0.0,
+            "expected_portfolio_risk": 0.0,
+            "settings": {},
+        }}
     return {"snapshot": snapshot}
 
 
 @router.post("/allocator/rebalance")
 def post_allocator_rebalance() -> Dict[str, Any]:
+    if not LEARNING_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Learning module not available - cvxpy dependency missing")
+
     try:
         result = rebalance_allocations()
     except (AllocationError, MetaModelNotFoundError) as exc:
@@ -150,6 +202,9 @@ def post_overfit_ack(payload: OverfitAckPayload) -> Dict[str, Any]:
 
 @router.post("/cycle/run")
 def post_learning_cycle(payload: LearningCycleRequest) -> Dict[str, Any]:
+    if not LEARNING_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Learning module not available - cvxpy dependency missing")
+
     summary = run_learning_cycle(
         train_meta=payload.train_meta,
         generate_candidates=payload.generate_candidates,

@@ -21,7 +21,146 @@
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   overflow: hidden;
+  transition: all 0.5s ease;
 }
+
+/* Trade Signal Color Backgrounds */
+.lq-panel.signal-strong-buy {
+  background: linear-gradient(180deg, rgba(14, 203, 129, 0.25) 0%, rgba(14, 203, 129, 0.08) 30%, #0b0e11 100%);
+  border-color: rgba(14, 203, 129, 0.5);
+  box-shadow: 0 8px 32px rgba(14, 203, 129, 0.2), inset 0 1px 0 rgba(14, 203, 129, 0.3);
+}
+
+.lq-panel.signal-buy {
+  background: linear-gradient(180deg, rgba(14, 203, 129, 0.15) 0%, rgba(14, 203, 129, 0.05) 25%, #0b0e11 100%);
+  border-color: rgba(14, 203, 129, 0.35);
+  box-shadow: 0 8px 32px rgba(14, 203, 129, 0.15);
+}
+
+.lq-panel.signal-neutral {
+  background: linear-gradient(180deg, rgba(240, 185, 11, 0.15) 0%, rgba(240, 185, 11, 0.05) 25%, #0b0e11 100%);
+  border-color: rgba(240, 185, 11, 0.35);
+  box-shadow: 0 8px 32px rgba(240, 185, 11, 0.1);
+}
+
+.lq-panel.signal-caution {
+  background: linear-gradient(180deg, rgba(247, 147, 26, 0.15) 0%, rgba(247, 147, 26, 0.05) 25%, #0b0e11 100%);
+  border-color: rgba(247, 147, 26, 0.35);
+  box-shadow: 0 8px 32px rgba(247, 147, 26, 0.1);
+}
+
+.lq-panel.signal-dont-trade {
+  background: linear-gradient(180deg, rgba(246, 70, 93, 0.2) 0%, rgba(246, 70, 93, 0.08) 30%, #0b0e11 100%);
+  border-color: rgba(246, 70, 93, 0.45);
+  box-shadow: 0 8px 32px rgba(246, 70, 93, 0.15), inset 0 1px 0 rgba(246, 70, 93, 0.2);
+}
+
+/* Signal Indicator Badge */
+.lq-signal-badge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+
+.lq-signal-badge.strong-buy {
+  background: linear-gradient(135deg, #0ecb81 0%, #0aa06a 100%);
+  color: #000;
+  box-shadow: 0 2px 8px rgba(14, 203, 129, 0.4);
+}
+
+.lq-signal-badge.buy {
+  background: rgba(14, 203, 129, 0.8);
+  color: #000;
+}
+
+.lq-signal-badge.neutral {
+  background: rgba(240, 185, 11, 0.8);
+  color: #000;
+}
+
+.lq-signal-badge.caution {
+  background: rgba(247, 147, 26, 0.8);
+  color: #000;
+}
+
+.lq-signal-badge.dont-trade {
+  background: linear-gradient(135deg, #f6465d 0%, #d63850 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(246, 70, 93, 0.4);
+}
+
+/* Signal Probability Bar */
+.lq-signal-prob {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.lq-signal-prob-label {
+  font-size: 11px;
+  color: #848e9c;
+  white-space: nowrap;
+}
+
+.lq-signal-prob-bar {
+  flex: 1;
+  height: 8px;
+  background: #2b3139;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.lq-signal-prob-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease, background 0.5s ease;
+}
+
+.lq-signal-prob-fill.strong-buy {
+  background: linear-gradient(90deg, #0ecb81 0%, #00ff9d 100%);
+}
+
+.lq-signal-prob-fill.buy {
+  background: #0ecb81;
+}
+
+.lq-signal-prob-fill.neutral {
+  background: #f0b90b;
+}
+
+.lq-signal-prob-fill.caution {
+  background: #f7931a;
+}
+
+.lq:signal-prob-fill.dont-trade {
+  background: #f6465d;
+}
+
+.lq-signal-prob-value {
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: right;
+}
+
+.lq-signal-prob-value.strong-buy { color: #0ecb81; }
+.lq-signal-prob-value.buy { color: #0ecb81; }
+.lq-signal-prob-value.neutral { color: #f0b90b; }
+.lq-signal-prob-value.caution { color: #f7931a; }
+.lq-signal-prob-value.dont-trade { color: #f6465d; }
 
 /* Header */
 .lq-header {

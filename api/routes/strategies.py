@@ -93,23 +93,27 @@ def post_archive_strategy(payload: StrategyActionPayload) -> Dict[str, Any]:
 
 @router.get("/lineage")
 def get_lineage(limit: int = Query(default=100, ge=1, le=500)) -> Dict[str, Any]:
-    docs = list_genomes(limit=limit)
-    nodes = []
-    links = []
-    for doc in docs:
-        parent = doc.get("mutation_parent")
-        nodes.append(
-            {
-                "strategy_id": doc.get("strategy_id"),
-                "generation": doc.get("generation"),
-                "status": doc.get("status"),
-                "composite": doc.get("fitness", {}).get("composite"),
-                "parent": parent,
-            }
-        )
-        if parent:
-            links.append({"source": parent, "target": doc.get("strategy_id")})
-    return {"nodes": nodes, "links": links}
+    try:
+        docs = list_genomes(limit=limit)
+        nodes = []
+        links = []
+        for doc in docs:
+            parent = doc.get("mutation_parent")
+            nodes.append(
+                {
+                    "strategy_id": doc.get("strategy_id"),
+                    "generation": doc.get("generation"),
+                    "status": doc.get("status"),
+                    "composite": doc.get("fitness", {}).get("composite"),
+                    "parent": parent,
+                }
+            )
+            if parent:
+                links.append({"source": parent, "target": doc.get("strategy_id")})
+        return {"nodes": nodes, "links": links}
+    except Exception as exc:
+        # Return empty lineage if there's any database issue
+        return {"nodes": [], "links": []}
 
 
 class RiskLimits(BaseModel):

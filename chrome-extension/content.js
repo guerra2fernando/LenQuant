@@ -559,6 +559,7 @@ class TradingPanel {
   getTemplate() {
     return `
       <div class="lq-panel">
+        <div class="lq-signal-badge neutral">ANALYZING</div>
         <div class="lq-header">
           <span class="lq-logo">LenQuant</span>
           <div class="lq-header-actions">
@@ -572,6 +573,14 @@ class TradingPanel {
             <span class="lq-symbol">--</span>
             <span class="lq-separator">•</span>
             <span class="lq-timeframe">--</span>
+          </div>
+          
+          <div class="lq-signal-prob">
+            <span class="lq-signal-prob-label">Trade Score:</span>
+            <div class="lq-signal-prob-bar">
+              <div class="lq-signal-prob-fill neutral" style="width: 50%;"></div>
+            </div>
+            <span class="lq-signal-prob-value neutral">50%</span>
           </div>
           
           <div class="lq-grade-section">
@@ -973,6 +982,15 @@ function updatePanel(analysis) {
   // Update Quick Action Info Section
   updateQuickActionInfo(analysis);
   
+  // Update Signal Display (with external data if available)
+  // Fetch external data asynchronously
+  getExternalData(currentContext.symbol).then(externalData => {
+    updatePanelSignal(analysis, externalData);
+  }).catch(() => {
+    // Fallback: update signal without external data
+    updatePanelSignal(analysis, {});
+  });
+  
   // Update latency
   panel.container.querySelector('.lq-latency').textContent = `${analysis.latency_ms}ms`;
   
@@ -1192,6 +1210,257 @@ function formatPrice(price, decimals = 2) {
   if (price >= 1000) return price.toFixed(1);
   if (price >= 100) return price.toFixed(2);
   return price.toFixed(decimals);
+}
+
+/**
+ * Calculate overall trade signal score (0-100).
+ * Combines technical analysis, risk factors, and external data.
+ */
+function calculateTradeSignal(analysis, externalData = {}) {
+  let score = 50; // Start neutral
+  
+  // === TECHNICAL FACTORS (weight: 40%) ===
+  
+  // Trade allowed is the base filter
+  if (!analysis.trade_allowed) {
+    score -= 30;
+  }
+  
+  // Market state scoring
+  const stateScores = {
+    'trend': 15,
+    'trend_volatile': 5,
+    'range': 0,
+    'chop': -25,
+    'undefined': -20,
+    'error': -30,
+  };
+  score += stateScores[analysis.market_state] || 0;
+  
+  // Setup detection bonus
+  if (analysis.setup_candidates && analysis.setup_candidates.length > 0) {
+    score += 15;
+  }
+  
+  // Trend direction clarity
+  if (analysis.trend_direction === 'up' || analysis.trend_direction === 'down') {
+    score += 10;
+  }
+  
+  // === RISK FLAGS (weight: 30%) ===
+  const riskPenalties = {
+    'extreme_volatility': -20,
+    'low_volume': -10,
+    'overbought': -15,
+    'oversold': -10, // Less penalty, could be opportunity
+    'choppy_momentum': -15,
+    'insufficient_data': -25,
+    'api_error': -30,
+  };
+  
+  if (analysis.risk_flags) {
+    for (const flag of analysis.risk_flags) {
+      score += riskPenalties[flag] || -5;
+    }
+  }
+  
+  // === CONFIDENCE PATTERN (weight: 15%) ===
+  if (analysis.confidence_pattern) {
+    // Scale confidence to -15 to +15
+    score += ((analysis.confidence_pattern - 50) / 50) * 15;
+  }
+  
+  // === EXTERNAL DATA FACTORS (weight: 15%) ===
+  if (externalData.sentiment) {
+    // Sentiment score from -1 to 1
+    score += externalData.sentiment * 15;
+  }
+  
+  if (externalData.volumeSpike) {
+    // Volume spike in right direction
+    score += externalData.volumeSpike > 2 ? 10 : 5;
+  }
+  
+  if (externalData.newsScore) {
+    // News sentiment from -1 to 1
+    score += externalData.newsScore * 10;
+  }
+  
+  // Clamp to 0-100
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+/**
+ * Get signal classification from score.
+ */
+function getSignalClass(score) {
+  if (score >= 75) return 'strong-buy';
+  if (score >= 60) return 'buy';
+  if (score >= 45) return 'neutral';
+  if (score >= 30) return 'caution';
+  return 'dont-trade';
+}
+
+/**
+ * Get signal label from score.
+ */
+function getSignalLabel(score) {
+  if (score >= 75) return '🚀 STRONG BUY';
+  if (score >= 60) return '✅ BUY';
+  if (score >= 45) return '⏳ WAIT';
+  if (score >= 30) return '⚠️ CAUTION';
+  return '🛑 DON\'T TRADE';
+}
+
+/**
+ * Update panel signal display.
+ */
+function updatePanelSignal(analysis, externalData = {}) {
+  if (!panel || !panel.container) return;
+  
+  const score = calculateTradeSignal(analysis, externalData);
+  const signalClass = getSignalClass(score);
+  const signalLabel = getSignalLabel(score);
+  
+  // Update panel background class
+  const panelEl = panel.container.querySelector('.lq-panel');
+  if (panelEl) {
+    // Remove all signal classes
+    panelEl.classList.remove('signal-strong-buy', 'signal-buy', 'signal-neutral', 'signal-caution', 'signal-dont-trade');
+    panelEl.classList.add(`signal-${signalClass}`);
+  }
+  
+  // Update signal badge
+  const badge = panel.container.querySelector('.lq-signal-badge');
+  if (badge) {
+    badge.textContent = signalLabel;
+    badge.className = `lq-signal-badge ${signalClass}`;
+  }
+  
+  // Update probability bar
+  const probFill = panel.container.querySelector('.lq-signal-prob-fill');
+  const probValue = panel.container.querySelector('.lq-signal-prob-value');
+  
+  if (probFill) {
+    probFill.style.width = `${score}%`;
+    probFill.className = `lq-signal-prob-fill ${signalClass}`;
+  }
+  
+  if (probValue) {
+    probValue.textContent = `${score}%`;
+    probValue.className = `lq-signal-prob-value ${signalClass}`;
+  }
+  
+  return score;
+}
+
+// ============================================================================
+// External Data Integration (CoinGecko, News APIs)
+// ============================================================================
+
+/**
+ * Fetch additional market data from CoinGecko API.
+ */
+async function fetchCoinGeckoData(symbol) {
+  try {
+    // Convert symbol to CoinGecko ID (e.g., BTCUSDT -> bitcoin)
+    const coinId = symbolToCoinGeckoId(symbol);
+    if (!coinId) return null;
+    
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&community_data=true&developer_data=false&sparkline=false`
+    );
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    
+    return {
+      priceChange24h: data.market_data?.price_change_percentage_24h || 0,
+      priceChange7d: data.market_data?.price_change_percentage_7d || 0,
+      volumeChange24h: data.market_data?.total_volume?.usd || 0,
+      marketCapRank: data.market_cap_rank || 999,
+      sentiment: data.sentiment_votes_up_percentage 
+        ? (data.sentiment_votes_up_percentage - 50) / 50 // Convert to -1 to 1
+        : 0,
+      communityScore: data.community_score || 0,
+      trendingScore: data.coingecko_score || 0,
+    };
+  } catch (error) {
+    console.log('[LenQuant] CoinGecko fetch error:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Map Binance symbol to CoinGecko ID.
+ */
+function symbolToCoinGeckoId(symbol) {
+  // Remove USDT/USD suffix
+  const base = symbol.replace(/USDT?$/i, '').toLowerCase();
+  
+  // Common mappings
+  const mappings = {
+    'btc': 'bitcoin',
+    'eth': 'ethereum',
+    'bnb': 'binancecoin',
+    'sol': 'solana',
+    'xrp': 'ripple',
+    'ada': 'cardano',
+    'doge': 'dogecoin',
+    'dot': 'polkadot',
+    'matic': 'matic-network',
+    'shib': 'shiba-inu',
+    'avax': 'avalanche-2',
+    'link': 'chainlink',
+    'ltc': 'litecoin',
+    'atom': 'cosmos',
+    'uni': 'uniswap',
+    'xlm': 'stellar',
+    'etc': 'ethereum-classic',
+    'near': 'near',
+    'apt': 'aptos',
+    'arb': 'arbitrum',
+    'op': 'optimism',
+    'sui': 'sui',
+    'inj': 'injective-protocol',
+    'sei': 'sei-network',
+    'wif': 'dogwifcoin',
+    'pepe': 'pepe',
+    'floki': 'floki',
+    'bonk': 'bonk',
+    'pippin': 'pippin', // Try direct match
+    'pippinusdt': 'pippin',
+  };
+  
+  return mappings[base] || base;
+}
+
+// Store external data cache
+let externalDataCache = new Map();
+const EXTERNAL_DATA_TTL = 60000; // 1 minute cache
+
+/**
+ * Get external data with caching.
+ */
+async function getExternalData(symbol) {
+  const cacheKey = symbol.toUpperCase();
+  const cached = externalDataCache.get(cacheKey);
+  
+  if (cached && (Date.now() - cached.timestamp) < EXTERNAL_DATA_TTL) {
+    return cached.data;
+  }
+  
+  const data = await fetchCoinGeckoData(symbol);
+  
+  if (data) {
+    externalDataCache.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
+  }
+  
+  return data || {};
 }
 
 function calculateGrade(analysis) {
