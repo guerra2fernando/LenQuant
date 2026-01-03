@@ -25,6 +25,8 @@ from api.routes import (
     evolution,
     exchange,
     experiments,
+    ext_auth,
+    ext_stripe,
     extension,
     forecast,
     knowledge,
@@ -131,6 +133,8 @@ app.include_router(schedules.router, prefix="/api/schedules", tags=["schedules"]
 
 # Chrome Extension Integration routers
 app.include_router(extension.router, prefix="/api/extension", tags=["extension"])
+app.include_router(ext_auth.router, prefix="/api/extension/auth", tags=["Extension Auth"])
+app.include_router(ext_stripe.router, prefix="/api/extension/stripe", tags=["Extension Stripe"])
 
 
 # WebSocket Notification Connection Manager

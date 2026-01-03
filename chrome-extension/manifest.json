@@ -26,7 +26,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.binance.com/en/futures/*"],
-      "js": ["content.js"],
+      "js": ["license-manager.js", "auth-ui.js", "feature-gate.js", "content.js"],
       "css": ["panel.css"],
       "run_at": "document_idle"
     }

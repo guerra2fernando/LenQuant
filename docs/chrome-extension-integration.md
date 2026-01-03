@@ -726,7 +726,7 @@ class BinanceContextObserver {
   "reasoning": "Price showing higher lows with increasing volume...",
   "evidence_refs": ["regime_btc_1m", "setup_pullback"],
   "provider": "openai",
-  "model_id": "gpt-4o-mini",
+  "model_id": " GPT-5o-mini",
   "latency_ms": 2340
 }
 ```

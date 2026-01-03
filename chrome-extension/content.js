@@ -26,6 +26,11 @@ let currentAnalysis = null;
 let panel = null;
 let sessionId = null;
 
+// Feature gating components
+let licenseManager = null;
+let authUI = null;
+let featureGate = null;
+
 // ============================================================================
 // DOM Data Extraction (Leverage, Positions, etc.)
 // ============================================================================
@@ -396,8 +401,8 @@ class BinanceContextObserver {
   async onContextChange(context) {
     try {
       // Show loading state
-      if (panel && panel.container) {
-        panel.container.querySelector('.lq-state-value').textContent = 'Analyzing...';
+      if (panel) {
+        panel.showLoadingState();
       }
       
       // Notify background script with full context including DOM data
@@ -415,8 +420,17 @@ class BinanceContextObserver {
       
       if (response.analysis) {
         currentAnalysis = response.analysis;
+
+        // Hide loading state and show real content
+        if (panel) {
+          panel.hideLoadingState();
+        }
+
         updatePanel(response.analysis);
-        
+
+        // Update Multi-Timeframe Analysis (Phase 2)
+        updateMTFSection(currentContext.symbol);
+
         // Show source indicator (backend vs client-side)
         if (response.analysis.source === 'client') {
           console.log('[LenQuant] Using client-side analysis (backend unavailable or no data)');
@@ -432,6 +446,12 @@ class BinanceContextObserver {
       
     } catch (error) {
       console.error('[LenQuant] Context change handler error:', error);
+
+      // Hide loading state even on error
+      if (panel) {
+        panel.hideLoadingState();
+      }
+
       // On error, try to show something useful
       if (panel && panel.container) {
         panel.container.querySelector('.lq-state-value').textContent = 'Connection error';
@@ -471,10 +491,75 @@ class TradingPanel {
     
     // Setup draggable functionality
     this.setupDraggable();
-    
+
+    // Show trial banner if needed
+    this.showTrialBannerIfNeeded();
+
     console.log('[LenQuant] Panel injected');
   }
-  
+
+  showTrialBannerIfNeeded() {
+    if (!licenseManager || !authUI) return;
+
+    const tier = licenseManager.getTier();
+    if (tier === 'trial') {
+      const trial = licenseManager.getTrialRemaining();
+      if (trial && trial.hours < 72) {
+        authUI.showTrialBanner(trial.hours);
+      }
+    }
+  }
+
+  /**
+   * Show loading state for analysis
+   */
+  showLoadingState() {
+    if (!this.container) return;
+
+    // Update signal badge
+    const signalBadge = this.container.querySelector('.lq-signal-badge');
+    if (signalBadge) {
+      signalBadge.className = 'lq-signal-badge neutral';
+      signalBadge.innerHTML = '<div class="lq-loading"><div class="lq-loading-spinner"></div></div>';
+    }
+
+    // Show skeleton loaders
+    const skeletons = this.container.querySelectorAll('.lq-skeleton');
+    skeletons.forEach(el => {
+      el.style.display = 'inline-block';
+      el.style.visibility = 'visible';
+    });
+
+    // Hide actual content
+    const contentElements = this.container.querySelectorAll('.lq-grade, .lq-state-value, .lq-setup-value, .lq-leverage-value, .lq-reason-text');
+    contentElements.forEach(el => {
+      if (!el.classList.contains('lq-skeleton')) {
+        el.style.display = 'none';
+      }
+    });
+  }
+
+  /**
+   * Hide loading state and show real content
+   */
+  hideLoadingState() {
+    if (!this.container) return;
+
+    // Hide skeleton loaders
+    const skeletons = this.container.querySelectorAll('.lq-skeleton');
+    skeletons.forEach(el => {
+      el.style.display = 'none';
+    });
+
+    // Show actual content
+    const contentElements = this.container.querySelectorAll('.lq-grade, .lq-state-value, .lq-setup-value, .lq-leverage-value, .lq-reason-text');
+    contentElements.forEach(el => {
+      if (!el.classList.contains('lq-skeleton')) {
+        el.style.display = '';
+      }
+    });
+  }
+
   setupDraggable() {
     const header = this.container.querySelector('.lq-header');
     if (!header) return;
@@ -559,7 +644,11 @@ class TradingPanel {
   getTemplate() {
     return `
       <div class="lq-panel">
-        <div class="lq-signal-badge neutral">ANALYZING</div>
+        <div class="lq-signal-badge neutral">
+          <div class="lq-loading">
+            <div class="lq-loading-spinner"></div>
+          </div>
+        </div>
         <div class="lq-header">
           <span class="lq-logo">LenQuant</span>
           <div class="lq-header-actions">
@@ -568,66 +657,68 @@ class TradingPanel {
             <button class="lq-btn-icon lq-close-btn" title="Close">×</button>
           </div>
         </div>
-        
+
         <div class="lq-content">
           <div class="lq-context">
-            <span class="lq-symbol">--</span>
+            <span class="lq-symbol lq-skeleton" style="width: 60px; height: 18px;"></span>
             <span class="lq-separator">•</span>
-            <span class="lq-timeframe">--</span>
+            <span class="lq-timeframe lq-skeleton" style="width: 40px; height: 16px;"></span>
           </div>
-          
+
           <div class="lq-signal-prob">
             <span class="lq-signal-prob-label">Trade Score:</span>
             <div class="lq-signal-prob-bar">
-              <div class="lq-signal-prob-fill neutral" style="width: 50%;"></div>
+              <div class="lq-signal-prob-fill lq-skeleton" style="width: 50%; height: 8px;"></div>
             </div>
-            <span class="lq-signal-prob-value neutral">50%</span>
+            <span class="lq-signal-prob-value lq-skeleton" style="width: 35px; height: 14px;"></span>
           </div>
-          
+
           <div class="lq-grade-section">
             <div class="lq-grade-circle">
-              <span class="lq-grade">-</span>
+              <span class="lq-grade lq-skeleton" style="width: 24px; height: 24px; border-radius: 50%;"></span>
             </div>
             <div class="lq-market-state">
               <span class="lq-state-label">Market State</span>
-              <span class="lq-state-value">Loading...</span>
+              <span class="lq-state-value lq-skeleton" style="width: 80px; height: 15px;"></span>
             </div>
           </div>
           
           <div class="lq-setup-section">
             <span class="lq-setup-label">Setup:</span>
-            <span class="lq-setup-value">--</span>
+            <span class="lq-setup-value lq-skeleton" style="width: 100px; height: 13px;"></span>
           </div>
-          
+
           <div class="lq-risk-section">
-            <div class="lq-risk-flags"></div>
+            <div class="lq-risk-flags">
+              <span class="lq-risk-flag lq-skeleton" style="width: 60px; height: 20px;"></span>
+            </div>
           </div>
-          
+
           <div class="lq-leverage-section">
             <div class="lq-leverage-header">
               <span class="lq-leverage-label">Leverage Band:</span>
-              <span class="lq-leverage-value">--</span>
+              <span class="lq-leverage-value lq-skeleton" style="width: 80px; height: 14px;"></span>
             </div>
             <div class="lq-leverage-bar">
-              <div class="lq-leverage-fill"></div>
+              <div class="lq-leverage-fill lq-skeleton" style="width: 60%; height: 6px;"></div>
             </div>
             <div class="lq-current-leverage" style="display: none;">
               <span class="lq-current-leverage-label">Your leverage:</span>
-              <span class="lq-current-leverage-value">--</span>
+              <span class="lq-current-leverage-value lq-skeleton" style="width: 50px; height: 13px;"></span>
             </div>
             <div class="lq-regime-info">
-              <span class="lq-regime-multiplier"></span>
-              <span class="lq-regime-desc"></span>
+              <span class="lq-regime-multiplier lq-skeleton" style="width: 40px; height: 12px;"></span>
+              <span class="lq-regime-desc lq-skeleton" style="width: 120px; height: 11px;"></span>
             </div>
           </div>
-          
+
           <div class="lq-sizing-note" style="display: none;">
             <span class="lq-sizing-icon">📊</span>
-            <span class="lq-sizing-text"></span>
+            <span class="lq-sizing-text lq-skeleton" style="width: 200px; height: 12px;"></span>
           </div>
-          
+
           <div class="lq-reason">
-            <span class="lq-reason-text">Waiting for context...</span>
+            <span class="lq-reason-text lq-skeleton" style="width: 150px; height: 12px;"></span>
           </div>
           
           <div class="lq-quick-action" style="display: none;">
@@ -682,9 +773,22 @@ class TradingPanel {
             <div class="lq-explanation-content"></div>
           </div>
           
+          <div class="lq-mtf-section" style="display: none;">
+            <div class="lq-mtf-header">
+              <span class="lq-mtf-title">📊 Multi-Timeframe</span>
+              <button class="lq-btn-icon lq-mtf-refresh" title="Refresh MTF">↻</button>
+            </div>
+            <div class="lq-mtf-confluence">
+              <span class="lq-mtf-confluence-label">Confluence:</span>
+              <span class="lq-mtf-confluence-value">--</span>
+            </div>
+            <div class="lq-mtf-grid"></div>
+            <div class="lq-mtf-recommendation"></div>
+          </div>
+
           <div class="lq-alerts"></div>
         </div>
-        
+
         <div class="lq-footer">
           <span class="lq-latency">--ms</span>
           <span class="lq-sync-status">Not connected</span>
@@ -706,9 +810,18 @@ class TradingPanel {
     const closeBtn = this.container.querySelector('.lq-close-btn');
     closeBtn.addEventListener('click', () => this.hide());
     
-    // Explain button
+    // Explain button - gated feature
     const explainBtn = this.container.querySelector('.lq-btn-explain');
-    explainBtn.addEventListener('click', () => this.requestExplanation());
+    explainBtn.addEventListener('click', async () => {
+      // Check feature access
+      if (featureGate) {
+        const hasAccess = await featureGate.checkAccess('ai_explain');
+        if (!hasAccess) return;
+      }
+
+      // Proceed with explanation
+      this.requestExplanation();
+    });
     
     // Bookmark button
     const bookmarkBtn = this.container.querySelector('.lq-btn-bookmark');
@@ -725,6 +838,12 @@ class TradingPanel {
     // Sync button
     const syncBtn = this.container.querySelector('.lq-btn-sync');
     syncBtn.addEventListener('click', () => this.syncTrades());
+
+    // MTF refresh button
+    const mtfRefreshBtn = this.container.querySelector('.lq-mtf-refresh');
+    if (mtfRefreshBtn) {
+      mtfRefreshBtn.addEventListener('click', () => updateMTFSection(currentContext.symbol));
+    }
   }
   
   async startBreak() {
@@ -815,7 +934,7 @@ class TradingPanel {
 
       if (response && response.analysis) {
         currentAnalysis = response.analysis;
-        updatePanelDisplay(response.analysis);
+        updatePanel(response.analysis);
       }
     } catch (error) {
       console.error('[LenQuant] Refresh failed:', error);
@@ -829,21 +948,46 @@ class TradingPanel {
     }
   }
   
+  extractTradeLevels() {
+    const quickAction = this.container.querySelector('.lq-quick-action');
+    if (!quickAction || quickAction.style.display === 'none') {
+      return null;
+    }
+
+    const entryEl = quickAction.querySelector('.lq-entry-value');
+    const slEl = quickAction.querySelector('.lq-sl-value');
+    const tp1El = quickAction.querySelector('.lq-tp1-value');
+    const tp2El = quickAction.querySelector('.lq-tp2-value');
+    const biasEl = quickAction.querySelector('.lq-bias-value');
+
+    return {
+      entry_zone: entryEl ? entryEl.textContent : null,
+      stop_loss: slEl ? slEl.textContent : null,
+      take_profit_1: tp1El ? tp1El.textContent : null,
+      take_profit_2: tp2El ? tp2El.textContent : null,
+      bias: biasEl ? biasEl.textContent : null,
+    };
+  }
+
   async requestExplanation() {
     if (!currentContext.symbol || !currentAnalysis) {
       console.log('[LenQuant] No context/analysis for explanation');
       return;
     }
-    
+
+    // Extract calculated trade levels from panel
+    const tradeLevels = this.extractTradeLevels();
+
     const explainBtn = this.container.querySelector('.lq-btn-explain');
     explainBtn.disabled = true;
     explainBtn.textContent = '⏳ Loading...';
-    
+
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'REQUEST_EXPLAIN',
         context: currentContext,
         fastAnalysis: currentAnalysis,
+        tradeLevels: tradeLevels,
       });
       
       if (response.explanation) {
@@ -1069,6 +1213,61 @@ function updatePanel(analysis) {
     currentLeverageSection.style.display = 'flex';
   } else if (currentLeverageSection) {
     currentLeverageSection.style.display = 'none';
+  }
+}
+
+async function updateMTFSection(symbol) {
+  if (!panel || !panel.container) return;
+
+  const mtfSection = panel.container.querySelector('.lq-mtf-section');
+  if (!mtfSection) return;
+
+  mtfSection.style.display = 'block';
+
+  const mtfGrid = mtfSection.querySelector('.lq-mtf-grid');
+  mtfGrid.innerHTML = '<div class="lq-mtf-loading">Loading...</div>';
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'REQUEST_MTF_ANALYSIS',
+      symbol: symbol,
+      timeframes: ['5m', '1h', '4h'],
+    });
+
+    if (response.mtf) {
+      const mtf = response.mtf;
+
+      // Update confluence
+      const confluenceValue = mtfSection.querySelector('.lq-mtf-confluence-value');
+      confluenceValue.textContent = `${mtf.confluence.toUpperCase()} (${Math.round(mtf.confluence_score * 100)}%)`;
+      confluenceValue.className = `lq-mtf-confluence-value confluence-${mtf.confluence}`;
+
+      // Update grid
+      let gridHTML = '';
+      for (const [tf, result] of Object.entries(mtf.timeframes)) {
+        const trend = result.trend_direction || 'sideways';
+        const state = result.market_state || 'unknown';
+        const trendIcon = trend === 'up' ? '📈' : trend === 'down' ? '📉' : '↔️';
+
+        gridHTML += `
+          <div class="lq-mtf-item">
+            <span class="lq-mtf-tf">${tf}</span>
+            <span class="lq-mtf-trend ${trend}">${trendIcon}</span>
+            <span class="lq-mtf-state">${state}</span>
+          </div>
+        `;
+      }
+      mtfGrid.innerHTML = gridHTML;
+
+      // Update recommendation
+      const recEl = mtfSection.querySelector('.lq-mtf-recommendation');
+      recEl.textContent = mtf.recommendation;
+      recEl.className = `lq-mtf-recommendation bias-${mtf.recommended_bias}`;
+    }
+
+  } catch (error) {
+    console.error('[LenQuant] MTF update error:', error);
+    mtfGrid.innerHTML = '<div class="lq-mtf-error">Failed to load</div>';
   }
 }
 
@@ -1827,9 +2026,49 @@ async function triggerManualAnalysis() {
 // Initialization
 // ============================================================================
 
+/**
+ * Load feature gating scripts dynamically.
+ */
+async function loadFeatureGatingScripts() {
+  // Load scripts in order
+  const scripts = [
+    'license-manager.js',
+    'auth-ui.js',
+    'feature-gate.js'
+  ];
+
+  for (const script of scripts) {
+    try {
+      const response = await fetch(chrome.runtime.getURL(script));
+      const text = await response.text();
+      // Execute the script in global scope
+      (0, eval)(text);
+    } catch (error) {
+      console.error(`[LenQuant] Failed to load ${script}:`, error);
+    }
+  }
+
+  // Initialize components
+  const { LicenseManager } = window;
+  const { AuthUI } = window;
+  const { FeatureGate } = window;
+
+  if (LicenseManager && AuthUI && FeatureGate) {
+    licenseManager = new LicenseManager();
+    authUI = new AuthUI();
+    featureGate = new FeatureGate(licenseManager, authUI);
+
+    console.log('[LenQuant] Feature gating initialized');
+  } else {
+    console.error('[LenQuant] Feature gating components not loaded');
+  }
+}
+
+// ============================================================================
+
 async function init() {
   console.log('[LenQuant] Content script initializing');
-  
+
   // Get session ID from background
   try {
     const response = await chrome.runtime.sendMessage({ type: 'GET_SESSION' });
@@ -1838,11 +2077,18 @@ async function init() {
   } catch (error) {
     console.error('[LenQuant] Failed to get session:', error);
   }
-  
+
+  // Load feature gating components
+  try {
+    await loadFeatureGatingScripts();
+  } catch (error) {
+    console.error('[LenQuant] Failed to load feature gating:', error);
+  }
+
   // Initialize panel
   panel = new TradingPanel();
   panel.inject();
-  
+
   // Initialize context observer
   const observer = new BinanceContextObserver();
   observer.init();
@@ -1877,7 +2123,7 @@ async function init() {
 
         if (response && response.analysis) {
           currentAnalysis = response.analysis;
-          updatePanelDisplay(response.analysis);
+          updatePanel(response.analysis);
           console.log('[LenQuant] Auto-refreshed analysis for', currentContext.symbol);
         }
       }

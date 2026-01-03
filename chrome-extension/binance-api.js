@@ -224,16 +224,73 @@ function calculateIndicators(candles) {
     return sma(trs, period);
   };
   
-  // ADX calculation (simplified)
+  /**
+   * Calculate ADX (Average Directional Index) for trend strength.
+   * This matches the backend macro/regime.py implementation.
+   */
   const adx = (highs, lows, closes, period = 14) => {
-    // Simplified ADX - just check trend strength via price movement
-    const recentHighs = highs.slice(-period);
-    const recentLows = lows.slice(-period);
-    const range = Math.max(...recentHighs) - Math.min(...recentLows);
-    const avgPrice = closes.slice(-1)[0];
-    const rangePct = (range / avgPrice) * 100;
-    // Approximate ADX from range - higher range = stronger trend
-    return Math.min(100, rangePct * 10);
+    if (highs.length < period + 1) return 0;
+
+    const trueRanges = [];
+    const plusDM = [];
+    const minusDM = [];
+
+    // Calculate TR, +DM, -DM
+    for (let i = 1; i < highs.length; i++) {
+      const highLow = highs[i] - lows[i];
+      const highClose = Math.abs(highs[i] - closes[i - 1]);
+      const lowClose = Math.abs(lows[i] - closes[i - 1]);
+      trueRanges.push(Math.max(highLow, highClose, lowClose));
+
+      const highDiff = highs[i] - highs[i - 1];
+      const lowDiff = lows[i - 1] - lows[i];
+
+      plusDM.push((highDiff > lowDiff && highDiff > 0) ? highDiff : 0);
+      minusDM.push((lowDiff > highDiff && lowDiff > 0) ? lowDiff : 0);
+    }
+
+    // Smooth using Wilder's method
+    const smooth = (data, period) => {
+      if (data.length < period) return [];
+      let result = data.slice(0, period).reduce((a, b) => a + b, 0);
+      const smoothed = [result];
+      for (let i = period; i < data.length; i++) {
+        result = result - (result / period) + data[i];
+        smoothed.push(result);
+      }
+      return smoothed;
+    };
+
+    const smoothedTR = smooth(trueRanges, period);
+    const smoothedPlusDM = smooth(plusDM, period);
+    const smoothedMinusDM = smooth(minusDM, period);
+
+    if (smoothedTR.length === 0) return 0;
+
+    // Calculate +DI and -DI
+    const plusDI = [];
+    const minusDI = [];
+    for (let i = 0; i < smoothedTR.length; i++) {
+      if (smoothedTR[i] > 0) {
+        plusDI.push(100 * smoothedPlusDM[i] / smoothedTR[i]);
+        minusDI.push(100 * smoothedMinusDM[i] / smoothedTR[i]);
+      }
+    }
+
+    // Calculate DX
+    const dx = [];
+    for (let i = 0; i < plusDI.length; i++) {
+      const sum = plusDI[i] + minusDI[i];
+      if (sum > 0) {
+        dx.push(100 * Math.abs(plusDI[i] - minusDI[i]) / sum);
+      }
+    }
+
+    // Calculate ADX (smoothed DX)
+    if (dx.length < period) return dx.length > 0 ? dx[dx.length - 1] : 0;
+
+    const smoothedDX = smooth(dx, period);
+    return smoothedDX.length > 0 ? smoothedDX[smoothedDX.length - 1] / period : 0;
   };
   
   const currentPrice = closes[closes.length - 1];
@@ -241,20 +298,89 @@ function calculateIndicators(candles) {
   const ema21 = ema(closes, 21);
   const currentATR = atr(highs, lows, closes, 14);
   const atrPct = (currentATR / currentPrice) * 100;
+
+  // NEW: Proper ADX calculation
+  const adxValue = adx(highs, lows, closes, 14);
+
+  // NEW: Bollinger Band width calculation
+  const bbWidth = (() => {
+    if (closes.length < 20) return 0;
+    const recentCloses = closes.slice(-20);
+    const ma = recentCloses.reduce((a, b) => a + b, 0) / 20;
+    const variance = recentCloses.reduce((sum, val) => sum + Math.pow(val - ma, 2), 0) / 20;
+    const std = Math.sqrt(variance);
+    const upperBand = ma + (std * 2.0);
+    const lowerBand = ma - (std * 2.0);
+    return ma > 0 ? ((upperBand - lowerBand) / ma) * 100 : 0;
+  })();
+
+  // NEW: MA slope calculations
+  const maSlopeShort = (() => {
+    if (closes.length < 21) return 0;
+    const ma = [];
+    for (let i = 19; i < closes.length; i++) {
+      const sum = closes.slice(i - 19, i + 1).reduce((a, b) => a + b, 0);
+      ma.push(sum / 20);
+    }
+    if (ma.length < 2) return 0;
+    const currentMA = ma[ma.length - 1];
+    const previousMA = ma[ma.length - 2];
+    return currentMA > 0 ? (currentMA - previousMA) / currentMA : 0;
+  })();
+
+  const maSlopeLong = (() => {
+    if (closes.length < 51) return 0;
+    const ma = [];
+    for (let i = 49; i < closes.length; i++) {
+      const sum = closes.slice(i - 49, i + 1).reduce((a, b) => a + b, 0);
+      ma.push(sum / 50);
+    }
+    if (ma.length < 2) return 0;
+    const currentMA = ma[ma.length - 1];
+    const previousMA = ma[ma.length - 2];
+    return currentMA > 0 ? (currentMA - previousMA) / currentMA : 0;
+  })();
   
-  // Determine trend direction
+  // IMPROVED: Trend direction using ADX + MA slopes (matches backend)
   let trendDirection = 'sideways';
-  if (ema9 > ema21 * 1.002) trendDirection = 'up';
-  else if (ema9 < ema21 * 0.998) trendDirection = 'down';
+  if (adxValue > 25) {
+    if (maSlopeShort > 0.001 && maSlopeLong > 0.001) {
+      trendDirection = 'up';
+    } else if (maSlopeShort < -0.001 && maSlopeLong < -0.001) {
+      trendDirection = 'down';
+    }
+  }
   
-  // Determine volatility regime
+  // IMPROVED: Volatility regime using z-score approach
+  const returns = [];
+  for (let i = 1; i < closes.length; i++) {
+    returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
+  }
+  const recentReturns = returns.slice(-20);
+  const volatilityStd = Math.sqrt(
+    recentReturns.reduce((sum, r) => sum + r * r, 0) / recentReturns.length
+  );
+
+  // Historical volatility for z-score
+  const historicalReturns = returns.slice(0, -20);
+  const historicalMean = historicalReturns.length > 0
+    ? historicalReturns.reduce((a, b) => a + b, 0) / historicalReturns.length
+    : 0;
+  const historicalStd = historicalReturns.length > 0
+    ? Math.sqrt(historicalReturns.reduce((sum, r) => sum + Math.pow(r - historicalMean, 2), 0) / historicalReturns.length)
+    : 0.01;
+
+  const volatilityZScore = historicalStd > 0 ? (volatilityStd - historicalMean) / historicalStd : 0;
+
   let volatilityRegime = 'normal';
-  if (atrPct > 3.0) volatilityRegime = 'high';
-  else if (atrPct < 1.0) volatilityRegime = 'low';
-  
-  // Calculate market state
+  if (volatilityZScore > 2.0 || atrPct > 3.0) {
+    volatilityRegime = 'high';
+  } else if (volatilityZScore < 0.5 && atrPct < 1.0) {
+    volatilityRegime = 'low';
+  }
+
+  // IMPROVED: Market state classification (matches backend)
   let marketState = 'range';
-  const adxValue = adx(highs, lows, closes);
   if (adxValue > 25 && trendDirection !== 'sideways') {
     marketState = volatilityRegime === 'high' ? 'trend_volatile' : 'trend';
   } else if (volatilityRegime === 'high') {
@@ -273,6 +399,10 @@ function calculateIndicators(candles) {
     atr: currentATR,
     atr_pct: atrPct,
     adx: adxValue,
+    bb_width: bbWidth,
+    ma_slope_short: maSlopeShort,
+    ma_slope_long: maSlopeLong,
+    volatility_std: volatilityStd,
     trend_direction: trendDirection,
     volatility_regime: volatilityRegime,
     market_state: marketState,
@@ -283,8 +413,102 @@ function calculateIndicators(candles) {
 }
 
 /**
+ * Detect momentum divergence between price and RSI.
+ */
+function detectMomentumDivergence(candles, rsiValues) {
+  if (candles.length < 20 || rsiValues.length < 20) return null;
+
+  const recentCandles = candles.slice(-20);
+  const recentRSI = rsiValues.slice(-20);
+
+  // Find swing highs/lows in price
+  const priceHighIdx = recentCandles.reduce((maxIdx, c, idx) =>
+    c.high > recentCandles[maxIdx].high ? idx : maxIdx, 0);
+  const priceLowIdx = recentCandles.reduce((minIdx, c, idx) =>
+    c.low < recentCandles[minIdx].low ? idx : minIdx, 0);
+
+  // Find swing highs/lows in RSI
+  const rsiHighIdx = recentRSI.reduce((maxIdx, r, idx) =>
+    r > recentRSI[maxIdx] ? idx : maxIdx, 0);
+  const rsiLowIdx = recentRSI.reduce((minIdx, r, idx) =>
+    r < recentRSI[minIdx] ? idx : minIdx, 0);
+
+  // Bullish divergence: price makes lower low, RSI makes higher low
+  if (priceLowIdx > 10 && rsiLowIdx > 10) {
+    const currentPriceLow = recentCandles[priceLowIdx].low;
+    const previousPriceLow = Math.min(...recentCandles.slice(0, priceLowIdx).map(c => c.low));
+    const currentRSILow = recentRSI[rsiLowIdx];
+    const previousRSILow = Math.min(...recentRSI.slice(0, rsiLowIdx));
+
+    if (currentPriceLow < previousPriceLow && currentRSILow > previousRSILow) {
+      return 'bullish_divergence';
+    }
+  }
+
+  // Bearish divergence: price makes higher high, RSI makes lower high
+  if (priceHighIdx > 10 && rsiHighIdx > 10) {
+    const currentPriceHigh = recentCandles[priceHighIdx].high;
+    const previousPriceHigh = Math.max(...recentCandles.slice(0, priceHighIdx).map(c => c.high));
+    const currentRSIHigh = recentRSI[rsiHighIdx];
+    const previousRSIHigh = Math.max(...recentRSI.slice(0, rsiHighIdx));
+
+    if (currentPriceHigh > previousPriceHigh && currentRSIHigh < previousRSIHigh) {
+      return 'bearish_divergence';
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Detect EMA crossover with recency check.
+ */
+function detectEMACrossover(candles) {
+  if (candles.length < 25) return null;
+
+  const ema = (data, period) => {
+    const k = 2 / (period + 1);
+    let result = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    for (let i = period; i < data.length; i++) {
+      result = data[i] * k + result * (1 - k);
+    }
+    return result;
+  };
+
+  const recentCandles = candles.slice(-10);
+
+  // Calculate EMAs for recent candles
+  for (let i = 0; i < recentCandles.length; i++) {
+    const dataSlice = candles.slice(0, candles.length - 10 + i + 1);
+    const closes = dataSlice.map(c => c.close);
+    recentCandles[i].ema9 = ema(closes, 9);
+    recentCandles[i].ema21 = ema(closes, 21);
+  }
+
+  // Check for crossover in last 5 bars
+  for (let i = recentCandles.length - 5; i < recentCandles.length; i++) {
+    if (i > 0) {
+      const prev = recentCandles[i - 1];
+      const curr = recentCandles[i];
+
+      // Bullish crossover
+      if (prev.ema9 < prev.ema21 && curr.ema9 > curr.ema21) {
+        return { type: 'bullish_crossover', bars_ago: recentCandles.length - 1 - i };
+      }
+
+      // Bearish crossover
+      if (prev.ema9 > prev.ema21 && curr.ema9 < curr.ema21) {
+        return { type: 'bearish_crossover', bars_ago: recentCandles.length - 1 - i };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Perform client-side analysis when backend is unavailable.
- * 
+ *
  * @param {string} symbol - Trading pair
  * @param {string} timeframe - Chart interval
  * @param {Object} domData - Data extracted from DOM (leverage, etc.)
@@ -331,17 +555,28 @@ async function performClientSideAnalysis(symbol, timeframe, domData = {}) {
     
     // Detect setups
     const setupCandidates = [];
-    const close = indicators.price;
-    
-    // Pullback continuation
+
+    // Check for EMA crossover
+    const crossover = detectEMACrossover(candles);
+    if (crossover && crossover.bars_ago <= 2) {
+      setupCandidates.push(crossover.type);
+    }
+
+    // Check for momentum divergence
+    const divergence = detectMomentumDivergence(candles, candles.map(c => indicators.rsi_14));
+    if (divergence) {
+      setupCandidates.push(divergence);
+    }
+
+    // Pullback continuation (existing logic but improved)
     if (indicators.trend_direction !== 'sideways') {
       const emaZone = [Math.min(indicators.ema_9, indicators.ema_21), Math.max(indicators.ema_9, indicators.ema_21)];
       const zoneWidth = emaZone[1] - emaZone[0];
-      if (close >= emaZone[0] - zoneWidth * 0.5 && close <= emaZone[1] + zoneWidth * 0.5) {
+      if (indicators.price >= emaZone[0] - zoneWidth * 0.5 && indicators.price <= emaZone[1] + zoneWidth * 0.5) {
         setupCandidates.push('pullback_continuation');
       }
     }
-    
+
     // Range breakout - check if near recent extremes
     const recentHighs = candles.slice(-20).map(c => c.high);
     const recentLows = candles.slice(-20).map(c => c.low);
@@ -349,7 +584,7 @@ async function performClientSideAnalysis(symbol, timeframe, domData = {}) {
     const low20 = Math.min(...recentLows);
     const rangeSize = high20 - low20;
     if (rangeSize > 0 && indicators.market_state === 'range') {
-      if ((high20 - close) / rangeSize < 0.1 || (close - low20) / rangeSize < 0.1) {
+      if ((high20 - indicators.price) / rangeSize < 0.1 || (indicators.price - low20) / rangeSize < 0.1) {
         setupCandidates.push('range_breakout');
       }
     }
@@ -401,6 +636,10 @@ async function performClientSideAnalysis(symbol, timeframe, domData = {}) {
         atr: indicators.atr,
         atr_pct: indicators.atr_pct,
         adx: indicators.adx,
+        bb_width: indicators.bb_width,
+        ma_slope_short: indicators.ma_slope_short,
+        ma_slope_long: indicators.ma_slope_long,
+        volatility_std: indicators.volatility_std,
         ema_alignment: indicators.ema_alignment,
         rsi_14: indicators.rsi_14,
       },

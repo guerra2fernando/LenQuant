@@ -145,14 +145,14 @@ export default function AssistantTab(): JSX.Element {
                 Model override
                 <TooltipExplainer 
                   term="Model override" 
-                  explanation="Optionally specify a particular AI model version to use (e.g., 'gpt-4o-mini' or 'gemini-pro'). Leave blank to use the provider's default recommended model. Different models have different capabilities, speeds, and costs. Smaller models are faster and cheaper, larger models are more capable."
+                  explanation="Optionally specify a particular AI model version to use (e.g., ' GPT-5o-mini' or 'gemini-pro'). Leave blank to use the provider's default recommended model. Different models have different capabilities, speeds, and costs. Smaller models are faster and cheaper, larger models are more capable."
                 />
               </Label>
               <Input
                 id="assistant-model"
                 value={draft.model ?? ""}
                 onChange={(event) => handleFieldChange("model", event.target.value)}
-                placeholder="gpt-4o-mini"
+                placeholder=" GPT-5o-mini"
               />
             </div>
             <div className="space-y-1.5">

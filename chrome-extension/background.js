@@ -25,6 +25,92 @@ const DEFAULT_CONFIG = {
 let CONFIG = { ...DEFAULT_CONFIG };
 
 // ============================================================================
+// Google Analytics 4 for Chrome Extension using Measurement Protocol
+// ============================================================================
+
+const GA_MEASUREMENT_ID = 'G-H85MS707JE';
+const GA_API_SECRET = process.env.GA_API_SECRET || ''; // Set this in production
+
+class ExtensionAnalytics {
+  constructor() {
+    this.clientId = this.getOrCreateClientId();
+    this.sessionId = this.generateSessionId();
+    this.userId = null;
+  }
+
+  getOrCreateClientId() {
+    let clientId = chrome.storage.local.get(['ga_client_id']).then(result => {
+      if (result.ga_client_id) {
+        return result.ga_client_id;
+      } else {
+        const newClientId = this.generateUUID();
+        chrome.storage.local.set({ ga_client_id: newClientId });
+        return newClientId;
+      }
+    });
+    return clientId;
+  }
+
+  generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  generateSessionId() {
+    return Date.now().toString();
+  }
+
+  setUserId(userId) {
+    this.userId = userId;
+  }
+
+  async sendEvent(eventName, parameters = {}) {
+    if (!GA_API_SECRET) {
+      console.log('[GA Debug]', eventName, parameters);
+      return;
+    }
+
+    const clientId = await this.clientId;
+    const payload = {
+      client_id: clientId,
+      events: [{
+        name: eventName,
+        params: {
+          session_id: this.sessionId,
+          engagement_time_msec: 100,
+          ...parameters
+        }
+      }]
+    };
+
+    if (this.userId) {
+      payload.user_id = this.userId;
+    }
+
+    try {
+      const response = await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        console.warn('GA event failed:', response.status);
+      }
+    } catch (error) {
+      console.warn('GA event error:', error);
+    }
+  }
+}
+
+const extensionAnalytics = new ExtensionAnalytics();
+
+// ============================================================================
 // Client-Side Binance API (Fallback when backend unavailable)
 // ============================================================================
 
@@ -316,6 +402,62 @@ function initSession() {
 }
 
 // API Calls with Hybrid Mode (Backend First, Client Fallback)
+/**
+ * Perform ephemeral analysis by sending client-fetched OHLCV to backend.
+ * Backend applies proper regime detection without storing the data.
+ */
+async function performEphemeralAnalysis(symbol, timeframe, domData = {}) {
+  const startTime = Date.now();
+
+  console.log(`[LenQuant] Fetching OHLCV for ephemeral analysis: ${symbol} ${timeframe}`);
+
+  // Fetch OHLCV from Binance
+  const candles = await fetchBinanceOHLCV(symbol, timeframe, 300);
+
+  if (!candles || candles.length < 50) {
+    throw new Error(`Insufficient candles: ${candles?.length || 0}`);
+  }
+
+  // Send to ephemeral analysis endpoint
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for ephemeral
+
+  try {
+    const response = await fetch(`${CONFIG.API_BASE_URL}/analyze-ephemeral`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol: symbol,
+        timeframe: timeframe,
+        candles: candles,
+        dom_leverage: domData.leverage || null,
+        dom_position: domData.position || null,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Ephemeral API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    console.log(`[LenQuant] Ephemeral analysis completed in ${Date.now() - startTime}ms`);
+
+    return {
+      ...result,
+      source: 'ephemeral',
+      latency_ms: Date.now() - startTime,
+    };
+
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
 async function fetchContextAnalysis(symbol, timeframe, domData = {}) {
   const cacheKey = `${symbol}:${timeframe}`;
   const cached = analysisCache.get(cacheKey);
@@ -344,7 +486,20 @@ async function fetchContextAnalysis(symbol, timeframe, domData = {}) {
     
     // Check if backend returned insufficient data
     if (data.risk_flags?.includes('insufficient_data') || data.market_state === 'undefined') {
-      console.log('[LenQuant] Backend has no data, falling back to client-side');
+      console.log('[LenQuant] Backend has no data, trying ephemeral analysis');
+
+      // NEW: Try ephemeral analysis before falling back to client-side
+      try {
+        const ephemeralResult = await performEphemeralAnalysis(symbol, timeframe, domData);
+        if (ephemeralResult && ephemeralResult.market_state !== 'error') {
+          analysisCache.set(cacheKey, { data: ephemeralResult, timestamp: Date.now() });
+          return ephemeralResult;
+        }
+      } catch (ephemeralError) {
+        console.warn('[LenQuant] Ephemeral analysis failed:', ephemeralError.message);
+      }
+
+      // Final fallback to client-side
       if (CONFIG.USE_CLIENT_FALLBACK) {
         return await performClientSideAnalysis(symbol, timeframe, domData);
       }
@@ -357,9 +512,20 @@ async function fetchContextAnalysis(symbol, timeframe, domData = {}) {
     return { ...data, dom_leverage: domData.leverage, dom_position: domData.position, source: 'backend' };
     
   } catch (error) {
-    console.warn('[LenQuant] Backend failed, trying client-side:', error.message);
-    
-    // Fallback to client-side analysis
+    console.warn('[LenQuant] Backend failed, trying ephemeral analysis:', error.message);
+
+    // Try ephemeral analysis first
+    try {
+      const ephemeralResult = await performEphemeralAnalysis(symbol, timeframe, domData);
+      if (ephemeralResult && ephemeralResult.market_state !== 'error') {
+        analysisCache.set(cacheKey, { data: ephemeralResult, timestamp: Date.now() });
+        return ephemeralResult;
+      }
+    } catch (ephemeralError) {
+      console.warn('[LenQuant] Ephemeral analysis failed:', ephemeralError.message);
+    }
+
+    // Final fallback to client-side analysis
     if (CONFIG.USE_CLIENT_FALLBACK) {
       try {
         return await performClientSideAnalysis(symbol, timeframe, domData);
@@ -368,12 +534,12 @@ async function fetchContextAnalysis(symbol, timeframe, domData = {}) {
         throw clientError;
       }
     }
-    
+
     throw error;
   }
 }
 
-async function fetchExplanation(context, fastAnalysis) {
+async function fetchExplanation(context, fastAnalysis, tradeLevels = null) {
   try {
     const response = await fetch(`${CONFIG.API_BASE_URL}/explain`, {
       method: 'POST',
@@ -381,19 +547,52 @@ async function fetchExplanation(context, fastAnalysis) {
       body: JSON.stringify({
         context,
         fast_analysis: fastAnalysis,
+        trade_levels: tradeLevels,
         recent_behavior: null,
       }),
     });
-    
+
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
     }
-    
+
     return await response.json();
-    
+
   } catch (error) {
     console.error('[LenQuant] Explanation error:', error);
     throw error;
+  }
+}
+
+/**
+ * Fetch multi-timeframe analysis from backend.
+ */
+async function fetchMTFAnalysis(symbol, timeframes = ['5m', '1h', '4h']) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for MTF
+
+    const response = await fetch(`${CONFIG.API_BASE_URL}/analyze-mtf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol: symbol,
+        timeframes: timeframes,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`MTF API error: ${response.status}`);
+    }
+
+    return await response.json();
+
+  } catch (error) {
+    console.error('[LenQuant] MTF analysis error:', error);
+    return null;
   }
 }
 
@@ -749,7 +948,8 @@ async function handleMessage(message, sender) {
       try {
         const explanation = await fetchExplanation(
           message.context,
-          message.fastAnalysis
+          message.fastAnalysis,
+          message.tradeLevels
         );
         return { explanation };
       } catch (error) {
@@ -813,7 +1013,18 @@ async function handleMessage(message, sender) {
         console.error('[LenQuant] Screenshot capture error:', error);
         return { error: error.message };
       }
-      
+
+    case 'REQUEST_MTF_ANALYSIS':
+      try {
+        const mtfResult = await fetchMTFAnalysis(
+          message.symbol,
+          message.timeframes || ['5m', '1h', '4h']
+        );
+        return { mtf: mtfResult };
+      } catch (error) {
+        return { error: error.message };
+      }
+
     default:
       console.warn('[LenQuant] Unknown message type:', message.type);
       return { error: 'Unknown message type' };
@@ -850,7 +1061,36 @@ async function broadcastToTabs(message) {
   }
 }
 
+// ============================================================================
+// Chrome Extension Lifecycle Events
+// ============================================================================
+
+// Track extension installation
+chrome.runtime.onInstalled.addListener(async (details) => {
+  if (details.reason === 'install') {
+    await extensionAnalytics.sendEvent('extension_install', {
+      method: 'chrome_web_store',
+      extension_version: chrome.runtime.getManifest().version
+    });
+  } else if (details.reason === 'update') {
+    await extensionAnalytics.sendEvent('extension_update', {
+      previous_version: details.previousVersion,
+      extension_version: chrome.runtime.getManifest().version
+    });
+  }
+});
+
+// Track extension startup
+chrome.runtime.onStartup.addListener(async () => {
+  await extensionAnalytics.sendEvent('extension_startup', {
+    extension_version: chrome.runtime.getManifest().version
+  });
+});
+
+// ============================================================================
 // Initialize
+// ============================================================================
+
 initSession();
 connectWebSocket();
 

@@ -11,14 +11,14 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to home if already logged in
+    // Redirect to dashboard if already logged in
     if (status === "authenticated") {
-      router.push("/");
+      router.push("/portfolio");
     }
   }, [status, router]);
 
   const handleGoogleLogin = () => {
-    signIn("google", { callbackUrl: "/" });
+    signIn("google", { callbackUrl: "/portfolio" });
   };
 
   if (status === "loading") {
@@ -111,4 +111,7 @@ export default function LoginPage() {
 
 // This page is public
 LoginPage.auth = false;
+
+// Force server-side rendering to avoid static generation issues
+export const getServerSideProps = () => ({ props: {} });
 

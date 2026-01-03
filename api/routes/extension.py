@@ -333,6 +333,121 @@ def get_context_analysis(
 
 
 # ============================================================================
+# Multi-Timeframe Analysis
+# ============================================================================
+
+
+class MTFAnalysisRequest(BaseModel):
+    """Request for multi-timeframe analysis."""
+    symbol: str
+    timeframes: List[str] = Field(default=["5m", "1h", "4h"])
+
+
+class MTFAnalysisResponse(BaseModel):
+    """Response with multi-timeframe analysis."""
+    symbol: str
+    timeframes: Dict[str, Dict[str, Any]]
+    confluence: str  # "high", "medium", "low"
+    confluence_score: float
+    recommended_bias: str  # "long", "short", "neutral"
+    recommendation: str
+    latency_ms: int
+
+
+@router.post("/analyze-mtf", response_model=MTFAnalysisResponse)
+def analyze_multi_timeframe(payload: MTFAnalysisRequest) -> Dict[str, Any]:
+    """
+    Multi-timeframe confluence analysis.
+
+    Analyzes the symbol across multiple timeframes and calculates
+    confluence score to determine alignment.
+
+    High confluence = all timeframes agree on direction
+    Low confluence = timeframes disagree
+    """
+    import time
+    start_time = time.time()
+
+    logger.info("MTF analysis: %s across %s", payload.symbol, payload.timeframes)
+
+    analyzer = get_analyzer()
+    results = {}
+
+    for tf in payload.timeframes:
+        try:
+            result = analyzer.analyze(payload.symbol, tf, use_cache=True)
+            results[tf] = result.to_dict()
+        except Exception as exc:
+            logger.warning("MTF analysis failed for %s %s: %s", payload.symbol, tf, exc)
+            results[tf] = {"error": str(exc), "market_state": "error"}
+
+    # Calculate confluence
+    valid_results = [r for r in results.values() if r.get("market_state") != "error"]
+
+    if len(valid_results) < 2:
+        confluence = "low"
+        confluence_score = 0.0
+        recommended_bias = "neutral"
+        recommendation = "Insufficient data for multi-timeframe analysis"
+    else:
+        # Count trend directions
+        trend_counts = {"up": 0, "down": 0, "sideways": 0, None: 0}
+        for r in valid_results:
+            td = r.get("trend_direction")
+            trend_counts[td] = trend_counts.get(td, 0) + 1
+
+        # Find dominant trend
+        max_trend = max(trend_counts.items(), key=lambda x: x[1])
+        dominant_trend = max_trend[0]
+        dominant_count = max_trend[1]
+
+        # Calculate confluence score
+        total_valid = len(valid_results)
+        confluence_score = dominant_count / total_valid if total_valid > 0 else 0
+
+        # Classify confluence
+        if confluence_score >= 0.8:
+            confluence = "high"
+        elif confluence_score >= 0.5:
+            confluence = "medium"
+        else:
+            confluence = "low"
+
+        # Recommended bias
+        if dominant_trend == "up" and confluence_score >= 0.6:
+            recommended_bias = "long"
+        elif dominant_trend == "down" and confluence_score >= 0.6:
+            recommended_bias = "short"
+        else:
+            recommended_bias = "neutral"
+
+        # Build recommendation
+        if confluence == "high":
+            if recommended_bias == "long":
+                recommendation = f"Strong bullish confluence ({int(confluence_score*100)}%). All timeframes trending up. Consider long entries on pullbacks."
+            elif recommended_bias == "short":
+                recommendation = f"Strong bearish confluence ({int(confluence_score*100)}%). All timeframes trending down. Consider short entries on rallies."
+            else:
+                recommendation = "Strong confluence but sideways. Wait for breakout direction."
+        elif confluence == "medium":
+            recommendation = f"Mixed signals ({int(confluence_score*100)}% agreement). Higher timeframes may override lower. Wait for alignment."
+        else:
+            recommendation = "Low confluence - timeframes disagree. Avoid trading or use very tight risk."
+
+    latency_ms = int((time.time() - start_time) * 1000)
+
+    return {
+        "symbol": payload.symbol,
+        "timeframes": results,
+        "confluence": confluence,
+        "confluence_score": round(confluence_score, 2),
+        "recommended_bias": recommended_bias,
+        "recommendation": recommendation,
+        "latency_ms": latency_ms,
+    }
+
+
+# ============================================================================
 # Phase 2: Leverage Recommendation
 # ============================================================================
 
@@ -436,6 +551,7 @@ class ExplainRequestBody(BaseModel):
     """Request body for AI explanation."""
     context: ContextPayload
     fast_analysis: Dict[str, Any] = Field(default_factory=dict)
+    trade_levels: Optional[Dict[str, Any]] = None
     screenshot_base64: Optional[str] = None
     recent_behavior: Optional[Dict[str, Any]] = None
 
@@ -515,25 +631,28 @@ def _build_explain_system_prompt() -> str:
     """Build system prompt for trade explanation."""
     return """You are a trading coach analyzing market conditions for a Binance Futures trader.
 
-Provide a JSON response with these keys:
-- bias: "bullish", "bearish", or "neutral"
-- setup_name: Name of the trading setup (e.g., "pullback_continuation", "range_breakout")
-- trigger: Specific condition for entry (e.g., "Break above 42500 with volume")
-- invalidation: Level that invalidates the setup (e.g., "Below 42000")
-- targets: Array of price targets (e.g., ["42800", "43200"])
-- confidence: Confidence score 0-100
-- risk_grade: "low", "medium", or "high"
-- do_not_trade: true if conditions are unfavorable
-- reasoning: 2-3 sentence explanation
+The user has provided CALCULATED TRADE LEVELS from LenQuant's analysis engine. Your job is to EXPLAIN these levels, not create new ones.
 
-Be concise and actionable. Focus on clear entry, stop, and target levels."""
+Provide a JSON response with these keys:
+- bias: Use the bias from the calculated trade levels ("LONG", "SHORT", or "neutral")
+- setup_name: Name of the trading setup from the analysis (e.g., "pullback_continuation", "range_breakout")
+- trigger: Explain when to enter based on the provided entry zone
+- invalidation: Use the provided stop loss as the invalidation level
+- targets: Use the provided take profit levels as targets
+- confidence: Confidence score 0-100 based on the setup quality
+- risk_grade: "low", "medium", or "high" based on market conditions and risk flags
+- do_not_trade: true if the analysis shows unfavorable conditions
+- reasoning: 2-3 sentence explanation of WHY these specific levels make sense
+
+Be concise and actionable. Explain the calculated levels - do not invent new ones."""
 
 
 def _build_explain_user_prompt(payload: ExplainRequestBody) -> str:
     """Build user prompt from context and analysis."""
     context = payload.context
     analysis = payload.fast_analysis
-    
+    trade_levels = payload.trade_levels
+
     parts = [
         f"Symbol: {context.symbol}",
         f"Timeframe: {context.timeframe}",
@@ -544,20 +663,39 @@ def _build_explain_user_prompt(payload: ExplainRequestBody) -> str:
         f"Risk Flags: {', '.join(analysis.get('risk_flags', []))}",
         f"Trade Allowed: {analysis.get('trade_allowed', False)}",
     ]
-    
+
+    # Add calculated trade levels if available
+    if trade_levels:
+        parts.append("")
+        parts.append("CALCULATED TRADE LEVELS:")
+        if trade_levels.get('bias'):
+            parts.append(f"Bias: {trade_levels['bias']}")
+        if trade_levels.get('entry_zone'):
+            parts.append(f"Entry Zone: {trade_levels['entry_zone']}")
+        if trade_levels.get('stop_loss'):
+            parts.append(f"Stop Loss: {trade_levels['stop_loss']}")
+        if trade_levels.get('take_profit_1'):
+            parts.append(f"Take Profit 1: {trade_levels['take_profit_1']}")
+        if trade_levels.get('take_profit_2'):
+            parts.append(f"Take Profit 2: {trade_levels['take_profit_2']}")
+
     # Add regime features if available
     features = analysis.get("regime_features", {})
     if features:
+        parts.append("")
+        parts.append("TECHNICAL INDICATORS:")
         parts.append(f"ATR%: {features.get('atr_pct', 'N/A')}")
         parts.append(f"ADX: {features.get('adx', 'N/A')}")
         parts.append(f"RSI: {features.get('rsi_14', 'N/A')}")
-    
+
     # Add behavior context if available
     if payload.recent_behavior:
         trades_hour = payload.recent_behavior.get("trades_last_hour", 0)
         parts.append(f"Trades last hour: {trades_hour}")
-    
-    return "\n".join(parts) + "\n\nProvide a trade plan or explain why not to trade."
+
+    instruction = "\n\nEXPLAIN the calculated trade levels above. Do NOT create new trade levels - explain the existing ones and why they make sense for this setup."
+
+    return "\n".join(parts) + instruction
 
 
 def _fallback_explain_response(payload: ExplainRequestBody, start: float) -> Dict[str, Any]:

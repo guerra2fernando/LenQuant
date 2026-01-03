@@ -10,3 +10,6 @@ export default function AutonomySettingsPage() {
 
   return null;
 }
+
+// Force server-side rendering to avoid static generation issues
+export const getServerSideProps = () => ({ props: {} });

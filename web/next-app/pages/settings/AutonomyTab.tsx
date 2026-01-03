@@ -154,12 +154,12 @@ export default function AutonomyTab(): JSX.Element {
                 Model
                 <TooltipExplainer 
                   term="Model (Autonomy)" 
-                  explanation="The specific AI model version to use for generating strategy hypotheses (e.g., 'gpt-4o-mini' for faster/cheaper, 'gpt-4' for more capable). Leave blank to use the provider's recommended default. Different models balance cost, speed, and creativity differently."
+                  explanation="The specific AI model version to use for generating strategy hypotheses (e.g., ' GPT-5o-mini' for faster/cheaper, ' GPT-5' for more capable). Leave blank to use the provider's recommended default. Different models balance cost, speed, and creativity differently."
                 />
               </Label>
               <Input id="model" value={form.llm_model ?? ""} onChange={(event: React.ChangeEvent<HTMLInputElement>) => updateField("llm_model", event.target.value)} />
               <p className="text-xs text-muted-foreground">
-                Optional model identifier (e.g., `gpt-4o-mini`). Leave blank to use the provider&rsquo;s default recommendation.
+                Optional model identifier (e.g., ` GPT-5o-mini`). Leave blank to use the provider&rsquo;s default recommendation.
               </p>
             </div>
           </div>

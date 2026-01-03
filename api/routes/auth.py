@@ -14,6 +14,7 @@ from api.auth.dependencies import get_current_user
 from api.auth.jwt import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token
 from db.models.user import Token, User
 from db.repositories.user_repository import (
+    check_web_access,
     create_user,
     get_user_by_email,
     is_email_allowed,
@@ -81,37 +82,59 @@ async def login_with_google(request: GoogleLoginRequest) -> Token:
         name = idinfo.get("name", email.split("@")[0])
         picture = idinfo.get("picture")
         
-        # Check if email is allowed
-        if not is_email_allowed(email):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Email {email} is not authorized to access this system",
-            )
-        
         # Get or create user
         user = get_user_by_email(email)
-        
+
         if user is None:
-            # Create new user
-            user = User(
-                id=f"google_{google_id}",
-                email=email,
-                name=name,
-                picture=picture,
-                is_admin=True,  
-            )
-            user = create_user(user)
+            # Create new user - check legacy email whitelist for backwards compatibility
+            if not is_email_allowed(email):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Web platform access not enabled for this account. Please contact support.",
+                )
+            else:
+                # Email is in whitelist - grant web access
+                user = User(
+                    id=f"google_{google_id}",
+                    email=email,
+                    name=name,
+                    picture=picture,
+                    auth_method="google",
+                    web_access=True,  # Grant access since they're in whitelist
+                    is_admin=True,
+                )
+                user = create_user(user)
         else:
+            # Existing user - check web access flag
+            if not check_web_access(user):
+                # Check if email is in legacy whitelist (for backwards compatibility)
+                if not is_email_allowed(email):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Web platform access not enabled for this account. Please contact support.",
+                    )
+                else:
+                    # Email is in whitelist - grant web access
+                    from db.client import get_database_name, mongo_client
+                    import datetime
+                    with mongo_client() as client:
+                        db = client[get_database_name()]
+                        db.users.update_one(
+                            {"email": email.lower()},
+                            {"$set": {"web_access": True, "updated_at": datetime.datetime.utcnow()}}
+                        )
+                    user.web_access = True
+
             # Update last login
             update_user_login(user.id)
-        
+
         # Create JWT token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"user_id": user.id, "email": user.email},
             expires_delta=access_token_expires,
         )
-        
+
         return Token(
             access_token=access_token,
             token_type="bearer",

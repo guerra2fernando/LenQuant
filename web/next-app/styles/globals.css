@@ -2,58 +2,382 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   DESIGN TOKENS - LenQuant Brand System
+   ============================================ */
+
 :root {
-  --background: 210 40% 96%;
-  --foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 90%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 47.4% 11.2%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
+  /* === BRAND COLORS === */
+  --color-brand-primary: 271 91% 65%;      /* Vivid Purple #A855F7 */
+  --color-brand-secondary: 265 89% 78%;    /* Light Purple #C4B5FD */
+  --color-brand-accent: 217 91% 60%;       /* Electric Blue #3B82F6 */
+
+  /* === ELECTRIC EFFECT COLORS === */
+  --color-electric-purple: #8B5CF6;
+  --color-electric-indigo: #6366F1;
+  --color-electric-blue: #3B82F6;
+  --color-electric-glow: rgba(139, 92, 246, 0.6);
+
+  /* === LIGHT MODE (default for legal pages) === */
+  --background: 0 0% 100%;
+  --foreground: 224 71% 4%;
   --card: 0 0% 100%;
-  --card-foreground: 222.2 47.4% 11.2%;
-  --primary: 291 83% 59%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --accent: 291 47% 51%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --ring: 291 83% 59%;
+  --card-foreground: 224 71% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71% 4%;
+  --primary: 271 91% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 9% 46%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 265 89% 78%;
+  --accent-foreground: 224 71% 4%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 271 91% 65%;
   --radius: 0.75rem;
+
+  /* === TYPOGRAPHY === */
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* === SPACING === */
+  --space-section: 8rem;
+  --space-block: 4rem;
+
+  /* === TRANSITIONS === */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
 }
 
+/* === DARK MODE (Marketing pages default) === */
 .dark {
-  --background: 0 0% 9.8%;
+  --background: 0 0% 3.9%;                 /* Near black #0A0A0A */
   --foreground: 0 0% 98%;
-  --muted: 0 0% 15.3%;
-  --muted-foreground: 0 0% 83.1%;
-  --popover: 0 0% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --border: 0 0% 15.3%;
-  --input: 0 0% 15.3%;
-  --card: 0 0% 9.8%;
+  --card: 0 0% 6%;
   --card-foreground: 0 0% 98%;
-  --primary: 291 83% 65%;
-  --primary-foreground: 0 0% 9.8%;
-  --secondary: 0 0% 15.3%;
+  --popover: 0 0% 6%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 271 91% 65%;
+  --primary-foreground: 0 0% 3.9%;
+  --secondary: 0 0% 12%;
   --secondary-foreground: 0 0% 98%;
-  --accent: 291 47% 51%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 63.9%;
+  --accent: 265 89% 78%;
   --accent-foreground: 0 0% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
-  --ring: 291 83% 65%;
+  --border: 0 0% 14.9%;
+  --input: 0 0% 14.9%;
+  --ring: 271 91% 65%;
 }
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
 
 @layer base {
   * {
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
+  html {
+    scroll-behavior: smooth;
   }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply font-semibold tracking-tight;
+  }
+
+  /* Focus styles for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Accessibility Utilities */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================
+   MARKETING UTILITIES
+   ============================================ */
+
+@layer utilities {
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      hsl(271 91% 65%) 0%,
+      hsl(265 89% 78%) 50%,
+      hsl(217 91% 60%) 100%
+    );
+  }
+
+  /* Purple glow effect */
+  .glow-purple {
+    box-shadow:
+      0 0 20px rgba(139, 92, 246, 0.4),
+      0 0 40px rgba(139, 92, 246, 0.2),
+      0 0 60px rgba(139, 92, 246, 0.1);
+  }
+
+  /* Subtle card glow on hover */
+  .glow-card {
+    @apply transition-shadow duration-300;
+  }
+  .glow-card:hover {
+    box-shadow:
+      0 0 30px rgba(139, 92, 246, 0.15),
+      0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Section spacing */
+  .section-padding {
+    @apply py-16 md:py-24 lg:py-32;
+  }
+
+  /* Container with max-width */
+  .container-marketing {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-radial {
+    background: radial-gradient(
+      ellipse at center,
+      hsl(271 91% 65% / 0.15) 0%,
+      transparent 70%
+    );
+  }
+
+  .bg-gradient-dark {
+    background: linear-gradient(
+      180deg,
+      hsl(0 0% 3.9%) 0%,
+      hsl(0 0% 6%) 100%
+    );
+  }
+
+  /* Noise texture overlay */
+  .noise-overlay {
+    position: relative;
+  }
+  .noise-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Glass effect for cards */
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Electric glow animation */
+  .electric-glow {
+    position: relative;
+  }
+
+  .electric-glow::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(
+      45deg,
+      var(--color-electric-purple),
+      var(--color-electric-indigo),
+      var(--color-electric-blue),
+      var(--color-electric-purple)
+    );
+    background-size: 400% 400%;
+    animation: electric-gradient 3s ease infinite;
+    border-radius: inherit;
+    z-index: -1;
+    filter: blur(8px);
+    opacity: 0.7;
+  }
+
+  @keyframes electric-gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Static electric border (for reduced motion) */
+  .electric-border-static {
+    border: 2px solid var(--color-electric-purple);
+    box-shadow:
+      0 0 10px var(--color-electric-glow),
+      0 0 20px var(--color-electric-glow),
+      inset 0 0 10px rgba(139, 92, 246, 0.1);
+  }
+}
+
+/* ============================================
+   ANIMATION KEYFRAMES
+   ============================================ */
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* Staggered animation delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* ============================================
+   PROSE STYLING FOR LEGAL PAGES
+   ============================================ */
+
+/* Prose styling for legal pages */
+.prose {
+  @apply text-muted-foreground;
+}
+
+.prose h2 {
+  @apply text-foreground;
+}
+
+.prose h3 {
+  @apply text-foreground;
+}
+
+.prose a {
+  @apply text-purple-400 hover:underline;
+}
+
+.prose strong {
+  @apply text-foreground font-semibold;
+}
+
+.prose ul {
+  @apply list-disc list-inside space-y-1;
+}
+
+.prose p {
+  @apply mb-4;
+}
+
+.prose table {
+  @apply w-full;
+}
+
+.prose th {
+  @apply text-left py-2 pr-4 font-medium text-foreground border-b border-border/50;
+}
+
+.prose td {
+  @apply py-2 pr-4 border-b border-border/30;
 }
 
