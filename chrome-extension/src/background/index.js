@@ -62,7 +62,10 @@ async function handleGoogleAuth() {
     // Send to backend for verification and registration
     const authResult = await fetchJSON(`${CONFIG.API_BASE_URL}/auth/google`, {
       method: 'POST',
-      body: JSON.stringify({ id_token: idToken }),
+      body: JSON.stringify({
+        google_token: idToken,
+        device_fingerprint: navigator.userAgent
+      }),
     });
 
     if (authResult.success) {
@@ -134,17 +137,17 @@ async function handleContextChanged(request, sender) {
     }
 
     // Fetch analysis from backend
-    const analysisResult = await fetchJSON(`${CONFIG.API_BASE_URL}/analysis`, {
-      method: 'POST',
+    // Build URL with query parameters
+    const url = new URL(`${CONFIG.API_BASE_URL}/context`);
+    url.searchParams.set('symbol', request.symbol);
+    url.searchParams.set('timeframe', request.timeframe);
+    url.searchParams.set('include_setup', 'true');
+
+    const analysisResult = await fetchJSON(url.toString(), {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,
       },
-      body: JSON.stringify({
-        symbol: request.symbol,
-        timeframe: request.timeframe,
-        context: request.context,
-        domData: request.domData,
-      }),
     });
 
     if (analysisResult.success) {
@@ -304,7 +307,7 @@ async function handleGetMTFAnalysis(request) {
     }
 
     // Fetch MTF analysis from backend
-    const analysisResult = await fetchJSON(`${CONFIG.API_BASE_URL}/analysis/mtf`, {
+    const analysisResult = await fetchJSON(`${CONFIG.API_BASE_URL}/analyze-mtf`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authToken}`,

@@ -483,3 +483,18 @@ def track_usage(payload: UsageRequest) -> Dict[str, Any]:
         }
 
 
+@router.get("/config")
+def get_auth_config() -> Dict[str, Any]:
+    """
+    Get authentication configuration for Chrome extension.
+
+    Provides OAuth client IDs and other auth-related settings.
+    """
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+
+    return {
+        "google_client_id": google_client_id,
+        "oauth_scopes": ["email", "profile", "openid"],
+    }
+
+

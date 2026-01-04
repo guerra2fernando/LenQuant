@@ -1295,6 +1295,44 @@ def get_performance_analytics(
     return analytics
 
 
+@router.get("/flags")
+def get_feature_flags() -> Dict[str, Any]:
+    """
+    Get feature flags for Chrome extension.
+
+    Returns server-side feature flag configuration to control
+    extension behavior and feature availability.
+    """
+    import os
+
+    # Feature flags based on environment or configuration
+    flags = {
+        # Core features - always enabled
+        "analysis": True,
+        "panel": True,
+
+        # Pro features - based on licensing
+        "ai_explain": True,  # Always enabled for now
+        "mtf_analysis": True,
+        "behavior_alerts": True,
+
+        # Premium features
+        "trade_sync": True,
+
+        # Experimental features
+        "auto_explain": os.getenv('ENABLE_AUTO_EXPLAIN', 'false').lower() == 'true',
+        "minimize_mode": False,
+        "multi_exchange": True,
+        "sound_alerts": False,
+
+        # Debug features
+        "verbose_logging": os.getenv('DEBUG_MODE', 'false').lower() == 'true',
+        "performance_metrics": os.getenv('PERFORMANCE_METRICS', 'false').lower() == 'true',
+    }
+
+    return flags
+
+
 @router.get("/config/ga-secret")
 def get_ga_api_secret() -> Dict[str, str]:
     """
