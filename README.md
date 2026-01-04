@@ -4,7 +4,7 @@
 
 # LenQuant — Autonomous Crypto Trading Platform
 
-An intelligent, self-learning cryptocurrency trading system that uses machine learning to predict market movements, automatically execute trades, and continuously improve its strategies. Includes a Chrome extension for real-time AI-powered trading assistance on Binance Futures.
+An intelligent, self-learning cryptocurrency trading system that uses machine learning to predict market movements, automatically execute trades, and continuously improve its strategies. Includes a Chrome extension for real-time AI-powered trading assistance on Binance Futures. See more at:[LenQuant Website](https://lenquant.com) 
 
 ## 🎯 What This System Does
 
