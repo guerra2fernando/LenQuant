@@ -284,6 +284,13 @@ class AuthUI {
   }
 
   /**
+   * Show registration modal (alias for showAuthModal for backwards compatibility).
+   */
+  showRegistrationModal() {
+    this.showAuthModal();
+  }
+
+  /**
    * Hide current modal.
    */
   hideModal() {

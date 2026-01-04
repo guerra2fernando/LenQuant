@@ -10,7 +10,7 @@
 
 // Polyfill process for browser environment
 if (typeof process === 'undefined') {
-  window.process = { env: {} };
+  self.process = { env: {} };
 }
 
 // Default Configuration (production URLs)

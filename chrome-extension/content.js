@@ -2027,40 +2027,58 @@ async function triggerManualAnalysis() {
 // ============================================================================
 
 /**
- * Load feature gating scripts dynamically.
+ * Initialize feature gating components.
+ * Scripts are already loaded via manifest content_scripts (in order:
+ * license-manager.js → auth-ui.js → feature-gate.js → content.js)
  */
-async function loadFeatureGatingScripts() {
-  // Load scripts in order
-  const scripts = [
-    'license-manager.js',
-    'auth-ui.js',
-    'feature-gate.js'
-  ];
-
-  for (const script of scripts) {
-    try {
-      const response = await fetch(chrome.runtime.getURL(script));
-      const text = await response.text();
-      // Execute the script in global scope
-      (0, eval)(text);
-    } catch (error) {
-      console.error(`[LenQuant] Failed to load ${script}:`, error);
-    }
-  }
-
-  // Initialize components
-  const { LicenseManager } = window;
-  const { AuthUI } = window;
-  const { FeatureGate } = window;
+async function initializeFeatureGating() {
+  // Classes are already available on window from scripts loaded via manifest
+  const { LicenseManager, AuthUI, FeatureGate } = window;
 
   if (LicenseManager && AuthUI && FeatureGate) {
-    licenseManager = new LicenseManager('https://lenquant.com/api/extension');
+    // Get API URL from settings
+    let apiBaseUrl = 'https://lenquant.com/api/extension';
+    try {
+      const result = await chrome.storage.sync.get('settings');
+      if (result.settings && result.settings.apiUrl) {
+        const baseUrl = result.settings.apiUrl.replace(/\/$/, '');
+        apiBaseUrl = `${baseUrl}/api/extension`;
+      }
+    } catch (err) {
+      console.warn('[LenQuant] Failed to load settings for API URL:', err);
+    }
+
+    licenseManager = new LicenseManager(apiBaseUrl);
     authUI = new AuthUI(licenseManager);
     featureGate = new FeatureGate(licenseManager, authUI);
 
-    console.log('[LenQuant] Feature gating initialized');
+    // Initialize license manager (async, but don't block)
+    licenseManager.init().then(license => {
+      if (license) {
+        console.log('[LenQuant] License loaded:', license.tier);
+        // Show trial banner if applicable
+        const trial = licenseManager.getTrialRemaining();
+        if (trial && trial.hours < 72) {
+          authUI.showTrialBanner(trial.hours);
+        }
+      } else {
+        console.log('[LenQuant] No valid license, showing auth modal');
+        // Show auth modal for new users after a short delay
+        setTimeout(() => {
+          if (!licenseManager.license) {
+            authUI.showAuthModal();
+          }
+        }, 2000);
+      }
+    }).catch(err => {
+      console.error('[LenQuant] License init error:', err);
+    });
+
+    console.log('[LenQuant] Feature gating initialized with API:', apiBaseUrl);
+    return true;
   } else {
-    console.error('[LenQuant] Feature gating components not loaded');
+    console.error('[LenQuant] Feature gating components not available on window');
+    return false;
   }
 }
 
@@ -2078,12 +2096,8 @@ async function init() {
     console.error('[LenQuant] Failed to get session:', error);
   }
 
-  // Load feature gating components
-  try {
-    await loadFeatureGatingScripts();
-  } catch (error) {
-    console.error('[LenQuant] Failed to load feature gating:', error);
-  }
+  // Initialize feature gating components (already loaded via manifest)
+  await initializeFeatureGating();
 
   // Initialize panel
   panel = new TradingPanel();
