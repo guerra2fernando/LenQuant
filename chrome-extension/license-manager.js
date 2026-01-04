@@ -43,77 +43,24 @@ class LicenseManager {
 
   /**
    * Authenticate with Google OAuth.
+   * Delegates to background script which has access to chrome.identity API.
    */
   async authenticateWithGoogle() {
     try {
-      // Use chrome.identity API for Google OAuth
-      const redirectUrl = chrome.identity.getRedirectURL();
-      const clientId = await this._getGoogleClientId();
-
-      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', redirectUrl);
-      authUrl.searchParams.set('response_type', 'token id_token');
-      authUrl.searchParams.set('scope', 'email profile openid');
-      authUrl.searchParams.set('nonce', Math.random().toString(36).substring(2));
-
-      const responseUrl = await new Promise((resolve, reject) => {
-        chrome.identity.launchWebAuthFlow(
-          { url: authUrl.toString(), interactive: true },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-            } else {
-              resolve(response);
-            }
-          }
-        );
+      // Delegate to background script (chrome.identity only works in background/service worker)
+      const response = await chrome.runtime.sendMessage({
+        type: 'AUTHENTICATE_GOOGLE',
+        deviceFingerprint: await this._getDeviceFingerprint(),
       });
 
-      // Extract ID token from response
-      const urlParams = new URLSearchParams(new URL(responseUrl).hash.substring(1));
-      const idToken = urlParams.get('id_token');
-
-      if (!idToken) {
-        throw new Error('No ID token in response');
-      }
-
-      // Send to backend
-      const response = await fetch(`${this.apiBaseUrl}/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          google_token: idToken,
-          device_fingerprint: await this._getDeviceFingerprint(),
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Google authentication failed');
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        this.license = {
-          email: result.email,
-          device_id: result.device_id,
-          license_token: result.license_token,
-          tier: result.tier,
-          trial_ends_at: result.trial_ends_at,
-          features: result.features,
-          auth_method: result.auth_method,
-          valid: true,
-        };
-
+      if (response.success) {
+        this.license = response.license;
         await this._saveToStorage(this.license);
         this._startValidationTimer();
-
-        return { success: true, message: result.message, license: this.license };
+        return { success: true, message: response.message, license: this.license };
       }
 
-      return { success: false, message: 'Authentication failed' };
+      return { success: false, message: response.message || 'Google authentication failed' };
 
     } catch (error) {
       console.error('[LenQuant] Google auth error:', error);

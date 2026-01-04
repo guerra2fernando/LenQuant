@@ -545,18 +545,18 @@ class TradingPanel {
   hideLoadingState() {
     if (!this.container) return;
 
-    // Hide skeleton loaders
+    // Remove skeleton class and reset inline styles from all skeleton elements
     const skeletons = this.container.querySelectorAll('.lq-skeleton');
     skeletons.forEach(el => {
-      el.style.display = 'none';
+      el.classList.remove('lq-skeleton');
+      el.style.width = '';
+      el.style.height = '';
     });
 
-    // Show actual content
-    const contentElements = this.container.querySelectorAll('.lq-grade, .lq-state-value, .lq-setup-value, .lq-leverage-value, .lq-reason-text');
+    // Show actual content elements
+    const contentElements = this.container.querySelectorAll('.lq-grade, .lq-state-value, .lq-setup-value, .lq-leverage-value, .lq-reason-text, .lq-symbol, .lq-timeframe');
     contentElements.forEach(el => {
-      if (!el.classList.contains('lq-skeleton')) {
-        el.style.display = '';
-      }
+      el.style.display = '';
     });
   }
 
@@ -653,8 +653,22 @@ class TradingPanel {
           <span class="lq-logo">LenQuant</span>
           <div class="lq-header-actions">
             <button class="lq-btn-icon lq-refresh-btn" title="Refresh Analysis">↻</button>
+            <button class="lq-btn-icon lq-menu-btn" title="Menu">☰</button>
             <button class="lq-btn-icon lq-collapse-btn" title="Collapse">−</button>
             <button class="lq-btn-icon lq-close-btn" title="Close">×</button>
+          </div>
+          <div class="lq-dropdown-menu" style="display: none;">
+            <div class="lq-user-info">
+              <span class="lq-user-email">Not signed in</span>
+              <span class="lq-user-tier lq-tier-free">FREE</span>
+            </div>
+            <hr class="lq-menu-divider">
+            <button class="lq-menu-item" data-action="dashboard">📊 Dashboard</button>
+            <button class="lq-menu-item" data-action="journal">📔 Journal</button>
+            <button class="lq-menu-item" data-action="settings">⚙️ Settings</button>
+            <button class="lq-menu-item" data-action="help">❓ Help</button>
+            <hr class="lq-menu-divider">
+            <button class="lq-menu-item lq-menu-logout" data-action="logout">🚪 Logout</button>
           </div>
         </div>
 
@@ -802,6 +816,63 @@ class TradingPanel {
     const refreshBtn = this.container.querySelector('.lq-refresh-btn');
     refreshBtn.addEventListener('click', () => this.refreshAnalysis());
 
+    // Menu button
+    const menuBtn = this.container.querySelector('.lq-menu-btn');
+    const dropdownMenu = this.container.querySelector('.lq-dropdown-menu');
+    
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = dropdownMenu.style.display !== 'none';
+      dropdownMenu.style.display = isVisible ? 'none' : 'block';
+      
+      // Update user info in menu
+      if (!isVisible && licenseManager && licenseManager.license) {
+        this.updateMenuUserInfo();
+      }
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.lq-header')) {
+        dropdownMenu.style.display = 'none';
+      }
+    });
+    
+    // Menu item handlers
+    const menuItems = this.container.querySelectorAll('.lq-menu-item');
+    menuItems.forEach(item => {
+      item.addEventListener('click', async () => {
+        const action = item.dataset.action;
+        dropdownMenu.style.display = 'none';
+        
+        switch (action) {
+          case 'dashboard':
+            window.open('https://lenquant.com/dashboard', '_blank');
+            break;
+          case 'journal':
+            window.open('https://lenquant.com/journal', '_blank');
+            break;
+          case 'settings':
+            chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' });
+            break;
+          case 'help':
+            window.open('https://lenquant.com/help', '_blank');
+            break;
+          case 'logout':
+            if (confirm('Are you sure you want to log out?')) {
+              if (licenseManager) {
+                await licenseManager.logout();
+              }
+              if (authUI) {
+                authUI.showAuthModal();
+              }
+              this.updateMenuUserInfo();
+            }
+            break;
+        }
+      });
+    });
+
     // Collapse button
     const collapseBtn = this.container.querySelector('.lq-collapse-btn');
     collapseBtn.addEventListener('click', () => this.toggleCollapse());
@@ -879,6 +950,37 @@ class TradingPanel {
     } finally {
       syncBtn.disabled = false;
       syncBtn.textContent = '🔄 Sync';
+    }
+  }
+
+  /**
+   * Update user info in the dropdown menu
+   */
+  updateMenuUserInfo() {
+    const emailEl = this.container.querySelector('.lq-user-email');
+    const tierEl = this.container.querySelector('.lq-user-tier');
+    
+    if (!emailEl || !tierEl) return;
+    
+    if (licenseManager && licenseManager.license) {
+      const license = licenseManager.license;
+      emailEl.textContent = license.email || 'Not signed in';
+      
+      const tier = license.tier || 'free';
+      tierEl.textContent = tier.toUpperCase();
+      tierEl.className = `lq-user-tier lq-tier-${tier}`;
+      
+      // Add trial remaining if applicable
+      if (tier === 'trial') {
+        const trialInfo = licenseManager.getTrialRemaining();
+        if (trialInfo) {
+          tierEl.textContent = `TRIAL • ${trialInfo.display}`;
+        }
+      }
+    } else {
+      emailEl.textContent = 'Not signed in';
+      tierEl.textContent = 'FREE';
+      tierEl.className = 'lq-user-tier lq-tier-free';
     }
   }
   
@@ -1096,39 +1198,88 @@ class TradingPanel {
 function updatePanel(analysis) {
   if (!panel || !panel.container) return;
   
-  // Update context
-  panel.container.querySelector('.lq-symbol').textContent = currentContext.symbol || '--';
-  panel.container.querySelector('.lq-timeframe').textContent = currentContext.timeframe || '--';
+  // IMPORTANT: First hide all skeletons
+  panel.hideLoadingState();
   
-  // Update grade
+  // Update context - ensure values are not undefined and remove skeleton class
+  const symbolEl = panel.container.querySelector('.lq-symbol');
+  if (symbolEl) {
+    symbolEl.textContent = currentContext.symbol || 'N/A';
+    symbolEl.classList.remove('lq-skeleton');
+    symbolEl.style.width = 'auto';
+    symbolEl.style.height = 'auto';
+  }
+  
+  const timeframeEl = panel.container.querySelector('.lq-timeframe');
+  if (timeframeEl) {
+    timeframeEl.textContent = currentContext.timeframe || '1m';
+    timeframeEl.classList.remove('lq-skeleton');
+    timeframeEl.style.width = 'auto';
+    timeframeEl.style.height = 'auto';
+  }
+  
+  // Update grade with defensive coding
   const grade = calculateGrade(analysis);
   const gradeEl = panel.container.querySelector('.lq-grade');
-  gradeEl.textContent = grade;
-  gradeEl.className = `lq-grade grade-${grade.toLowerCase()}`;
+  if (gradeEl) {
+    gradeEl.textContent = grade;
+    gradeEl.className = `lq-grade grade-${grade.toLowerCase()}`;
+    gradeEl.classList.remove('lq-skeleton');
+    gradeEl.style.width = 'auto';
+    gradeEl.style.height = 'auto';
+  }
   
-  // Update market state
+  // Update market state with defensive coding
   const stateValue = panel.container.querySelector('.lq-state-value');
-  stateValue.textContent = formatMarketState(analysis.market_state, analysis.trend_direction);
-  stateValue.className = `lq-state-value state-${analysis.market_state}`;
+  if (stateValue) {
+    stateValue.textContent = formatMarketState(analysis.market_state || 'unknown', analysis.trend_direction);
+    stateValue.className = `lq-state-value state-${analysis.market_state || 'unknown'}`;
+    stateValue.classList.remove('lq-skeleton');
+    stateValue.style.width = 'auto';
+    stateValue.style.height = 'auto';
+  }
   
-  // Update setup
+  // Update setup with defensive coding
   const setupValue = panel.container.querySelector('.lq-setup-value');
-  setupValue.textContent = analysis.setup_candidates.length > 0 
-    ? analysis.setup_candidates[0].replace(/_/g, ' ')
-    : 'No Setup Detected';
+  if (setupValue) {
+    const setupCandidates = analysis.setup_candidates || [];
+    setupValue.textContent = setupCandidates.length > 0 
+      ? setupCandidates[0].replace(/_/g, ' ')
+      : 'No Setup Detected';
+    setupValue.classList.remove('lq-skeleton');
+    setupValue.style.width = 'auto';
+    setupValue.style.height = 'auto';
+  }
   
-  // Update risk flags
+  // Update risk flags with defensive coding
   const riskContainer = panel.container.querySelector('.lq-risk-flags');
-  riskContainer.innerHTML = analysis.risk_flags.map(flag => 
-    `<span class="lq-risk-flag">${formatRiskFlag(flag)}</span>`
-  ).join('');
+  if (riskContainer) {
+    const riskFlags = analysis.risk_flags || [];
+    if (riskFlags.length > 0) {
+      riskContainer.innerHTML = riskFlags.map(flag => 
+        `<span class="lq-risk-flag">${formatRiskFlag(flag)}</span>`
+      ).join('');
+    } else {
+      riskContainer.innerHTML = '<span class="lq-risk-flag" style="background: rgba(14, 203, 129, 0.1); border-color: rgba(14, 203, 129, 0.3); color: var(--lq-accent-green);">✓ No flags</span>';
+    }
+  }
   
-  // Update leverage
-  const [minLev, maxLev] = analysis.suggested_leverage_band;
-  panel.container.querySelector('.lq-leverage-value').textContent = `${minLev}x - ${maxLev}x`;
+  // Update leverage with defensive coding
+  const leverageBand = analysis.suggested_leverage_band || [1, 10];
+  const [minLev, maxLev] = leverageBand;
+  const leverageValueEl = panel.container.querySelector('.lq-leverage-value');
+  if (leverageValueEl) {
+    leverageValueEl.textContent = `${minLev}x - ${maxLev}x`;
+    leverageValueEl.classList.remove('lq-skeleton');
+    leverageValueEl.style.width = 'auto';
+    leverageValueEl.style.height = 'auto';
+  }
   
   const leverageFill = panel.container.querySelector('.lq-leverage-fill');
-  leverageFill.style.width = `${(maxLev / 20) * 100}%`;
+  if (leverageFill) {
+    leverageFill.style.width = `${(maxLev / 20) * 100}%`;
+    leverageFill.classList.remove('lq-skeleton');
+  }
   
   // Phase 2: Update regime info
   const regimeMultiplier = analysis.regime_multiplier || 1.0;
@@ -1166,8 +1317,14 @@ function updatePanel(analysis) {
     sizingNoteSection.style.display = 'none';
   }
   
-  // Update reason
-  panel.container.querySelector('.lq-reason-text').textContent = analysis.reason;
+  // Update reason with defensive coding
+  const reasonEl = panel.container.querySelector('.lq-reason-text');
+  if (reasonEl) {
+    reasonEl.textContent = analysis.reason || 'Analysis complete';
+    reasonEl.classList.remove('lq-skeleton');
+    reasonEl.style.width = 'auto';
+    reasonEl.style.height = 'auto';
+  }
   
   // Update Quick Action Info Section
   updateQuickActionInfo(analysis);

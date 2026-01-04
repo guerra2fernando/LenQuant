@@ -957,6 +957,101 @@ async function handleMessage(message, sender) {
     case 'GET_SESSION':
       if (!sessionId) initSession();
       return { sessionId };
+    
+    case 'AUTHENTICATE_GOOGLE':
+      // Handle Google OAuth in background script (chrome.identity only available here)
+      try {
+        const redirectUrl = chrome.identity.getRedirectURL();
+        
+        // Get Google Client ID from manifest or backend
+        let clientId;
+        const manifest = chrome.runtime.getManifest();
+        if (manifest.oauth2 && manifest.oauth2.client_id) {
+          clientId = manifest.oauth2.client_id;
+        } else {
+          // Fetch from backend
+          const configResponse = await fetch(`${CONFIG.API_BASE_URL}/auth/config`);
+          if (configResponse.ok) {
+            const config = await configResponse.json();
+            clientId = config.google_client_id;
+          }
+        }
+        
+        if (!clientId) {
+          return { success: false, message: 'Google OAuth not configured' };
+        }
+        
+        // Build OAuth URL
+        const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+        authUrl.searchParams.set('client_id', clientId);
+        authUrl.searchParams.set('redirect_uri', redirectUrl);
+        authUrl.searchParams.set('response_type', 'token id_token');
+        authUrl.searchParams.set('scope', 'email profile openid');
+        authUrl.searchParams.set('nonce', Math.random().toString(36).substring(2));
+        
+        // Launch OAuth flow
+        const responseUrl = await new Promise((resolve, reject) => {
+          chrome.identity.launchWebAuthFlow(
+            { url: authUrl.toString(), interactive: true },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+              } else {
+                resolve(response);
+              }
+            }
+          );
+        });
+        
+        // Extract ID token from response URL
+        const urlParams = new URLSearchParams(new URL(responseUrl).hash.substring(1));
+        const idToken = urlParams.get('id_token');
+        
+        if (!idToken) {
+          return { success: false, message: 'No ID token in OAuth response' };
+        }
+        
+        // Send to backend for verification and registration
+        const authResponse = await fetch(`${CONFIG.API_BASE_URL}/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            google_token: idToken,
+            device_fingerprint: message.deviceFingerprint,
+          }),
+        });
+        
+        if (!authResponse.ok) {
+          const error = await authResponse.json();
+          return { success: false, message: error.detail || 'Google authentication failed' };
+        }
+        
+        const result = await authResponse.json();
+        
+        if (result.success) {
+          console.log('[LenQuant] Google OAuth successful:', result.email);
+          return {
+            success: true,
+            message: result.message,
+            license: {
+              email: result.email,
+              device_id: result.device_id,
+              license_token: result.license_token,
+              tier: result.tier,
+              trial_ends_at: result.trial_ends_at,
+              features: result.features,
+              auth_method: result.auth_method,
+              valid: true,
+            },
+          };
+        }
+        
+        return { success: false, message: 'Authentication failed' };
+        
+      } catch (error) {
+        console.error('[LenQuant] Google OAuth error:', error);
+        return { success: false, message: error.message };
+      }
       
     case 'CONTEXT_CHANGED':
       bufferEvent({

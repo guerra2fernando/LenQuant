@@ -245,7 +245,7 @@ def analyze_ephemeral(payload: EphemeralAnalysisRequest) -> Dict[str, Any]:
         
         latency_ms = int((time.time() - start_time) * 1000)
         
-        return {
+        result = {
             "trade_allowed": trade_allowed,
             "market_state": market_state,
             "trend_direction": trend_direction,
@@ -268,6 +268,22 @@ def analyze_ephemeral(payload: EphemeralAnalysisRequest) -> Dict[str, Any]:
             "dom_leverage": payload.dom_leverage,
             "dom_position": payload.dom_position,
         }
+        
+        # Log response data for debugging
+        logger.info(
+            "Ephemeral result: %s %s | state=%s trend=%s allowed=%s setup=%s lev=%s-%s latency=%dms",
+            payload.symbol,
+            payload.timeframe,
+            market_state,
+            trend_direction,
+            trade_allowed,
+            setup_candidates[0] if setup_candidates else "none",
+            min_lev,
+            max_lev,
+            latency_ms,
+        )
+        
+        return result
         
     except Exception as exc:
         logger.error("Ephemeral analysis error: %s", exc, exc_info=True)
