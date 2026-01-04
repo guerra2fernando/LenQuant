@@ -377,7 +377,12 @@ class LicenseManager {
   }
 }
 
-// Export for use in other scripts
+// Export for browser environment
+if (typeof window !== 'undefined') {
+  window.LicenseManager = LicenseManager;
+}
+
+// Export for Node.js environment
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { LicenseManager };
 }

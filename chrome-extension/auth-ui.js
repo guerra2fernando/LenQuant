@@ -318,7 +318,12 @@ class AuthUI {
   }
 }
 
-// Export
+// Export for browser environment
+if (typeof window !== 'undefined') {
+  window.AuthUI = AuthUI;
+}
+
+// Export for Node.js environment
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { AuthUI };
 }

@@ -2054,8 +2054,8 @@ async function loadFeatureGatingScripts() {
   const { FeatureGate } = window;
 
   if (LicenseManager && AuthUI && FeatureGate) {
-    licenseManager = new LicenseManager();
-    authUI = new AuthUI();
+    licenseManager = new LicenseManager('https://lenquant.com/api/extension');
+    authUI = new AuthUI(licenseManager);
     featureGate = new FeatureGate(licenseManager, authUI);
 
     console.log('[LenQuant] Feature gating initialized');

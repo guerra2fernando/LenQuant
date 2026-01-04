@@ -1,12 +1,17 @@
 /**
  * LenQuant Binance Assistant - Background Service Worker
- * 
+ *
  * Handles:
  * - API communication with LenQuant backend
  * - WebSocket connection management
  * - Event logging buffer
  * - Chrome extension messaging
  */
+
+// Polyfill process for browser environment
+if (typeof process === 'undefined') {
+  window.process = { env: {} };
+}
 
 // Default Configuration (production URLs)
 const DEFAULT_CONFIG = {
@@ -146,12 +151,16 @@ class ExtensionAnalytics {
     }
 
     try {
-      const response = await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`, {
+      // Send GA event through backend proxy to avoid CORS issues
+      const response = await fetch(`${CONFIG.API_BASE_URL}/analytics/track`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          measurement_id: GA_MEASUREMENT_ID,
+          events: [payload]  // Wrap in events array as expected by our endpoint
+        })
       });
 
       if (!response.ok) {

@@ -1286,6 +1286,45 @@ def get_ga_api_secret() -> Dict[str, str]:
     return {"ga_api_secret": ga_secret}
 
 
+@router.post("/analytics/track")
+async def track_ga_event(request: Request) -> Dict[str, str]:
+    """
+    Proxy Google Analytics events from Chrome extension.
+
+    Since Chrome extensions cannot make direct requests to Google Analytics
+    due to CORS restrictions, this endpoint proxies GA events.
+    """
+    import os
+    import httpx
+
+    try:
+        # Get the GA API secret
+        ga_secret = os.getenv('GA_API_SECRET', '')
+        if not ga_secret:
+            return {"status": "error", "message": "GA_API_SECRET not configured"}
+
+        # Parse the request body
+        body = await request.json()
+        measurement_id = body.get('measurement_id')
+        events = body.get('events', [])
+
+        if not measurement_id or not events:
+            return {"status": "error", "message": "Missing measurement_id or events"}
+
+        # Forward to Google Analytics Measurement Protocol
+        ga_url = f"https://www.google-analytics.com/mp/collect?measurement_id={measurement_id}&api_secret={ga_secret}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(ga_url, json=events[0])  # GA expects single event objects
+            if response.status_code == 200 or response.status_code == 204:
+                return {"status": "success"}
+            else:
+                return {"status": "error", "message": f"GA returned {response.status_code}"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 # ============================================================================
 # WebSocket Streaming
 # ============================================================================

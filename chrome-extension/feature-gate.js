@@ -141,7 +141,12 @@ class FeatureGate {
   }
 }
 
-// Export
+// Export for browser environment
+if (typeof window !== 'undefined') {
+  window.FeatureGate = FeatureGate;
+}
+
+// Export for Node.js environment
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { FeatureGate };
 }
