@@ -12,7 +12,6 @@ const navigation = [
   { name: "Extension", href: "/extension" },
   { name: "Platform", href: "/platform" },
   { name: "Pricing", href: "/#pricing" },
-  { name: "Dashboard", href: "/portfolio" },
 ];
 
 export function Header() {

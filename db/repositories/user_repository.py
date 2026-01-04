@@ -242,6 +242,11 @@ def check_trial_status(user: User) -> Dict[str, Any]:
         return {"is_trial": True, "expired": True}
 
     now = _utcnow()
+
+    # Ensure trial_ends is timezone-aware for comparison
+    if trial_ends.tzinfo is None:
+        trial_ends = trial_ends.replace(tzinfo=timezone.utc)
+
     if now > trial_ends:
         # Trial expired - update tier
         update_extension_tier(user.id, "expired")

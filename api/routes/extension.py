@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -982,17 +982,23 @@ def _get_cooldown_status(session_id: str) -> Dict[str, Any]:
     """Internal helper to get cooldown status."""
     if session_id not in _cooldown_state:
         return {"active": False, "remaining_min": 0}
-    
+
     state = _cooldown_state[session_id]
     ends_at = datetime.fromisoformat(state["ends_at"])
-    
-    if datetime.utcnow() >= ends_at:
+
+    # Ensure ends_at is timezone-aware for comparison
+    if ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=timezone.utc)
+
+    now = datetime.utcnow().replace(tzinfo=timezone.utc)
+
+    if now >= ends_at:
         # Cooldown expired
         del _cooldown_state[session_id]
         return {"active": False, "remaining_min": 0}
-    
-    remaining = (ends_at - datetime.utcnow()).total_seconds() / 60
-    
+
+    remaining = (ends_at - now).total_seconds() / 60
+
     return {
         "active": True,
         "remaining_min": round(remaining, 1),
