@@ -1257,7 +1257,7 @@ def get_performance_analytics(
 ) -> Dict[str, Any]:
     """
     Get comprehensive performance analytics.
-    
+
     Includes:
     - Performance by setup, timeframe, symbol
     - Performance by day of week and hour
@@ -1266,11 +1266,24 @@ def get_performance_analytics(
     - Advanced metrics (Sharpe, expectancy)
     """
     from extension.reports import ReportGenerator
-    
+
     generator = ReportGenerator(user_id=user_id, session_id=session_id)
     analytics = generator.get_performance_analytics(days=days)
-    
+
     return analytics
+
+
+@router.get("/config/ga-secret")
+def get_ga_api_secret() -> Dict[str, str]:
+    """
+    Get Google Analytics API secret for Chrome extension.
+
+    This endpoint serves the GA_API_SECRET environment variable
+    to the Chrome extension, which cannot access environment variables directly.
+    """
+    import os
+    ga_secret = os.getenv('GA_API_SECRET', '')
+    return {"ga_api_secret": ga_secret}
 
 
 # ============================================================================

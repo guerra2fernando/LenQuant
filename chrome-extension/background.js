@@ -29,13 +29,65 @@ let CONFIG = { ...DEFAULT_CONFIG };
 // ============================================================================
 
 const GA_MEASUREMENT_ID = 'G-H85MS707JE';
-const GA_API_SECRET = process.env.GA_API_SECRET || ''; // Set this in production
+let GA_API_SECRET = ''; // Will be fetched from backend
 
 class ExtensionAnalytics {
   constructor() {
     this.clientId = this.getOrCreateClientId();
     this.sessionId = this.generateSessionId();
     this.userId = null;
+    this.initialized = false;
+    this.initPromise = this.initialize();
+  }
+
+  async initialize() {
+    if (this.initialized) return;
+
+    try {
+      // Try to load from chrome.storage first
+      const result = await chrome.storage.local.get(['ga_api_secret']);
+      if (result.ga_api_secret) {
+        GA_API_SECRET = result.ga_api_secret;
+        this.initialized = true;
+        console.log('[GA] Loaded API secret from storage');
+        return;
+      }
+
+      // Wait for settings to be loaded before accessing CONFIG
+      let attempts = 0;
+      while (!CONFIG.API_BASE_URL && attempts < 50) { // Wait up to 5 seconds
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      if (!CONFIG.API_BASE_URL) {
+        console.warn('[GA] CONFIG not loaded, skipping backend fetch');
+        this.initialized = true;
+        return;
+      }
+
+      // Fetch from backend if not in storage
+      const response = await fetch(`${CONFIG.API_BASE_URL}/config/ga-secret`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        GA_API_SECRET = data.ga_api_secret || '';
+        // Store for future use
+        await chrome.storage.local.set({ ga_api_secret: GA_API_SECRET });
+        console.log('[GA] Fetched and stored API secret from backend');
+      } else {
+        console.warn('[GA] Failed to fetch API secret from backend:', response.status);
+      }
+    } catch (error) {
+      console.warn('[GA] Error initializing analytics:', error);
+    }
+
+    this.initialized = true;
   }
 
   getOrCreateClientId() {
@@ -68,6 +120,9 @@ class ExtensionAnalytics {
   }
 
   async sendEvent(eventName, parameters = {}) {
+    // Wait for initialization
+    await this.initPromise;
+
     if (!GA_API_SECRET) {
       console.log('[GA Debug]', eventName, parameters);
       return;
@@ -1067,6 +1122,9 @@ async function broadcastToTabs(message) {
 
 // Track extension installation
 chrome.runtime.onInstalled.addListener(async (details) => {
+  // Wait for analytics to initialize before sending events
+  await extensionAnalytics.initPromise;
+
   if (details.reason === 'install') {
     await extensionAnalytics.sendEvent('extension_install', {
       method: 'chrome_web_store',
@@ -1082,6 +1140,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
 // Track extension startup
 chrome.runtime.onStartup.addListener(async () => {
+  // Wait for analytics to initialize before sending events
+  await extensionAnalytics.initPromise;
+
   await extensionAnalytics.sendEvent('extension_startup', {
     extension_version: chrome.runtime.getManifest().version
   });
