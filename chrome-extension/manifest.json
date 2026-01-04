@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "LenQuant Binance Assistant",
+  "name": "LenQuant Trading Assistant",
   "version": "1.0.1",
-  "description": "Real-time AI trading coach for Binance Futures, integrated with LenQuant",
+  "description": "Real-time AI trading coach for multiple exchanges, integrated with LenQuant",
   
   "permissions": [
     "activeTab",
@@ -15,19 +15,31 @@
     "https://www.binance.com/*",
     "https://fapi.binance.com/*",
     "https://api.binance.com/*",
+    "https://www.bybit.com/*",
+    "https://api.bybit.com/*",
+    "https://www.okx.com/*",
     "https://lenquant.com/*",
     "https://www.lenquant.com/*",
     "http://localhost:8000/*"
   ],
   
-  "background": {
-    "service_worker": "background.js"
+  "oauth2": {
+    "client_id": "YOUR_GOOGLE_CLIENT_ID_HERE",
+    "scopes": ["email", "profile", "openid"]
   },
-  
+
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+
   "content_scripts": [
     {
-      "matches": ["https://www.binance.com/en/futures/*"],
-      "js": ["license-manager.js", "auth-ui.js", "feature-gate.js", "content.js"],
+      "matches": [
+        "https://www.binance.com/*/futures/*",
+        "https://www.bybit.com/trade/*",
+        "https://www.okx.com/trade-*"
+      ],
+      "js": ["license-manager.js", "auth-ui.js", "feature-gate.js", "dist/content.js"],
       "css": ["panel.css"],
       "run_at": "document_idle"
     }
@@ -51,7 +63,11 @@
   "web_accessible_resources": [
     {
       "resources": ["icons/*", "*.css"],
-      "matches": ["https://www.binance.com/*"]
+      "matches": [
+        "https://www.binance.com/*",
+        "https://www.bybit.com/*",
+        "https://www.okx.com/*"
+      ]
     }
   ],
   

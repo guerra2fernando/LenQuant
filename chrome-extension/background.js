@@ -413,6 +413,51 @@ let cooldownState = null;
 let lastBehaviorCheck = 0;
 let settingsLoaded = false;
 
+// ============================================================================
+// Fetch Helpers with Timeout - Phase 3 Optimization
+// ============================================================================
+
+// Reusable fetch with timeout
+async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// Reusable JSON fetch with timeout and error handling
+async function fetchJSON(url, options = {}, timeoutMs = 5000) {
+  try {
+    const response = await fetchWithTimeout(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    }, timeoutMs);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(error.message || error.detail || 'Request failed');
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout');
+    }
+    throw error;
+  }
+}
+
 // Load settings from storage
 async function loadSettings() {
   try {
@@ -525,28 +570,18 @@ async function performEphemeralAnalysis(symbol, timeframe, domData = {}) {
 async function fetchContextAnalysis(symbol, timeframe, domData = {}) {
   const cacheKey = `${symbol}:${timeframe}`;
   const cached = analysisCache.get(cacheKey);
-  
+
   if (cached && (Date.now() - cached.timestamp) < CONFIG.ANALYSIS_CACHE_TTL) {
     return { ...cached.data, cached: true, dom_leverage: domData.leverage };
   }
-  
-  // Try backend first with timeout
+
+  // Try backend first with optimized fetch
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONFIG.BACKEND_TIMEOUT_MS);
-    
     const url = new URL(`${CONFIG.API_BASE_URL}/context`);
     url.searchParams.set('symbol', symbol);
     url.searchParams.set('timeframe', timeframe);
-    
-    const response = await fetch(url.toString(), { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
+
+    const data = await fetchJSON(url.toString(), {}, CONFIG.BACKEND_TIMEOUT_MS);
     
     // Check if backend returned insufficient data
     if (data.risk_flags?.includes('insufficient_data') || data.market_state === 'undefined') {
@@ -605,22 +640,15 @@ async function fetchContextAnalysis(symbol, timeframe, domData = {}) {
 
 async function fetchExplanation(context, fastAnalysis, tradeLevels = null) {
   try {
-    const response = await fetch(`${CONFIG.API_BASE_URL}/explain`, {
+    return await fetchJSON(`${CONFIG.API_BASE_URL}/explain`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         context,
         fast_analysis: fastAnalysis,
         trade_levels: tradeLevels,
         recent_behavior: null,
       }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-
-    return await response.json();
+    }, CONFIG.BACKEND_TIMEOUT_MS);
 
   } catch (error) {
     console.error('[LenQuant] Explanation error:', error);
@@ -633,26 +661,13 @@ async function fetchExplanation(context, fastAnalysis, tradeLevels = null) {
  */
 async function fetchMTFAnalysis(symbol, timeframes = ['5m', '1h', '4h']) {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for MTF
-
-    const response = await fetch(`${CONFIG.API_BASE_URL}/analyze-mtf`, {
+    return await fetchJSON(`${CONFIG.API_BASE_URL}/analyze-mtf`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         symbol: symbol,
         timeframes: timeframes,
       }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`MTF API error: ${response.status}`);
-    }
-
-    return await response.json();
+    }, 8000); // 8 second timeout for MTF
 
   } catch (error) {
     console.error('[LenQuant] MTF analysis error:', error);
@@ -952,7 +967,55 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // Keep channel open for async response
 });
 
+// ============================================================================
+// Message Validation - Phase 4 Security
+// ============================================================================
+
+function isValidMessage(message, sender) {
+  // Ensure message comes from extension
+  if (!sender.id || sender.id !== chrome.runtime.id) {
+    console.warn('[LenQuant] Message from unknown source:', sender);
+    return false;
+  }
+
+  // Ensure required fields
+  if (!message || !message.type) {
+    return false;
+  }
+
+  // Validate type is known
+  const knownTypes = [
+    'CONTEXT_CHANGED',
+    'GET_EXPLANATION',
+    'BOOKMARK',
+    'SYNC_TRADES',
+    'START_COOLDOWN',
+    'CHECK_BEHAVIOR',
+    'GET_SESSION',
+    'OPEN_OPTIONS',
+    'AUTHENTICATE_GOOGLE',
+    'REGISTER_EMAIL',
+    'VALIDATE_LICENSE',
+    'GET_ANALYSIS',
+    'TRACK_USAGE',
+    'UPDATE_SETTINGS',
+    // Add all valid types
+  ];
+
+  if (!knownTypes.includes(message.type)) {
+    console.warn('[LenQuant] Unknown message type:', message.type);
+    return false;
+  }
+
+  return true;
+}
+
 async function handleMessage(message, sender) {
+  // Validate message first
+  if (!isValidMessage(message, sender)) {
+    throw new Error('Invalid message');
+  }
+
   switch (message.type) {
     case 'GET_SESSION':
       if (!sessionId) initSession();
@@ -1183,6 +1246,10 @@ async function handleMessage(message, sender) {
       } catch (error) {
         return { error: error.message };
       }
+
+    case 'OPEN_OPTIONS':
+      chrome.runtime.openOptionsPage();
+      return { success: true };
 
     default:
       console.warn('[LenQuant] Unknown message type:', message.type);

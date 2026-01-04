@@ -1,0 +1,24 @@
+{
+  "name": "lenquant-extension",
+  "version": "1.0.1",
+  "description": "LenQuant Trading Assistant Chrome Extension",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w",
+    "lint": "eslint src/",
+    "test": "jest",
+    "dev": "npm run watch"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "rollup": "^2.0.0",
+    "rollup-plugin-terser": "^7.0.0",
+    "eslint": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "browserslist": [
+    "Chrome >= 88"
+  ]
+}

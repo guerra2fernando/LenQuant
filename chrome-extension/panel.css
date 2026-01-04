@@ -4,22 +4,31 @@
    ============================================================ */
 
 :root {
+  /* Default theme (Binance) */
+  --lq-primary: #f0b90b;
+  --lq-positive: #0ecb81;
+  --lq-negative: #f6465d;
+  --lq-bg: #1e2329;
+  --lq-surface: #2b3139;
+  --lq-text: #eaecef;
+  --lq-text-secondary: #848e9c;
+
+  /* Legacy variables for compatibility */
   --lq-bg-primary: #0b0e11;
-  --lq-bg-secondary: #1e2329;
-  --lq-bg-tertiary: #2b3139;
+  --lq-bg-secondary: var(--lq-bg);
+  --lq-bg-tertiary: var(--lq-surface);
   --lq-bg-hover: #363c45;
 
-  --lq-text-primary: #eaecef;
-  --lq-text-secondary: #848e9c;
+  --lq-text-primary: var(--lq-text);
   --lq-text-muted: #5e6673;
 
-  --lq-accent-yellow: #f0b90b;
+  --lq-accent-yellow: var(--lq-primary);
   --lq-accent-yellow-hover: #fcd535;
-  --lq-accent-green: #0ecb81;
-  --lq-accent-red: #f6465d;
+  --lq-accent-green: var(--lq-positive);
+  --lq-accent-red: var(--lq-negative);
   --lq-accent-blue: #3498db;
 
-  --lq-border: #2b3139;
+  --lq-border: var(--lq-surface);
   --lq-border-light: #363c45;
 
   --lq-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -27,6 +36,148 @@
   --lq-radius-sm: 8px;
 
   --lq-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ============================================================
+   Mini Icon Mode
+   ============================================================ */
+
+.lq-mini-icon {
+  position: fixed;
+  right: 20px;
+  top: 80px;
+  width: 48px;
+  height: 48px;
+  background: var(--lq-bg);
+  border: 2px solid var(--lq-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 99998;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.lq-mini-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 30px rgba(240, 185, 11, 0.3);
+}
+
+.lq-mini-icon img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.lq-mini-signal {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--lq-bg);
+}
+
+.lq-mini-signal.signal-strong-buy,
+.lq-mini-signal.signal-buy { background: var(--lq-positive); }
+.lq-mini-signal.signal-strong-sell,
+.lq-mini-signal.signal-sell { background: var(--lq-negative); }
+.lq-mini-signal.signal-wait { background: var(--lq-text-secondary); }
+.lq-mini-signal.signal-caution { background: var(--lq-primary); }
+
+/* ============================================================
+   Multi-Timeframe Section
+   ============================================================ */
+
+.lq-mtf-section {
+  margin-top: 12px;
+  border-top: 1px solid var(--lq-surface);
+  padding-top: 12px;
+}
+
+.lq-mtf-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lq-btn-mtf-refresh {
+  background: none;
+  border: none;
+  color: var(--lq-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.lq-btn-mtf-refresh:hover {
+  background: var(--lq-surface);
+  color: var(--lq-primary);
+}
+
+.lq-mtf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin: 8px 0;
+}
+
+.lq-mtf-table th,
+.lq-mtf-table td {
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--lq-surface);
+}
+
+.lq-mtf-table th {
+  color: var(--lq-text-secondary);
+  font-weight: 500;
+}
+
+.trend-up { color: var(--lq-positive); }
+.trend-down { color: var(--lq-negative); }
+.trend-neutral { color: var(--lq-text-secondary); }
+
+.rsi-high { color: var(--lq-negative); }
+.rsi-low { color: var(--lq-positive); }
+
+.signal-buy { color: var(--lq-positive); font-weight: 600; }
+.signal-sell { color: var(--lq-negative); font-weight: 600; }
+.signal-wait { color: var(--lq-text-secondary); }
+
+.lq-mtf-confluence {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.lq-mtf-confluence-value.bullish { color: var(--lq-positive); font-weight: 600; }
+.lq-mtf-confluence-value.bearish { color: var(--lq-negative); font-weight: 600; }
+.lq-mtf-confluence-value.mixed { color: var(--lq-primary); }
+
+.lq-mtf-locked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: rgba(240, 185, 11, 0.1);
+  border-radius: 4px;
+}
+
+.lq-btn-unlock-mtf {
+  background: var(--lq-primary);
+  color: var(--lq-bg);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* ============================================================
@@ -1813,5 +1964,443 @@
     width: 32px;
     height: 32px;
   }
+}
+
+/* ============================================================================
+   Scrollable Panel Content
+   ============================================================================ */
+
+.lq-panel {
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lq-header {
+  flex-shrink: 0;
+}
+
+.lq-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #2b3139 transparent;
+}
+
+.lq-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lq-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lq-content::-webkit-scrollbar-thumb {
+  background: #2b3139;
+  border-radius: 3px;
+}
+
+.lq-content::-webkit-scrollbar-thumb:hover {
+  background: #3b4149;
+}
+
+.lq-footer {
+  flex-shrink: 0;
+}
+
+/* Manual refresh button styles */
+.lq-refresh-btn {
+  position: relative;
+}
+
+.lq-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lq-spinning::before {
+  content: '↻';
+  animation: spin 1s linear infinite;
+}
+
+/* Hint animation for free users */
+.lq-refresh-hint {
+  animation: pulse 2s ease-in-out 3;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; color: var(--lq-accent-yellow); }
+}
+
+/* ============================================================================
+   Tutorial Overlay Styles
+   ============================================================================ */
+
+.lq-tutorial-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100001;
+  pointer-events: none;
+}
+
+.lq-tutorial-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.lq-tutorial-tooltip {
+  position: fixed;
+  width: 280px;
+  background: #1e2329;
+  border: 2px solid #f0b90b;
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 100002;
+  pointer-events: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.lq-tutorial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.lq-tutorial-step-count {
+  font-size: 12px;
+  color: #848e9c;
+}
+
+.lq-tutorial-skip {
+  background: none;
+  border: none;
+  color: #848e9c;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lq-tutorial-skip:hover {
+  color: #f0b90b;
+}
+
+.lq-tutorial-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f0b90b;
+  margin: 0 0 8px 0;
+}
+
+.lq-tutorial-description {
+  font-size: 13px;
+  color: #b7bdc6;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+.lq-tutorial-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.lq-tutorial-prev,
+.lq-tutorial-next {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lq-tutorial-prev {
+  background: #2b3139;
+  color: #b7bdc6;
+}
+
+.lq-tutorial-prev:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lq-tutorial-next {
+  background: #f0b90b;
+  color: #1e2329;
+  font-weight: 600;
+}
+
+.lq-tutorial-highlight {
+  position: relative;
+  z-index: 100000;
+  box-shadow: 0 0 0 4px rgba(240, 185, 11, 0.5), 0 0 20px rgba(240, 185, 11, 0.3);
+  border-radius: 4px;
+}
+
+/* ============================================================================
+   Custom Tooltip Styles
+   ============================================================================ */
+
+.lq-custom-tooltip {
+  position: fixed;
+  max-width: 250px;
+  padding: 8px 12px;
+  background: #1e2329;
+  border: 1px solid #f0b90b;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #b7bdc6;
+  line-height: 1.4;
+  z-index: 100010;
+  transform: translateX(-50%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Trial Prompt Modal Styles
+   ============================================================================ */
+
+.lq-trial-prompt-modal {
+  max-width: 400px;
+  text-align: center;
+}
+
+.lq-trial-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.lq-trial-prompt-modal h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--lq-text-primary);
+  margin-bottom: 8px;
+}
+
+.lq-trial-subtitle {
+  font-size: 14px;
+  color: var(--lq-text-secondary);
+  margin-bottom: 24px;
+}
+
+.lq-trial-benefits {
+  margin: 24px 0;
+  text-align: left;
+}
+
+.lq-benefit-item {
+  font-size: 14px;
+  color: var(--lq-text-primary);
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+
+.lq-benefit-item:before {
+  content: '✓';
+  color: var(--lq-accent-green);
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.lq-trial-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.lq-trial-note {
+  font-size: 12px;
+  color: var(--lq-text-tertiary);
+  margin-top: 16px;
+}
+
+.lq-btn-google img {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+}
+
+/* ============================================================================
+   Feature Lock Indicators
+   ============================================================================ */
+
+.lq-feature-locked {
+  position: relative;
+}
+
+.lq-lock-icon {
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.lq-feature-locked:hover .lq-lock-icon {
+  opacity: 1;
+}
+
+/* ============================================================================
+   Section Separation Styles
+   ============================================================================ */
+
+/* Section dividers */
+.lq-section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #2b3139, transparent);
+  margin: 12px 0;
+}
+
+/* Section headers */
+.lq-section-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #5e6673;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #2b3139;
+}
+
+/* Quick Trade Info special styling */
+.lq-quick-action {
+  background: rgba(240, 185, 11, 0.05);
+  border: 1px solid rgba(240, 185, 11, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+/* Action buttons container */
+.lq-action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #2b3139;
+}
+
+/* ============================================================================
+   Toast Notifications
+   ============================================================================ */
+
+.lq-toast {
+  position: absolute;
+  bottom: 50px;
+  left: 10px;
+  right: 10px;
+  background: linear-gradient(135deg, #1e2329 0%, #2b3139 100%);
+  border: 1px solid #f0b90b;
+  border-radius: 8px;
+  padding: 12px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+.lq-toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lq-toast-upsell {
+  border-color: #f0b90b;
+  box-shadow: 0 4px 20px rgba(240, 185, 11, 0.2);
+}
+
+.lq-toast-title {
+  font-weight: 600;
+  color: #f0b90b;
+  margin-bottom: 4px;
+}
+
+.lq-toast-message {
+  font-size: 12px;
+  color: #b7bdc6;
+  line-height: 1.4;
+}
+
+.lq-toast-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.lq-toast-cta {
+  background: #f0b90b;
+  color: #1e2329;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lq-toast-dismiss {
+  background: transparent;
+  border: none;
+  color: #848e9c;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+/* ============================================================================
+   License Banner - Phase 4 Security
+   ============================================================================ */
+
+.lq-license-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 100005;
+  font-size: 14px;
+}
+
+.lq-license-banner-expired {
+  background: linear-gradient(135deg, #f6465d 0%, #d32f2f 100%);
+  color: white;
+}
+
+.lq-license-banner button {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.lq-license-banner-expired button:not(.lq-banner-close) {
+  background: white;
+  color: #d32f2f;
+}
+
+.lq-banner-close {
+  background: transparent !important;
+  color: white !important;
+  font-size: 20px;
+  padding: 0 8px !important;
 }
 

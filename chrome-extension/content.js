@@ -15,6 +15,293 @@ const CONFIG = {
   OBSERVER_THROTTLE_MS: 500,
 };
 
+// ============================================================================
+// Performance Optimizations - Phase 3
+// ============================================================================
+
+// Debug configuration
+const DEBUG = {
+  enabled: false, // Set to true for development
+  categories: {
+    dom: false,
+    analysis: true,
+    auth: true,
+    network: false,
+    observer: false,
+  }
+};
+
+// Conditional logger
+const logger = {
+  log(category, ...args) {
+    if (DEBUG.enabled && (DEBUG.categories[category] !== false)) {
+      console.log(`[LenQuant:${category}]`, ...args);
+    }
+  },
+
+  warn(category, ...args) {
+    if (DEBUG.enabled) {
+      console.warn(`[LenQuant:${category}]`, ...args);
+    }
+  },
+
+  error(category, ...args) {
+    // Always log errors
+    console.error(`[LenQuant:${category}]`, ...args);
+  },
+
+  // Performance timing
+  time(label) {
+    if (DEBUG.enabled) {
+      console.time(`[LenQuant] ${label}`);
+    }
+  },
+
+  timeEnd(label) {
+    if (DEBUG.enabled) {
+      console.timeEnd(`[LenQuant] ${label}`);
+    }
+  }
+};
+
+// Load debug setting from storage
+async function initDebugMode() {
+  const result = await chrome.storage.local.get(['debugMode']);
+  DEBUG.enabled = result.debugMode || false;
+
+  // Also listen for sync settings changes (from options page)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.settings) {
+      const newSettings = changes.settings.newValue || {};
+      if (newSettings.debugMode !== undefined) {
+        DEBUG.enabled = newSettings.debugMode;
+        logger.log('dom', 'Debug mode updated:', DEBUG.enabled);
+      }
+    }
+  });
+}
+initDebugMode();
+
+// DOM element cache with TTL
+class DOMCache {
+  constructor(ttl = 5000) {
+    this.cache = new Map();
+    this.ttl = ttl;
+  }
+
+  get(key, selector, parent = document) {
+    const cached = this.cache.get(key);
+    const now = Date.now();
+
+    if (cached && (now - cached.time) < this.ttl) {
+      // Verify element is still in DOM
+      if (document.body.contains(cached.element)) {
+        return cached.element;
+      }
+    }
+
+    // Query and cache
+    const element = parent.querySelector(selector);
+    if (element) {
+      this.cache.set(key, { element, time: now });
+    }
+    return element;
+  }
+
+  getAll(key, selector, parent = document) {
+    const cached = this.cache.get(key);
+    const now = Date.now();
+
+    if (cached && (now - cached.time) < this.ttl) {
+      // Verify first element is still in DOM
+      if (cached.elements[0] && document.body.contains(cached.elements[0])) {
+        return cached.elements;
+      }
+    }
+
+    const elements = Array.from(parent.querySelectorAll(selector));
+    if (elements.length > 0) {
+      this.cache.set(key, { elements, time: now });
+    }
+    return elements;
+  }
+
+  invalidate(key) {
+    this.cache.delete(key);
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+// ============================================================================
+// HTML Sanitizer - Phase 4 Security
+// ============================================================================
+
+const HTMLSanitizer = {
+  // Allowed tags and their allowed attributes
+  allowedTags: {
+    'p': [],
+    'br': [],
+    'strong': [],
+    'b': [],
+    'em': [],
+    'i': [],
+    'ul': [],
+    'ol': [],
+    'li': [],
+    'span': ['class'],
+    'div': ['class'],
+  },
+
+  // Sanitize HTML string
+  sanitize(html) {
+    if (!html) return '';
+
+    // Create a temporary container
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    // Recursively clean nodes
+    this.cleanNode(temp);
+
+    return temp.innerHTML;
+  },
+
+  cleanNode(node) {
+    const children = Array.from(node.childNodes);
+
+    children.forEach(child => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        // Text nodes are safe
+        return;
+      }
+
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const tagName = child.tagName.toLowerCase();
+
+        // Remove disallowed tags
+        if (!this.allowedTags.hasOwnProperty(tagName)) {
+          // Replace with text content or remove entirely
+          if (tagName === 'script' || tagName === 'style' || tagName === 'iframe') {
+            child.remove();
+          } else {
+            // Replace element with its text content
+            const text = document.createTextNode(child.textContent);
+            child.replaceWith(text);
+          }
+          return;
+        }
+
+        // Remove disallowed attributes
+        const allowedAttrs = this.allowedTags[tagName];
+        Array.from(child.attributes).forEach(attr => {
+          if (!allowedAttrs.includes(attr.name)) {
+            child.removeAttribute(attr.name);
+          }
+
+          // Extra check: no javascript: in any attribute
+          if (attr.value.toLowerCase().includes('javascript:')) {
+            child.removeAttribute(attr.name);
+          }
+        });
+
+        // Clean children
+        this.cleanNode(child);
+      } else {
+        // Remove other node types (comments, etc.)
+        child.remove();
+      }
+    });
+  },
+
+  // Escape HTML entities for plain text insertion
+  escapeHTML(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+};
+
+// ============================================================================
+// Panel Storage Utility - Phase 4 Security
+// ============================================================================
+
+const PanelStorage = {
+  async savePosition(x, y) {
+    try {
+      await chrome.storage.local.set({
+        panelPosition: { x, y, timestamp: Date.now() }
+      });
+    } catch (e) {
+      console.error('[LenQuant] Failed to save panel position:', e);
+    }
+  },
+
+  async loadPosition() {
+    try {
+      const result = await chrome.storage.local.get(['panelPosition']);
+      return result.panelPosition || null;
+    } catch (e) {
+      console.error('[LenQuant] Failed to load panel position:', e);
+      return null;
+    }
+  },
+
+  getDefaultPosition() {
+    return {
+      x: window.innerWidth - 340,
+      y: 80
+    };
+  }
+};
+
+const domCache = new DOMCache(5000); // 5 second TTL
+
+// Clear cache on navigation
+window.addEventListener('popstate', () => domCache.clear());
+
+// Performance metrics tracking
+const performanceMetrics = {
+  analysisRequests: 0,
+  analysisTime: [],
+  domQueries: 0,
+  observerCallbacks: 0,
+
+  recordAnalysis(duration) {
+    this.analysisRequests++;
+    this.analysisTime.push(duration);
+
+    // Keep only last 100
+    if (this.analysisTime.length > 100) {
+      this.analysisTime.shift();
+    }
+  },
+
+  getAverageAnalysisTime() {
+    if (this.analysisTime.length === 0) return 0;
+    return this.analysisTime.reduce((a, b) => a + b, 0) / this.analysisTime.length;
+  },
+
+  report() {
+    console.log('[LenQuant Performance]', {
+      analysisRequests: this.analysisRequests,
+      avgAnalysisTime: this.getAverageAnalysisTime().toFixed(2) + 'ms',
+      domQueries: this.domQueries,
+      observerCallbacks: this.observerCallbacks,
+    });
+  }
+};
+
+// Report every 5 minutes if debug mode
+setInterval(() => {
+  if (DEBUG.enabled) {
+    performanceMetrics.report();
+  }
+}, 300000);
+
 // State
 let currentContext = {
   symbol: null,
@@ -32,129 +319,122 @@ let authUI = null;
 let featureGate = null;
 
 // ============================================================================
+// Local Bookmarks Utility (Free Tier)
+// ============================================================================
+
+const LocalBookmarks = {
+  STORAGE_KEY: 'lq_local_bookmarks',
+  MAX_BOOKMARKS: 50,
+
+  async save(bookmark) {
+    const result = await chrome.storage.local.get([this.STORAGE_KEY]);
+    const bookmarks = result[this.STORAGE_KEY] || [];
+
+    // Add new bookmark at the beginning
+    bookmarks.unshift({
+      id: Date.now().toString(),
+      ...bookmark,
+      savedAt: new Date().toISOString(),
+    });
+
+    // Enforce limit for free users
+    if (bookmarks.length > this.MAX_BOOKMARKS) {
+      bookmarks.pop();
+    }
+
+    await chrome.storage.local.set({ [this.STORAGE_KEY]: bookmarks });
+
+    // Update stats
+    await this.updateStats();
+
+    return true;
+  },
+
+  async getAll() {
+    const result = await chrome.storage.local.get([this.STORAGE_KEY]);
+    return result[this.STORAGE_KEY] || [];
+  },
+
+  async delete(id) {
+    const result = await chrome.storage.local.get([this.STORAGE_KEY]);
+    const bookmarks = (result[this.STORAGE_KEY] || []).filter(b => b.id !== id);
+    await chrome.storage.local.set({ [this.STORAGE_KEY]: bookmarks });
+  },
+
+  async updateStats() {
+    const bookmarks = await this.getAll();
+    await chrome.storage.local.set({ bookmarksCount: bookmarks.length });
+  },
+};
+
+// ============================================================================
+// Sound Alert Utility
+// ============================================================================
+
+const alertSound = {
+  audio: null,
+
+  init() {
+    // Create audio element for alert sound
+    this.audio = new Audio();
+    // Use a simple beep - can be a data URI or hosted file
+    this.audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleC8LLoOw3M+ZaCs+hpHQw6Z4PTN4kL3GpXpJQnGQsbyheVNEaYursaSAWUdljammoYNdS2CHpKehg2FNX4OgnJ+AYVBfgpuanH9jUl+BmZiYfWNUX4GZl5d8Y1Vfgpmalnt...'; // Truncated for brevity
+    this.audio.volume = 0.5;
+  },
+
+  async play() {
+    if (!this.audio) this.init();
+
+    try {
+      await this.audio.play();
+    } catch (e) {
+      console.log('[LenQuant] Could not play alert sound:', e);
+    }
+  }
+};
+
+// ============================================================================
 // DOM Data Extraction (Leverage, Positions, etc.)
 // ============================================================================
 
-/**
- * Extract current leverage setting from Binance DOM.
- * Binance shows leverage in multiple places - we try several selectors.
- * Priority: Look for the actual leverage button near the order entry form.
- */
-function extractLeverage() {
-  // Priority 1: Look for leverage button in the trading panel area
-  // Binance typically shows leverage near Cross/Isolated mode selector
-  const prioritySelectors = [
-    // Binance's leverage button often has these patterns
-    'button[class*="leverage"]',
-    'div[class*="leverage"] button',
-    '[class*="contractLeverage"]',
-    '[class*="marginLeverage"]',
-    // The button near margin type selector
-    '[class*="margin-type"] + button',
-    '[class*="marginType"] ~ button',
-    // Look in the order form area
-    '[class*="orderForm"] [class*="leverage"]',
-    '[class*="trade-panel"] [class*="leverage"]',
-  ];
-  
-  for (const selector of prioritySelectors) {
-    try {
-      const elements = document.querySelectorAll(selector);
-      for (const el of elements) {
-        const text = el.textContent?.trim();
-        const match = text?.match(/(\d+)[xX]/);
-        if (match) {
-          const lev = parseInt(match[1], 10);
-          if (lev >= 1 && lev <= 125) {
-            console.log('[LenQuant] Found leverage via priority selector:', lev, selector);
-            return lev;
-          }
-        }
+// Optimized leverage extraction
+function extractLeverageOptimized() {
+  // Try cached leverage button first
+  const cachedBtn = domCache.get('leverageBtn', 'button[class*="leverage"]');
+  if (cachedBtn) {
+    const text = cachedBtn.textContent?.trim();
+    const match = text?.match(/(\d+)[xX]/);
+    if (match) {
+      const lev = parseInt(match[1], 10);
+      if (lev >= 1 && lev <= 125) {
+        logger.log('dom', 'Found leverage via cached button:', lev);
+        return lev;
       }
-    } catch (e) {
-      // Continue to next selector
     }
   }
-  
-  // Priority 2: Look for buttons containing only "XXx" pattern
-  const buttons = document.querySelectorAll('button, [role="button"]');
+
+  // Fallback: Query all buttons (cached)
+  const buttons = domCache.getAll('allButtons', 'button, [role="button"]');
   for (const btn of buttons) {
     const text = btn.textContent?.trim();
-    // Match exact patterns like "20x", "125x" - the button's full text
     if (text && /^\d{1,3}[xX]$/.test(text)) {
-      const match = text.match(/^(\d{1,3})[xX]$/);
-      if (match) {
-        const lev = parseInt(match[1], 10);
-        if (lev >= 1 && lev <= 125) {
-          console.log('[LenQuant] Found leverage via button text:', lev);
-          return lev;
-        }
+      const lev = parseInt(text.match(/^(\d{1,3})/)[1], 10);
+      if (lev >= 1 && lev <= 125) {
+        // Cache this specific button for next time
+        domCache.cache.set('leverageBtn', { element: btn, time: Date.now() });
+        logger.log('dom', 'Found leverage via button scan:', lev);
+        return lev;
       }
     }
   }
-  
-  // Priority 3: Look for elements near "Cross" or "Isolated" text
-  const marginElements = document.querySelectorAll('[class*="cross"], [class*="isolated"], [class*="margin"]');
-  for (const marginEl of marginElements) {
-    // Check siblings and nearby elements
-    const parent = marginEl.parentElement;
-    if (parent) {
-      const siblings = parent.querySelectorAll('*');
-      for (const sib of siblings) {
-        if (sib.children.length === 0) {
-          const text = sib.textContent?.trim();
-          if (text && /^(\d{1,3})[xX]$/.test(text)) {
-            const lev = parseInt(text.match(/^(\d{1,3})[xX]$/)[1], 10);
-            if (lev >= 1 && lev <= 125) {
-              console.log('[LenQuant] Found leverage near margin selector:', lev);
-              return lev;
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  // Priority 4: Scan for any element showing leverage pattern
-  // But be more strict - only leaf nodes with exact match
-  const walker = document.createTreeWalker(
-    document.body,
-    NodeFilter.SHOW_TEXT,
-    null,
-    false
-  );
-  
-  let foundLeverages = [];
-  let node;
-  while (node = walker.nextNode()) {
-    const text = node.textContent?.trim();
-    if (text && /^(\d{1,3})[xX]$/.test(text)) {
-      const match = text.match(/^(\d{1,3})[xX]$/);
-      if (match) {
-        const lev = parseInt(match[1], 10);
-        if (lev >= 1 && lev <= 125) {
-          foundLeverages.push(lev);
-        }
-      }
-    }
-  }
-  
-  // If multiple leverages found, prefer higher ones (usually the actual leverage)
-  // as lower numbers might be from other UI elements
-  if (foundLeverages.length > 0) {
-    // Filter out common non-leverage numbers (1, 2, 3, 4, 5 which could be timeframes etc)
-    const filtered = foundLeverages.filter(l => l > 5);
-    if (filtered.length > 0) {
-      const result = Math.max(...filtered);
-      console.log('[LenQuant] Found leverages:', foundLeverages, 'Using:', result);
-      return result;
-    }
-    // Fall back to max of all found
-    return Math.max(...foundLeverages);
-  }
-  
-  console.log('[LenQuant] Could not detect leverage');
+
+  logger.log('dom', 'Could not detect leverage');
   return null;
+}
+
+// Legacy function for backwards compatibility
+function extractLeverage() {
+  return extractLeverageOptimized();
 }
 
 /**
@@ -252,50 +532,192 @@ function extractAllDOMData() {
 // DOM Observation
 // ============================================================================
 
-class BinanceContextObserver {
+class OptimizedContextObserver {
   constructor() {
-    this.debounceTimer = null;
-    this.lastUpdate = 0;
+    this.observers = [];
+    this.targetSelectors = [
+      // Header area with symbol and timeframe
+      '[class*="header"]',
+      '[class*="symbol-title"]',
+      '[class*="symbolTitle"]',
+      // Timeframe selector area
+      '[class*="timeframe"]',
+      '[class*="interval"]',
+      // Leverage and margin settings area
+      '[class*="leverage"]',
+      '[class*="margin-type"]',
+      '[class*="orderForm"]',
+      // Position/order area
+      '[class*="position"]',
+      '[class*="order-panel"]',
+    ];
+
+    this.lastContext = null;
+    this.throttledUpdate = this.throttle(this.captureContext.bind(this), 500);
   }
-  
+
   init() {
-    console.log('[LenQuant] Initializing context observer');
-    
+    console.log('[LenQuant] Initializing optimized context observer');
+
     // Initial context capture
     this.captureContext();
-    
-    // Set up mutation observer
-    this.setupObserver();
-    
+
+    // Set up optimized observers
+    this.start();
+
     // Also listen for URL changes (for symbol switches)
     this.watchUrlChanges();
   }
-  
-  setupObserver() {
-    const observer = new MutationObserver((mutations) => {
-      // Throttle observations
-      const now = Date.now();
-      if (now - this.lastUpdate < CONFIG.OBSERVER_THROTTLE_MS) {
-        return;
-      }
-      
-      this.lastUpdate = now;
-      this.debouncedCapture();
+
+  start() {
+    // Find and observe specific containers
+    this.targetSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(element => {
+        if (this.isRelevantContainer(element)) {
+          this.observeElement(element);
+        }
+      });
     });
-    
-    // Observe the main chart container area
-    const targetNode = document.body;
-    observer.observe(targetNode, {
+
+    // Fallback: If no specific containers found, observe body but with filter
+    if (this.observers.length === 0) {
+      logger.log('observer', 'No specific containers found, using fallback observer');
+      this.observeWithFilter(document.body);
+    }
+
+    // Also observe for new containers being added (Binance SPA navigation)
+    this.observeNewContainers();
+  }
+
+  isRelevantContainer(element) {
+    // Filter out tiny elements or ones that update too frequently (like price tickers)
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 50 || rect.height < 20) return false;
+
+    // Skip elements that are just price displays (update too often)
+    if (element.className?.includes('price') && !element.className?.includes('entry')) {
+      return false;
+    }
+
+    return true;
+  }
+
+  observeElement(element) {
+    const observer = new MutationObserver((mutations) => {
+      // Quick filter - only react to meaningful changes
+      const hasRelevantChange = mutations.some(m =>
+        m.type === 'characterData' ||
+        (m.type === 'childList' && m.addedNodes.length > 0)
+      );
+
+      if (hasRelevantChange) {
+        this.throttledUpdate();
+      }
+    });
+
+    observer.observe(element, {
       childList: true,
       subtree: true,
       characterData: true,
     });
+
+    this.observers.push(observer);
+    logger.log('observer', 'Observing:', element.className?.slice(0, 50));
   }
-  
+
+  observeWithFilter(root) {
+    const observer = new MutationObserver((mutations) => {
+      // Filter mutations to only relevant ones
+      const relevantMutation = mutations.find(m => {
+        const target = m.target;
+        const className = target.className || '';
+
+        // Skip price updates, charts, order book
+        if (className.includes('price') && !className.includes('entry')) return false;
+        if (className.includes('chart')) return false;
+        if (className.includes('orderbook')) return false;
+        if (className.includes('depth')) return false;
+        if (className.includes('trade-history')) return false;
+
+        return true;
+      });
+
+      if (relevantMutation) {
+        this.throttledUpdate();
+      }
+    });
+
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    this.observers.push(observer);
+  }
+
+  observeNewContainers() {
+    // Watch for SPA navigation that might add new relevant containers
+    const navObserver = new MutationObserver((mutations) => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            this.targetSelectors.forEach(selector => {
+              const matches = node.querySelectorAll?.(selector) || [];
+              matches.forEach(el => {
+                if (this.isRelevantContainer(el) && !this.isAlreadyObserved(el)) {
+                  this.observeElement(el);
+                }
+              });
+            });
+          }
+        });
+      });
+    });
+
+    navObserver.observe(document.body, {
+      childList: true,
+      subtree: false, // Only direct children
+    });
+
+    this.observers.push(navObserver);
+  }
+
+  isAlreadyObserved(element) {
+    // Simple check - could be enhanced with WeakSet
+    return element.dataset.lqObserved === 'true';
+  }
+
+  throttle(fn, delay) {
+    let lastCall = 0;
+    let timeout = null;
+
+    return function(...args) {
+      const now = Date.now();
+
+      if (now - lastCall >= delay) {
+        lastCall = now;
+        fn.apply(this, args);
+      } else if (!timeout) {
+        timeout = setTimeout(() => {
+          lastCall = Date.now();
+          timeout = null;
+          fn.apply(this, args);
+        }, delay - (now - lastCall));
+      }
+    };
+  }
+
+  stop() {
+    this.observers.forEach(obs => obs.disconnect());
+    this.observers = [];
+  }
+
   watchUrlChanges() {
     // Watch for hash/path changes
     window.addEventListener('popstate', () => this.debouncedCapture());
-    
+
     // Also intercept pushState
     const originalPushState = history.pushState;
     history.pushState = function() {
@@ -304,162 +726,171 @@ class BinanceContextObserver {
     };
     window.addEventListener('pushstate', () => this.debouncedCapture());
   }
-  
+
   debouncedCapture() {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
-    
+
     this.debounceTimer = setTimeout(() => {
       this.captureContext();
     }, CONFIG.DEBOUNCE_MS);
   }
-  
-  captureContext() {
-    // Extract DOM data (leverage, position, etc.)
-    const domData = extractAllDOMData();
-    
-    const newContext = {
-      exchange: 'binance',
-      market: 'futures',
-      symbol: this.extractSymbol(),
-      contract: 'PERP',
-      timeframe: this.extractTimeframe(),
-      timestamp: Date.now(),
-      // Include DOM-extracted data
-      leverage: domData.leverage,
-      position: domData.position,
-      marginType: domData.marginType,
-    };
-    
-    // Check if context changed (including leverage changes)
-    if (
-      newContext.symbol !== currentContext.symbol ||
-      newContext.timeframe !== currentContext.timeframe ||
-      newContext.leverage !== currentContext.leverage
-    ) {
-      currentContext = newContext;
-      
-      if (newContext.symbol && newContext.timeframe) {
-        console.log('[LenQuant] Context changed:', newContext);
-        this.onContextChange(newContext);
-      }
-    }
+}
+
+// ============================================================================
+// Analysis Manager - Optimized Auto-Refresh
+// ============================================================================
+
+class AnalysisManager {
+  constructor() {
+    this.lastContext = null;
+    this.lastAnalysisTime = 0;
+    this.analysisInProgress = false;
   }
-  
-  extractSymbol() {
-    // Try multiple selectors for symbol
-    const selectors = [
-      // Main symbol display
-      '[data-testid="symbol-info"] span',
-      '.symbol-name',
-      '.chart-container .symbol',
-      // URL-based extraction
-    ];
-    
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element && element.textContent) {
-        const text = element.textContent.trim();
-        if (text.match(/^[A-Z]+USDT?$/)) {
-          return text;
-        }
-      }
+
+  async maybeRefresh(currentContext) {
+    // Skip if analysis already in progress
+    if (this.analysisInProgress) {
+      logger.log('analysis', 'Skipping refresh - analysis in progress');
+      return false;
     }
-    
-    // Fallback: extract from URL
-    const urlMatch = window.location.pathname.match(/\/futures\/([A-Z]+)/i);
-    if (urlMatch) {
-      return urlMatch[1].toUpperCase();
+
+    // Skip if context unchanged and within TTL
+    const contextKey = this.getContextKey(currentContext);
+    const now = Date.now();
+    const timeSinceLastAnalysis = now - this.lastAnalysisTime;
+
+    if (contextKey === this.lastContext && timeSinceLastAnalysis < 30000) {
+      logger.log('analysis', 'Skipping refresh - context unchanged');
+      return false;
     }
-    
-    return null;
-  }
-  
-  extractTimeframe() {
-    // Try to find active timeframe selector
-    const selectors = [
-      '.chart-toolbar .active',
-      '[data-testid="timeframe-selector"] .selected',
-      '.interval-selector .active',
-    ];
-    
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element && element.textContent) {
-        const tf = element.textContent.trim().toLowerCase();
-        if (['1m', '5m', '15m', '30m', '1h', '4h', '1d'].includes(tf)) {
-          return tf;
-        }
-      }
-    }
-    
-    // Default to 1m
-    return '1m';
-  }
-  
-  async onContextChange(context) {
+
+    // Proceed with analysis
+    this.analysisInProgress = true;
+
     try {
-      // Show loading state
-      if (panel) {
-        panel.showLoadingState();
-      }
-      
-      // Notify background script with full context including DOM data
-      const response = await chrome.runtime.sendMessage({
-        type: 'CONTEXT_CHANGED',
-        symbol: context.symbol,
-        timeframe: context.timeframe,
-        context,
-        domData: {
-          leverage: context.leverage,
-          position: context.position,
-          marginType: context.marginType,
-        },
-      });
-      
-      if (response.analysis) {
-        currentAnalysis = response.analysis;
+      const startTime = Date.now();
+      const result = await this.fetchAnalysis(currentContext);
+      const duration = Date.now() - startTime;
 
-        // Hide loading state and show real content
-        if (panel) {
-          panel.hideLoadingState();
-        }
+      performanceMetrics.recordAnalysis(duration);
 
-        updatePanel(response.analysis);
+      this.lastContext = contextKey;
+      this.lastAnalysisTime = now;
+      return true;
+    } finally {
+      this.analysisInProgress = false;
+    }
+  }
 
-        // Update Multi-Timeframe Analysis (Phase 2)
-        updateMTFSection(currentContext.symbol);
+  getContextKey(context) {
+    return `${context.symbol}:${context.timeframe}:${context.leverage}`;
+  }
 
-        // Show source indicator (backend vs client-side)
-        if (response.analysis.source === 'client') {
-          console.log('[LenQuant] Using client-side analysis (backend unavailable or no data)');
-        }
-      }
-      
-      // Check for cooldown
-      if (response.cooldown && response.cooldown.active) {
-        showCooldownOverlay(response.cooldown);
-      } else {
-        hideCooldownOverlay();
-      }
-      
-    } catch (error) {
-      console.error('[LenQuant] Context change handler error:', error);
+  async fetchAnalysis(context) {
+    // This is the same logic as before, just moved here
+    const response = await chrome.runtime.sendMessage({
+      type: 'CONTEXT_CHANGED',
+      symbol: context.symbol,
+      timeframe: context.timeframe,
+      context,
+      domData: {
+        leverage: context.leverage,
+        position: context.position,
+        marginType: context.marginType,
+      },
+    });
 
-      // Hide loading state even on error
+    if (response.analysis) {
+      currentAnalysis = response.analysis;
+
+      // Hide loading state and show real content
       if (panel) {
         panel.hideLoadingState();
       }
 
-      // On error, try to show something useful
-      if (panel && panel.container) {
-        panel.container.querySelector('.lq-state-value').textContent = 'Connection error';
-        panel.container.querySelector('.lq-reason-text').textContent = 'Unable to reach backend. Trying client-side analysis...';
+      updatePanel(response.analysis);
+
+      // Update Multi-Timeframe Analysis (Phase 2)
+      updateMTFSection(currentContext.symbol);
+
+      // Show source indicator (backend vs client-side)
+      if (response.analysis.source === 'client') {
+        logger.log('analysis', 'Using client-side analysis (backend unavailable or no data)');
       }
     }
+
+    // Check for cooldown
+    if (response.cooldown && response.cooldown.active) {
+      showCooldownOverlay(response.cooldown);
+    } else {
+      hideCooldownOverlay();
+    }
+
+    return response;
+  }
+
+  // Force refresh even if context unchanged
+  async forceRefresh(currentContext) {
+    this.lastContext = null;
+    return this.maybeRefresh(currentContext);
+  }
+
+  invalidate() {
+    this.lastContext = null;
   }
 }
+
+const analysisManager = new AnalysisManager();
+
+// ============================================================================
+// Lazy Loader for Non-Critical Features
+// ============================================================================
+
+class LazyLoader {
+  constructor() {
+    this.loaded = new Set();
+  }
+
+  async load(feature) {
+    if (this.loaded.has(feature)) {
+      return true;
+    }
+
+    switch (feature) {
+      case 'tutorial':
+        await this.loadTutorial();
+        break;
+      case 'mtf':
+        await this.loadMultiTimeframe();
+        break;
+      case 'behaviorAnalysis':
+        await this.loadBehaviorAnalysis();
+        break;
+    }
+
+    this.loaded.add(feature);
+    return true;
+  }
+
+  async loadTutorial() {
+    // Tutorial code loaded on demand
+    if (!window.TutorialOverlay) {
+      logger.log('lazy', 'Tutorial module loaded');
+    }
+  }
+
+  async loadMultiTimeframe() {
+    logger.log('lazy', 'MTF module loaded');
+  }
+
+  async loadBehaviorAnalysis() {
+    logger.log('lazy', 'Behavior analysis module loaded');
+  }
+}
+
+const lazyLoader = new LazyLoader();
 
 // ============================================================================
 // Trading Panel
@@ -507,6 +938,48 @@ class TradingPanel {
       if (trial && trial.hours < 72) {
         authUI.showTrialBanner(trial.hours);
       }
+    }
+  }
+
+  /**
+   * Show toast notification
+   */
+  showToast({ title, message, action, onClick, duration = 5000, dismissible = true }) {
+    const toast = document.createElement('div');
+    toast.className = 'lq-toast lq-toast-upsell';
+    toast.innerHTML = `
+      <div class="lq-toast-content">
+        ${title ? `<div class="lq-toast-title">${title}</div>` : ''}
+        <div class="lq-toast-message">${message}</div>
+      </div>
+      <div class="lq-toast-actions">
+        ${action ? `<button class="lq-toast-cta">${action}</button>` : ''}
+        ${dismissible ? `<button class="lq-toast-dismiss">×</button>` : ''}
+      </div>
+    `;
+
+    // Position at bottom of panel
+    this.container.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => toast.classList.add('lq-toast-visible'));
+
+    // Handlers
+    toast.querySelector('.lq-toast-cta')?.addEventListener('click', () => {
+      onClick?.();
+      toast.remove();
+    });
+
+    toast.querySelector('.lq-toast-dismiss')?.addEventListener('click', () => {
+      toast.remove();
+    });
+
+    // Auto-dismiss
+    if (duration > 0) {
+      setTimeout(() => {
+        toast.classList.remove('lq-toast-visible');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
     }
   }
 
@@ -611,34 +1084,43 @@ class TradingPanel {
     document.addEventListener('mouseup', onMouseUp);
   }
   
-  savePosition() {
-    const rect = this.container.getBoundingClientRect();
-    const position = {
-      left: rect.left,
-      top: rect.top
-    };
-    localStorage.setItem('lenquant_panel_position', JSON.stringify(position));
-  }
-  
-  restorePosition() {
+  async savePosition() {
     try {
-      const saved = localStorage.getItem('lenquant_panel_position');
-      if (saved) {
-        const position = JSON.parse(saved);
-        // Validate position is within current viewport
-        const maxX = window.innerWidth - 320; // panel width
-        const maxY = window.innerHeight - 200;
-        
-        if (position.left >= 0 && position.left <= maxX && 
-            position.top >= 0 && position.top <= maxY) {
-          this.container.style.left = `${position.left}px`;
-          this.container.style.top = `${position.top}px`;
-          this.container.style.right = 'auto';
-        }
+      const rect = this.container.getBoundingClientRect();
+      await PanelStorage.savePosition(rect.left, rect.top);
+    } catch (e) {
+      console.log('[LenQuant] Could not save panel position');
+    }
+  }
+
+  async restorePosition() {
+    try {
+      const saved = await PanelStorage.loadPosition();
+      if (saved && this.isValidPosition(saved.x, saved.y)) {
+        this.container.style.left = `${saved.x}px`;
+        this.container.style.top = `${saved.y}px`;
+        this.container.style.right = 'auto';
+      } else {
+        // Use default position
+        const defaultPos = PanelStorage.getDefaultPosition();
+        this.container.style.left = `${defaultPos.x}px`;
+        this.container.style.top = `${defaultPos.y}px`;
       }
     } catch (e) {
       console.log('[LenQuant] Could not restore panel position');
+      // Use default position on error
+      const defaultPos = PanelStorage.getDefaultPosition();
+      this.container.style.left = `${defaultPos.x}px`;
+      this.container.style.top = `${defaultPos.y}px`;
     }
+  }
+
+  isValidPosition(x, y) {
+    // Ensure position is within viewport
+    return x >= 0 &&
+           x < window.innerWidth - 100 &&
+           y >= 0 &&
+           y < window.innerHeight - 100;
   }
   
   getTemplate() {
@@ -673,6 +1155,7 @@ class TradingPanel {
         </div>
 
         <div class="lq-content">
+          <div class="lq-section-header">Analysis</div>
           <div class="lq-context">
             <span class="lq-symbol lq-skeleton" style="width: 60px; height: 18px;"></span>
             <span class="lq-separator">•</span>
@@ -696,11 +1179,15 @@ class TradingPanel {
               <span class="lq-state-value lq-skeleton" style="width: 80px; height: 15px;"></span>
             </div>
           </div>
-          
+
           <div class="lq-setup-section">
             <span class="lq-setup-label">Setup:</span>
             <span class="lq-setup-value lq-skeleton" style="width: 100px; height: 13px;"></span>
           </div>
+
+          <div class="lq-section-divider"></div>
+
+          <div class="lq-section-header">Risk Assessment</div>
 
           <div class="lq-risk-section">
             <div class="lq-risk-flags">
@@ -734,7 +1221,10 @@ class TradingPanel {
           <div class="lq-reason">
             <span class="lq-reason-text lq-skeleton" style="width: 150px; height: 12px;"></span>
           </div>
-          
+
+          <div class="lq-section-divider"></div>
+
+          <div class="lq-section-header">Trade Setup</div>
           <div class="lq-quick-action" style="display: none;">
             <div class="lq-quick-action-header">
               <span class="lq-quick-action-title">📊 Quick Trade Info</span>
@@ -769,7 +1259,7 @@ class TradingPanel {
             <div class="lq-quick-action-note"></div>
           </div>
           
-          <div class="lq-actions">
+          <div class="lq-action-buttons">
             <button class="lq-btn lq-btn-explain" title="Get AI-powered detailed trade plan with entry, stop loss, and targets">🔍 Explain</button>
             <button class="lq-btn lq-btn-bookmark" title="Save this analysis with a note for later review in Journal">📑 Bookmark</button>
           </div>
@@ -812,9 +1302,20 @@ class TradingPanel {
   }
   
   attachEventListeners() {
-    // Refresh button
+    // Manual refresh button
     const refreshBtn = this.container.querySelector('.lq-refresh-btn');
-    refreshBtn.addEventListener('click', () => this.refreshAnalysis());
+    refreshBtn.addEventListener('click', async () => {
+      // Spinning animation
+      refreshBtn.classList.add('lq-spinning');
+      refreshBtn.disabled = true;
+
+      try {
+        await handleManualRefresh();
+      } finally {
+        refreshBtn.classList.remove('lq-spinning');
+        refreshBtn.disabled = false;
+      }
+    });
 
     // Menu button
     const menuBtn = this.container.querySelector('.lq-menu-btn');
@@ -908,7 +1409,17 @@ class TradingPanel {
     
     // Sync button
     const syncBtn = this.container.querySelector('.lq-btn-sync');
-    syncBtn.addEventListener('click', () => this.syncTrades());
+    syncBtn.addEventListener('click', async () => {
+      // Check feature access first
+      const hasAccess = await featureGate.checkAccess('trade_sync');
+      if (!hasAccess) {
+        // Paywall was shown by checkAccess
+        return;
+      }
+
+      // Proceed with sync
+      await this.syncTrades();
+    });
 
     // MTF refresh button
     const mtfRefreshBtn = this.container.querySelector('.lq-mtf-refresh');
@@ -931,25 +1442,42 @@ class TradingPanel {
     const syncBtn = this.container.querySelector('.lq-btn-sync');
     syncBtn.disabled = true;
     syncBtn.textContent = '⏳ Syncing...';
-    
+
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'SYNC_TRADES',
         mode: 'testnet',
       });
-      
+
       if (response && !response.error) {
-        const msg = `Imported: ${response.trades_imported}, Matched: ${response.trades_matched}`;
-        alert(`Sync complete!\n${msg}`);
+        const count = response.trades_imported || response.count || 0;
+        syncBtn.textContent = `✓ ${count} synced`;
+        this.showAlert({
+          type: 'info',
+          severity: 'info',
+          message: `Successfully synced ${count} trades`
+        });
       } else {
-        alert('Sync failed: ' + (response.error || 'Unknown error'));
+        syncBtn.textContent = '❌ Sync failed';
+        this.showAlert({
+          type: 'error',
+          severity: 'warning',
+          message: `Sync failed: ${response.error || 'Unknown error'}`
+        });
       }
     } catch (error) {
       console.error('[LenQuant] Sync error:', error);
-      alert('Sync failed: ' + error.message);
+      syncBtn.textContent = '❌ Error';
+      this.showAlert({
+        type: 'error',
+        severity: 'warning',
+        message: `Sync failed: ${error.message}`
+      });
     } finally {
-      syncBtn.disabled = false;
-      syncBtn.textContent = '🔄 Sync';
+      setTimeout(() => {
+        syncBtn.disabled = false;
+        syncBtn.textContent = '🔄 Sync';
+      }, 3000);
     }
   }
 
@@ -959,17 +1487,19 @@ class TradingPanel {
   updateMenuUserInfo() {
     const emailEl = this.container.querySelector('.lq-user-email');
     const tierEl = this.container.querySelector('.lq-user-tier');
-    
+    const logoutItem = this.container.querySelector('.lq-menu-logout');
+
     if (!emailEl || !tierEl) return;
-    
+
     if (licenseManager && licenseManager.license) {
+      // User is signed in
       const license = licenseManager.license;
       emailEl.textContent = license.email || 'Not signed in';
-      
+
       const tier = license.tier || 'free';
       tierEl.textContent = tier.toUpperCase();
       tierEl.className = `lq-user-tier lq-tier-${tier}`;
-      
+
       // Add trial remaining if applicable
       if (tier === 'trial') {
         const trialInfo = licenseManager.getTrialRemaining();
@@ -977,10 +1507,21 @@ class TradingPanel {
           tierEl.textContent = `TRIAL • ${trialInfo.display}`;
         }
       }
+
+      if (logoutItem) {
+        logoutItem.textContent = '🚪 Logout';
+        logoutItem.title = 'Sign out of LenQuant';
+      }
     } else {
+      // User is not signed in
       emailEl.textContent = 'Not signed in';
       tierEl.textContent = 'FREE';
       tierEl.className = 'lq-user-tier lq-tier-free';
+
+      if (logoutItem) {
+        logoutItem.textContent = '🔑 Sign In';
+        logoutItem.title = 'Sign in to LenQuant';
+      }
     }
   }
   
@@ -1091,51 +1632,74 @@ class TradingPanel {
         fastAnalysis: currentAnalysis,
         tradeLevels: tradeLevels,
       });
-      
+
       if (response.explanation) {
         this.showExplanation(response.explanation);
+        explainBtn.textContent = '✓ Done';
       } else if (response.error) {
+        // Show error in panel
+        this.showExplanationError(response.error);
+        explainBtn.textContent = '❌ Failed';
         console.error('[LenQuant] Explanation error:', response.error);
       }
-      
+
     } catch (error) {
       console.error('[LenQuant] Explanation request error:', error);
+      this.showExplanationError('Could not get explanation. Please try again.');
+      explainBtn.textContent = '❌ Error';
     } finally {
-      explainBtn.disabled = false;
-      explainBtn.textContent = '🔍 Explain';
+      setTimeout(() => {
+        explainBtn.disabled = false;
+        explainBtn.textContent = '🔍 Explain';
+      }, 2000);
     }
   }
-  
+
+  showExplanationError(message) {
+    const explanationArea = this.container.querySelector('.lq-explanation');
+    if (explanationArea) {
+      explanationArea.innerHTML = `
+        <div class="lq-explanation-error" style="color: #f6465d; padding: 10px; border-radius: 4px; background: rgba(246, 70, 93, 0.1);">
+          ❗ ${message}
+        </div>
+      `;
+      explanationArea.style.display = 'block';
+    }
+  }
+
   showExplanation(explanation) {
     const section = this.container.querySelector('.lq-explanation');
     const content = this.container.querySelector('.lq-explanation-content');
-    
+
     const plan = explanation.trade_plan;
-    
+
+    // Sanitize the reasoning content
+    const safeReasoning = HTMLSanitizer.sanitize(explanation.reasoning || '');
+
     content.innerHTML = `
       <div class="lq-plan-bias ${plan.bias}">
-        <strong>Bias:</strong> ${plan.bias.toUpperCase()}
+        <strong>Bias:</strong> ${HTMLSanitizer.escapeHTML(plan.bias.toUpperCase())}
       </div>
       <div class="lq-plan-setup">
-        <strong>Setup:</strong> ${plan.setup_name}
+        <strong>Setup:</strong> ${HTMLSanitizer.escapeHTML(plan.setup_name)}
       </div>
       <div class="lq-plan-trigger">
-        <strong>Trigger:</strong> ${plan.trigger}
+        <strong>Trigger:</strong> ${HTMLSanitizer.escapeHTML(plan.trigger)}
       </div>
       <div class="lq-plan-invalidation">
-        <strong>Invalidation:</strong> ${plan.invalidation}
+        <strong>Invalidation:</strong> ${HTMLSanitizer.escapeHTML(plan.invalidation)}
       </div>
       <div class="lq-plan-targets">
-        <strong>Targets:</strong> ${plan.targets.join(', ') || 'N/A'}
+        <strong>Targets:</strong> ${HTMLSanitizer.escapeHTML(plan.targets.join(', ') || 'N/A')}
       </div>
       <div class="lq-plan-confidence">
-        <strong>Confidence:</strong> ${plan.confidence_pattern}%
+        <strong>Confidence:</strong> ${HTMLSanitizer.escapeHTML(plan.confidence_pattern)}%
       </div>
       ${plan.do_not_trade ? '<div class="lq-do-not-trade">⚠️ NOT RECOMMENDED TO TRADE</div>' : ''}
-      <div class="lq-reasoning">${explanation.reasoning}</div>
-      <div class="lq-provider">via ${explanation.provider} (${explanation.latency_ms}ms)</div>
+      <div class="lq-reasoning">${safeReasoning}</div>
+      <div class="lq-provider">via ${HTMLSanitizer.escapeHTML(explanation.provider)} (${HTMLSanitizer.escapeHTML(explanation.latency_ms)}ms)</div>
     `;
-    
+
     section.style.display = 'block';
   }
   
@@ -1147,43 +1711,81 @@ class TradingPanel {
   async addBookmark() {
     try {
       const note = prompt('Add a note for this bookmark (optional):');
-      
-      await chrome.runtime.sendMessage({
-        type: 'BOOKMARK',
+
+      const bookmark = {
         symbol: currentContext.symbol,
         timeframe: currentContext.timeframe,
+        analysis: currentAnalysis,
         note: note || '',
-      });
-      
+      };
+
+      const tier = licenseManager?.getTier();
+
+      if (['pro', 'premium'].includes(tier)) {
+        // Cloud bookmark (existing flow)
+        await chrome.runtime.sendMessage({
+          type: 'BOOKMARK',
+          ...bookmark,
+        });
+      } else {
+        // Local bookmark for free/trial
+        await LocalBookmarks.save(bookmark);
+      }
+
       // Visual feedback
       const btn = this.container.querySelector('.lq-btn-bookmark');
       btn.textContent = '✓ Saved!';
       setTimeout(() => {
         btn.textContent = '📑 Bookmark';
       }, 2000);
-      
+
     } catch (error) {
       console.error('[LenQuant] Bookmark error:', error);
     }
   }
   
-  showAlert(alert) {
+  async showAlert(alert) {
+    // Check if behavior alerts are enabled
+    const result = await chrome.storage.sync.get('settings');
+    const settings = result.settings || {};
+
+    if (settings.behaviorAlerts === false) {
+      console.log('[LenQuant] Behavior alerts disabled, skipping:', alert);
+      return;
+    }
+
+    // Check sound setting for critical alerts
+    if (alert.severity === 'critical' && settings.soundAlerts) {
+      alertSound.play();
+    }
+
     const alertsContainer = this.container.querySelector('.lq-alerts');
-    
+
     const alertEl = document.createElement('div');
     alertEl.className = `lq-alert lq-alert-${alert.severity}`;
-    alertEl.innerHTML = `
-      <span class="lq-alert-icon">${alert.severity === 'critical' ? '🚨' : '⚠️'}</span>
-      <span class="lq-alert-message">${alert.message}</span>
-      <button class="lq-btn-icon lq-dismiss-alert">×</button>
-    `;
-    
-    alertEl.querySelector('.lq-dismiss-alert').addEventListener('click', () => {
+
+    // Create elements instead of innerHTML for security
+    const icon = document.createElement('span');
+    icon.className = 'lq-alert-icon';
+    icon.textContent = alert.severity === 'critical' ? '🚨' : '⚠️';
+
+    const message = document.createElement('span');
+    message.className = 'lq-alert-message';
+    message.textContent = alert.message; // Safe - textContent escapes HTML
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'lq-btn-icon lq-dismiss-alert';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', () => {
       alertEl.remove();
     });
-    
+
+    alertEl.appendChild(icon);
+    alertEl.appendChild(message);
+    alertEl.appendChild(closeBtn);
+
     alertsContainer.appendChild(alertEl);
-    
+
     // Auto-dismiss info alerts after 10s
     if (alert.severity === 'info') {
       setTimeout(() => alertEl.remove(), 10000);
@@ -1192,10 +1794,45 @@ class TradingPanel {
 }
 
 // ============================================================================
+// Panel Updater - Batched DOM Updates
+// ============================================================================
+
+class PanelUpdater {
+  constructor(panel) {
+    this.panel = panel;
+    this.pendingUpdates = {};
+    this.rafId = null;
+  }
+
+  schedule(key, updateFn) {
+    this.pendingUpdates[key] = updateFn;
+
+    if (!this.rafId) {
+      this.rafId = requestAnimationFrame(() => this.flush());
+    }
+  }
+
+  flush() {
+    this.rafId = null;
+
+    // Execute all pending updates in one frame
+    Object.values(this.pendingUpdates).forEach(fn => {
+      try {
+        fn();
+      } catch (e) {
+        logger.error('ui', 'Update error:', e);
+      }
+    });
+
+    this.pendingUpdates = {};
+  }
+}
+
+// ============================================================================
 // Update Functions
 // ============================================================================
 
-function updatePanel(analysis) {
+async function updatePanel(analysis) {
   if (!panel || !panel.container) return;
   
   // IMPORTANT: First hide all skeletons
@@ -1228,6 +1865,9 @@ function updatePanel(analysis) {
     gradeEl.style.width = 'auto';
     gradeEl.style.height = 'auto';
   }
+
+  // Record high grade for smart upsell system
+  await upsellManager.recordHighGrade(grade);
   
   // Update market state with defensive coding
   const stateValue = panel.container.querySelector('.lq-state-value');
@@ -1371,10 +2011,47 @@ function updatePanel(analysis) {
   } else if (currentLeverageSection) {
     currentLeverageSection.style.display = 'none';
   }
+
+  // Auto-explain high grade setups
+  maybeAutoExplain(analysis);
+
+  // Show bookmark info for free users
+  showBookmarkInfo();
+
+  // Apply tooltips to complex metrics
+  applyTooltips();
+
+  // Update feature lock indicators
+  updateFeatureLocks();
+
+  // Start tutorial for new users after first analysis
+  maybeStartTutorial();
+}
+
+async function maybeAutoExplain(analysis) {
+  if (!analysis || !analysis.grade) return;
+
+  const result = await chrome.storage.sync.get('settings');
+  const settings = result.settings || {};
+
+  if (!settings.autoExplain) return;
+
+  // Only auto-explain for A or B grades
+  if (['A', 'B'].includes(analysis.grade.toUpperCase())) {
+    // Check if user has access to explain feature
+    const hasAccess = await featureGate.checkAccess('ai_explain');
+    if (hasAccess) {
+      console.log('[LenQuant] Auto-explaining high grade setup:', analysis.grade);
+      await requestExplanation();
+    }
+  }
 }
 
 async function updateMTFSection(symbol) {
   if (!panel || !panel.container) return;
+
+  // Lazy load MTF feature
+  await lazyLoader.load('mtf');
 
   const mtfSection = panel.container.querySelector('.lq-mtf-section');
   if (!mtfSection) return;
@@ -2241,6 +2918,76 @@ async function initializeFeatureGating() {
 
 // ============================================================================
 
+// Optimized auto-refresh using AnalysisManager
+async function initAutoRefreshOptimized() {
+  const tier = licenseManager?.getTier();
+  const isPro = ['trial', 'pro', 'premium'].includes(tier);
+
+  if (isPro) {
+    // Pro users get auto-refresh
+    setInterval(async () => {
+      if (panel?.container?.style.display === 'none') {
+        return; // Skip if panel hidden
+      }
+
+      await analysisManager.maybeRefresh(currentContext);
+    }, 30000);
+
+    logger.log('analysis', 'Auto-refresh enabled (Pro)');
+  } else {
+    // Free users - show manual refresh hint
+    showManualRefreshHint();
+    logger.log('analysis', 'Auto-refresh disabled (Free tier)');
+  }
+}
+
+// Legacy function for backwards compatibility
+async function initAutoRefresh() {
+  return initAutoRefreshOptimized();
+}
+
+let manualRefreshCount = 0;
+
+function showManualRefreshHint() {
+  const refreshBtn = document.querySelector('.lq-refresh-btn');
+  if (refreshBtn) {
+    // Add pulsing animation to draw attention
+    refreshBtn.classList.add('lq-refresh-hint');
+    refreshBtn.title = 'Click to refresh analysis (Pro: auto-updates every 30s)';
+  }
+}
+
+async function handleManualRefresh() {
+  await fetchAndUpdateAnalysis();
+
+  // Record manual refresh for smart upsell system
+  await upsellManager.recordManualRefresh();
+}
+
+// Auto-refresh upsell is now handled by the smart upsell system
+function showAutoRefreshUpsell() {
+  // This function is kept for backwards compatibility but now handled by UpsellManager
+}
+
+async function showBookmarkInfo() {
+  const tier = licenseManager?.getTier();
+  const bookmarks = await LocalBookmarks.getAll();
+
+  if (!['pro', 'premium'].includes(tier)) {
+    // Show local bookmark count with limit
+    const bookmarkBtn = document.querySelector('.lq-btn-bookmark');
+    if (bookmarkBtn) {
+      const count = bookmarks.length;
+      bookmarkBtn.title = `Local bookmarks: ${count}/${LocalBookmarks.MAX_BOOKMARKS} (Upgrade for cloud sync)`;
+
+      // Add visual indicator if near limit
+      if (count >= LocalBookmarks.MAX_BOOKMARKS - 5) {
+        bookmarkBtn.style.color = count >= LocalBookmarks.MAX_BOOKMARKS ? '#f6465d' : '#f0b90b';
+      }
+    }
+  }
+}
+
 async function init() {
   console.log('[LenQuant] Content script initializing');
 
@@ -2256,12 +3003,22 @@ async function init() {
   // Initialize feature gating components (already loaded via manifest)
   await initializeFeatureGating();
 
+  // Check auto-show setting before injecting panel
+  const result = await chrome.storage.sync.get('settings');
+  const settings = result.settings || {};
+  const shouldAutoShow = settings.autoShow !== false; // Default true
+
   // Initialize panel
   panel = new TradingPanel();
   panel.inject();
 
+  // Hide immediately if auto-show is disabled
+  if (!shouldAutoShow) {
+    panel.container.style.display = 'none';
+  }
+
   // Initialize context observer
-  const observer = new BinanceContextObserver();
+  const observer = new OptimizedContextObserver();
   observer.init();
   
   // Check for behavior alerts periodically
@@ -2278,37 +3035,497 @@ async function init() {
     }
   }, 60000); // Check every minute
 
-  // Auto-refresh analysis every 30 seconds when we have a symbol
-  setInterval(async () => {
-    try {
-      if (currentContext.symbol && panel && panel.container && panel.container.style.display !== 'none') {
-        // Only auto-refresh if panel is visible and we have a symbol
-        const domData = extractAllDOMData();
-        const response = await chrome.runtime.sendMessage({
-          type: 'CONTEXT_CHANGED',
-          symbol: currentContext.symbol,
-          timeframe: currentContext.timeframe || '1m',
-          context: { ...currentContext, autoRefresh: true },
-          domData,
-        });
+  // Initialize auto-refresh based on tier
+  initAutoRefreshOptimized();
 
-        if (response && response.analysis) {
-          currentAnalysis = response.analysis;
-          updatePanel(response.analysis);
-          console.log('[LenQuant] Auto-refreshed analysis for', currentContext.symbol);
-        }
-      }
-    } catch (error) {
-      console.error('[LenQuant] Auto-refresh failed:', error);
-    }
-  }, 30000); // Auto-refresh every 30 seconds
-  
+  // Initialize upsell manager
+  await upsellManager.init();
+
+  // Record daily activity for upsell system
+  const today = new Date().toDateString();
+  const lastActiveDate = await chrome.storage.local.get('lastActiveDate');
+  if (lastActiveDate.lastActiveDate !== today) {
+    await chrome.storage.local.set({ lastActiveDate: today });
+    await upsellManager.recordDayActive();
+  }
+
   console.log('[LenQuant] Initialization complete');
 }
+
+// ============================================================================
+// Panel Walkthrough Tutorial System
+// ============================================================================
+
+// Tutorial overlay system
+const tutorialSteps = [
+  {
+    element: '.lq-signal-badge',
+    title: 'Trade Signal',
+    description: 'This shows the overall recommendation: BUY, WAIT, or CAUTION based on our analysis.',
+    position: 'bottom'
+  },
+  {
+    element: '.lq-score-bar',
+    title: 'Trade Score',
+    description: 'The confidence level of this signal. Higher is better - we recommend acting on 70%+ scores.',
+    position: 'bottom'
+  },
+  {
+    element: '.lq-grade-badge',
+    title: 'Setup Grade',
+    description: 'Letter grade (A-D) for the current trading setup. A = excellent conditions, D = poor conditions.',
+    position: 'right'
+  },
+  {
+    element: '.lq-risk-flags',
+    title: 'Risk Warnings',
+    description: 'Important risks to watch. Red flags suggest caution or smaller position sizes.',
+    position: 'bottom'
+  },
+  {
+    element: '.lq-leverage-section',
+    title: 'Leverage Guidance',
+    description: 'Suggested leverage range based on volatility. Stay within this range to manage risk.',
+    position: 'bottom'
+  },
+  {
+    element: '.lq-quick-action',
+    title: 'Quick Trade Info',
+    description: 'Suggested entry, stop loss, and take profit levels when a setup is detected.',
+    position: 'top'
+  }
+];
+
+class TutorialOverlay {
+  constructor() {
+    this.currentStep = 0;
+    this.overlay = null;
+  }
+
+  async shouldShow() {
+    const result = await chrome.storage.local.get(['tutorialComplete']);
+    return !result.tutorialComplete;
+  }
+
+  async start() {
+    if (!(await this.shouldShow())) return;
+
+    this.createOverlay();
+    this.showStep(0);
+  }
+
+  createOverlay() {
+    this.overlay = document.createElement('div');
+    this.overlay.className = 'lq-tutorial-overlay';
+    this.overlay.innerHTML = `
+      <div class="lq-tutorial-backdrop"></div>
+      <div class="lq-tutorial-tooltip">
+        <div class="lq-tutorial-header">
+          <span class="lq-tutorial-step-count">1/${tutorialSteps.length}</span>
+          <button class="lq-tutorial-skip">Skip Tutorial</button>
+        </div>
+        <h4 class="lq-tutorial-title"></h4>
+        <p class="lq-tutorial-description"></p>
+        <div class="lq-tutorial-actions">
+          <button class="lq-tutorial-prev" disabled>← Back</button>
+          <button class="lq-tutorial-next">Next →</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(this.overlay);
+
+    // Event handlers
+    this.overlay.querySelector('.lq-tutorial-skip').addEventListener('click', () => this.complete());
+    this.overlay.querySelector('.lq-tutorial-prev').addEventListener('click', () => this.prevStep());
+    this.overlay.querySelector('.lq-tutorial-next').addEventListener('click', () => this.nextStep());
+  }
+
+  showStep(index) {
+    const step = tutorialSteps[index];
+    const element = document.querySelector(step.element);
+
+    if (!element) {
+      // Skip to next if element not found
+      if (index < tutorialSteps.length - 1) {
+        this.showStep(index + 1);
+      } else {
+        this.complete();
+      }
+      return;
+    }
+
+    this.currentStep = index;
+
+    // Update content
+    this.overlay.querySelector('.lq-tutorial-step-count').textContent =
+      `${index + 1}/${tutorialSteps.length}`;
+    this.overlay.querySelector('.lq-tutorial-title').textContent = step.title;
+    this.overlay.querySelector('.lq-tutorial-description').textContent = step.description;
+
+    // Update buttons
+    const prevBtn = this.overlay.querySelector('.lq-tutorial-prev');
+    const nextBtn = this.overlay.querySelector('.lq-tutorial-next');
+
+    prevBtn.disabled = index === 0;
+    nextBtn.textContent = index === tutorialSteps.length - 1 ? 'Finish ✓' : 'Next →';
+
+    // Position tooltip near element
+    this.positionTooltip(element, step.position);
+
+    // Highlight element
+    this.highlightElement(element);
+  }
+
+  positionTooltip(element, position) {
+    const tooltip = this.overlay.querySelector('.lq-tutorial-tooltip');
+    const rect = element.getBoundingClientRect();
+
+    // Reset position
+    tooltip.style.top = '';
+    tooltip.style.left = '';
+    tooltip.style.right = '';
+    tooltip.style.bottom = '';
+
+    switch (position) {
+      case 'bottom':
+        tooltip.style.top = `${rect.bottom + 15}px`;
+        tooltip.style.left = `${rect.left}px`;
+        break;
+      case 'top':
+        tooltip.style.bottom = `${window.innerHeight - rect.top + 15}px`;
+        tooltip.style.left = `${rect.left}px`;
+        break;
+      case 'right':
+        tooltip.style.top = `${rect.top}px`;
+        tooltip.style.left = `${rect.right + 15}px`;
+        break;
+      case 'left':
+        tooltip.style.top = `${rect.top}px`;
+        tooltip.style.right = `${window.innerWidth - rect.left + 15}px`;
+        break;
+    }
+  }
+
+  highlightElement(element) {
+    // Remove previous highlight
+    document.querySelectorAll('.lq-tutorial-highlight').forEach(el => {
+      el.classList.remove('lq-tutorial-highlight');
+    });
+
+    // Add highlight to current element
+    element.classList.add('lq-tutorial-highlight');
+  }
+
+  nextStep() {
+    if (this.currentStep < tutorialSteps.length - 1) {
+      this.showStep(this.currentStep + 1);
+    } else {
+      this.complete();
+    }
+  }
+
+  prevStep() {
+    if (this.currentStep > 0) {
+      this.showStep(this.currentStep - 1);
+    }
+  }
+
+  async complete() {
+    await chrome.storage.local.set({ tutorialComplete: true });
+
+    // Remove highlight
+    document.querySelectorAll('.lq-tutorial-highlight').forEach(el => {
+      el.classList.remove('lq-tutorial-highlight');
+    });
+
+    // Remove overlay
+    this.overlay?.remove();
+  }
+}
+
+// Start tutorial after first analysis loads (for new users)
+async function maybeStartTutorial() {
+  await lazyLoader.load('tutorial');
+  const tutorial = new TutorialOverlay();
+  await tutorial.start();
+}
+
+// ============================================================================
+// Tooltip System for Complex Metrics
+// ============================================================================
+
+// Tooltip definitions
+const tooltipDefinitions = {
+  grade: 'Setup quality from A (excellent) to D (poor). Based on confidence, risk flags, and market conditions.',
+  marketState: 'Current market behavior: Trending (strong direction), Ranging (sideways), or Choppy (unpredictable).',
+  tradeScore: 'Overall confidence in this trade setup. 70%+ suggests favorable conditions.',
+  riskFlags: 'Warnings about current market conditions that may affect this trade.',
+  leverageBand: 'Suggested leverage range based on current volatility. Lower volatility = safer higher leverage.',
+  regimeMultiplier: 'Suggested position size adjustment based on market regime. 100% = normal, lower = reduce size.',
+  setup: 'Detected chart pattern or trade setup. Helps identify entry opportunities.',
+};
+
+// Apply tooltips when panel is created
+function applyTooltips() {
+  const tooltipMappings = [
+    { selector: '.lq-grade-badge', key: 'grade' },
+    { selector: '.lq-market-state', key: 'marketState' },
+    { selector: '.lq-score-bar', key: 'tradeScore' },
+    { selector: '.lq-risk-flags', key: 'riskFlags' },
+    { selector: '.lq-leverage-section', key: 'leverageBand' },
+    { selector: '.lq-regime-multiplier', key: 'regimeMultiplier' },
+    { selector: '.lq-setup-name', key: 'setup' },
+  ];
+
+  tooltipMappings.forEach(({ selector, key }) => {
+    const element = document.querySelector(selector);
+    if (element && tooltipDefinitions[key]) {
+      element.setAttribute('title', tooltipDefinitions[key]);
+      element.style.cursor = 'help';
+    }
+  });
+}
+
+// Enhanced Tooltip (Optional)
+class Tooltip {
+  static show(element, text) {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'lq-custom-tooltip';
+    tooltip.textContent = text;
+
+    const rect = element.getBoundingClientRect();
+    tooltip.style.left = `${rect.left + rect.width / 2}px`;
+    tooltip.style.top = `${rect.bottom + 8}px`;
+
+    document.body.appendChild(tooltip);
+
+    element._tooltip = tooltip;
+  }
+
+  static hide(element) {
+    element._tooltip?.remove();
+    element._tooltip = null;
+  }
+}
+
+// Add hover handlers for enhanced tooltips (optional)
+// document.querySelectorAll('[data-tooltip]').forEach(el => {
+//   el.addEventListener('mouseenter', () => {
+//     Tooltip.show(el, el.dataset.tooltip);
+//   });
+//   el.addEventListener('mouseleave', () => {
+//     Tooltip.hide(el);
+//   });
+// });
+
+// ============================================================================
+// Feature Lock Indicators
+// ============================================================================
+
+function updateFeatureLocks() {
+  const tier = licenseManager?.getTier() || 'free';
+  const hasProAccess = ['trial', 'pro', 'premium'].includes(tier);
+  const hasPremiumAccess = tier === 'premium';
+
+  // Define feature requirements
+  const featureButtons = [
+    { selector: '.lq-btn-explain', feature: 'ai_explain', needsPro: true },
+    { selector: '.lq-btn-sync', feature: 'trade_sync', needsPremium: true },
+    { selector: '.lq-btn-mtf', feature: 'mtf_analysis', needsPremium: true },
+  ];
+
+  featureButtons.forEach(({ selector, feature, needsPro, needsPremium }) => {
+    const btn = document.querySelector(selector);
+    if (!btn) return;
+
+    const isLocked = (needsPro && !hasProAccess) || (needsPremium && !hasPremiumAccess);
+
+    // Add/remove lock indicator
+    let lockIcon = btn.querySelector('.lq-lock-icon');
+
+    if (isLocked) {
+      if (!lockIcon) {
+        lockIcon = document.createElement('span');
+        lockIcon.className = 'lq-lock-icon';
+        lockIcon.textContent = '🔒';
+        lockIcon.title = needsPremium ? 'Premium feature' : 'Pro feature';
+        btn.appendChild(lockIcon);
+      }
+      btn.classList.add('lq-feature-locked');
+    } else {
+      lockIcon?.remove();
+      btn.classList.remove('lq-feature-locked');
+    }
+  });
+}
+
+// ============================================================================
+// Smart Upsell System
+// ============================================================================
+
+class UpsellManager {
+  constructor() {
+    this.triggers = {
+      manualRefreshCount: 0,
+      daysActive: 0,
+      highGradesSeen: 0,
+      lastUpsellShown: 0,
+    };
+    this.cooldownMs = 300000; // 5 min between upsells
+  }
+
+  async init() {
+    const result = await chrome.storage.local.get(['upsellTriggers']);
+    if (result.upsellTriggers) {
+      this.triggers = { ...this.triggers, ...result.upsellTriggers };
+    }
+  }
+
+  async save() {
+    await chrome.storage.local.set({ upsellTriggers: this.triggers });
+  }
+
+  canShowUpsell() {
+    const tier = licenseManager?.getTier();
+    if (['pro', 'premium'].includes(tier)) return false;
+
+    const now = Date.now();
+    return (now - this.triggers.lastUpsellShown) > this.cooldownMs;
+  }
+
+  async recordManualRefresh() {
+    this.triggers.manualRefreshCount++;
+    await this.save();
+
+    // Trigger after 5 refreshes
+    if (this.triggers.manualRefreshCount === 5 && this.canShowUpsell()) {
+      this.showUpsell('auto_refresh', {
+        title: '⚡ Tired of clicking refresh?',
+        message: 'Pro auto-updates your analysis every 30 seconds',
+        cta: 'Try Pro Free',
+      });
+    }
+  }
+
+  async recordHighGrade(grade) {
+    if (['A', 'B'].includes(grade.toUpperCase())) {
+      this.triggers.highGradesSeen++;
+      await this.save();
+
+      // After 3 high grade signals
+      if (this.triggers.highGradesSeen === 3 && this.canShowUpsell()) {
+        this.showUpsell('ai_explain', {
+          title: '🎯 Grade A Setup Detected!',
+          message: 'Pro users get instant AI explanation for high-grade setups',
+          cta: 'Unlock AI Explain',
+        });
+      }
+    }
+  }
+
+  async recordDayActive() {
+    this.triggers.daysActive++;
+    await this.save();
+
+    // After 7 days of use
+    if (this.triggers.daysActive === 7 && this.canShowUpsell()) {
+      this.showUpsell('pro_general', {
+        title: '🏆 7 Days with LenQuant!',
+        message: 'You\'re getting value from the free tier. Upgrade to unlock the full trading coach experience.',
+        cta: 'Start Pro Trial',
+      });
+    }
+  }
+
+  showUpsell(feature, { title, message, cta }) {
+    this.triggers.lastUpsellShown = Date.now();
+    this.save();
+
+    // Use non-intrusive toast, not modal
+    panel.showToast({
+      title,
+      message,
+      action: cta,
+      onClick: () => {
+        if (licenseManager?.license?.email) {
+          authUI.showPaywall(feature);
+        } else {
+          authUI.showTrialPrompt(feature);
+        }
+      },
+      duration: 8000,
+      dismissible: true,
+    });
+  }
+}
+
+const upsellManager = new UpsellManager();
 
 // Wait for page to be ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
+// ============================================================================
+// License Event Handlers - Phase 4 Security
+// ============================================================================
+
+// Listen for license events
+window.addEventListener('lq:license-expired', (e) => {
+  const { reason } = e.detail;
+
+  // Show notification banner
+  showLicenseBanner({
+    type: 'expired',
+    message: 'Your session has expired. Please sign in again.',
+    reason: reason,
+    action: 'Sign In',
+    onClick: () => authUI.showAuthModal()
+  });
+});
+
+window.addEventListener('lq:license-warning', (e) => {
+  const { message } = e.detail;
+
+  // Show warning in panel alerts
+  if (panel) {
+    panel.showAlert({
+      severity: 'warning',
+      message: message
+    });
+  }
+});
+
+window.addEventListener('lq:license-updated', () => {
+  // Refresh feature locks when license updates
+  updateFeatureLocks();
+});
+
+function showLicenseBanner({ type, message, action, onClick }) {
+  // Remove existing banner
+  document.querySelector('.lq-license-banner')?.remove();
+
+  const banner = document.createElement('div');
+  banner.className = `lq-license-banner lq-license-banner-${type}`;
+
+  const messageSpan = document.createElement('span');
+  messageSpan.textContent = message;
+
+  const actionBtn = document.createElement('button');
+  actionBtn.textContent = action;
+  actionBtn.addEventListener('click', onClick);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'lq-banner-close';
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', () => banner.remove());
+
+  banner.appendChild(messageSpan);
+  banner.appendChild(actionBtn);
+  banner.appendChild(closeBtn);
+
+  document.body.appendChild(banner);
+}
+
 } else {
   init();
 }

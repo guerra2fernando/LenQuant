@@ -19,12 +19,35 @@ async function loadSessionInfo() {
 async function loadStats() {
   try {
     const result = await chrome.storage.local.get(['analysesCount', 'bookmarksCount', 'alertsCount']);
-    
+
     document.getElementById('analyses-count').textContent = result.analysesCount || 0;
     document.getElementById('bookmarks-count').textContent = result.bookmarksCount || 0;
     document.getElementById('alerts-count').textContent = result.alertsCount || 0;
+
+    // Check if we should show first-time hint
+    await checkFirstTimeUser(result.analysesCount);
   } catch (error) {
     console.error('Failed to load stats:', error);
+  }
+}
+
+// Check if user has ever analyzed - show hint if not
+async function checkFirstTimeUser(analysesCount) {
+  const result = await chrome.storage.local.get(['hasSeenHint']);
+
+  // Show hint if user has never analyzed and hasn't dismissed hint
+  if (!analysesCount && !result.hasSeenHint) {
+    const hintBanner = document.getElementById('first-time-hint');
+    if (hintBanner) {
+      hintBanner.style.display = 'flex';
+
+      // Add close button handler
+      hintBanner.addEventListener('click', async (e) => {
+        if (e.target.closest('a')) return; // Don't close if clicking the link
+        hintBanner.style.display = 'none';
+        await chrome.storage.local.set({ hasSeenHint: true });
+      });
+    }
   }
 }
 

@@ -72,6 +72,41 @@
     .popup-content {
       padding: 16px;
     }
+
+    .hint-banner {
+      background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
+      border: 1px solid #f0b90b;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 10px 0;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hint-icon {
+      font-size: 18px;
+      animation: bounce 1s infinite;
+    }
+
+    .hint-text {
+      font-size: 13px;
+      color: #b7bdc6;
+    }
+
+    .hint-text a {
+      color: #f0b90b;
+      text-decoration: none;
+    }
+
+    .hint-text a:hover {
+      text-decoration: underline;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(5px); }
+    }
     
     .section {
       margin-bottom: 20px;
@@ -177,6 +212,11 @@
   </div>
   
   <div class="popup-content">
+    <div id="first-time-hint" class="hint-banner">
+      <span class="hint-icon">👉</span>
+      <span class="hint-text">Open a <a href="https://www.binance.com/en/futures/BTCUSDT" target="_blank">Binance Futures</a> page to start analyzing!</span>
+    </div>
+
     <div class="section">
       <div class="section-title">Session Stats</div>
       <div class="stat-row">

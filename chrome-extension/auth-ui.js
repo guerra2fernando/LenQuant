@@ -284,10 +284,85 @@ class AuthUI {
   }
 
   /**
+   * Show trial prompt for unregistered users trying Pro features.
+   */
+  showTrialPrompt(feature, callback) {
+    const featureNames = {
+      'ai_explain': 'AI Trade Explanations',
+      'trade_sync': 'Trade Sync',
+      'mtf_analysis': 'Multi-Timeframe Analysis',
+      'behavioral': 'Behavioral Analysis',
+    };
+
+    const featureName = featureNames[feature] || feature;
+
+    const modal = document.createElement('div');
+    modal.className = 'lq-modal-overlay';
+    modal.innerHTML = `
+      <div class="lq-modal lq-trial-prompt-modal">
+        <button class="lq-modal-close">×</button>
+        <div class="lq-trial-icon">🚀</div>
+        <h2>Unlock ${featureName}</h2>
+        <p class="lq-trial-subtitle">Start your free 3-day Pro trial to access this feature</p>
+
+        <div class="lq-trial-benefits">
+          <div class="lq-benefit-item">✓ AI-powered trade explanations</div>
+          <div class="lq-benefit-item">✓ Multi-timeframe analysis</div>
+          <div class="lq-benefit-item">✓ Behavioral guardrails</div>
+          <div class="lq-benefit-item">✓ Cloud journal sync</div>
+        </div>
+
+        <div class="lq-trial-cta">
+          <button class="lq-btn lq-btn-primary lq-btn-google">
+            <img src="${chrome.runtime.getURL('icons/google.svg')}" alt="" />
+            Continue with Google
+          </button>
+          <button class="lq-btn lq-btn-secondary lq-btn-email">
+            Continue with Email
+          </button>
+        </div>
+
+        <p class="lq-trial-note">No credit card required. Cancel anytime.</p>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close handlers
+    modal.querySelector('.lq-modal-close').addEventListener('click', () => {
+      modal.remove();
+      callback(false);
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+        callback(false);
+      }
+    });
+
+    // Auth handlers
+    modal.querySelector('.lq-btn-google').addEventListener('click', async () => {
+      modal.remove();
+      const success = await this.handleGoogleSignIn();
+      callback(success);
+    });
+
+    modal.querySelector('.lq-btn-email').addEventListener('click', () => {
+      modal.remove();
+      this.showRegistrationModal((success) => callback(success));
+    });
+  }
+
+  /**
    * Show registration modal (alias for showAuthModal for backwards compatibility).
    */
-  showRegistrationModal() {
+  showRegistrationModal(callback) {
     this.showAuthModal();
+    // Store callback for when auth completes
+    if (callback) {
+      this._authCallback = callback;
+    }
   }
 
   /**

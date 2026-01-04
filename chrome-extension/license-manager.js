@@ -137,30 +137,75 @@ class LicenseManager {
       });
 
       if (!response.ok) {
-        console.warn('[LenQuant] License validation failed:', response.status);
-        return { valid: false, tier: 'expired', features: ['basic_analysis'] };
+        // Explicit validation failure
+        const reason = `Server rejected license (${response.status})`;
+        await this.handleValidationFailure(reason);
+        return { valid: false, tier: 'expired', features: ['basic_analysis'], reason };
       }
 
       const result = await response.json();
 
-      if (result.valid && this.license) {
+      if (!result.valid) {
+        await this.handleValidationFailure(result.reason || 'License invalid');
+        return result;
+      }
+
+      // Update license with server response
+      if (this.license) {
         this.license.tier = result.tier;
         this.license.features = result.features;
-        this.license.trial_remaining_hours = result.trial_remaining_hours;
-        this.license.needs_upgrade = result.needs_upgrade;
+        this.license.expires_at = result.expires_at;
         await this._saveToStorage(this.license);
+        this.notifyUpdate();
       }
 
       return result;
 
     } catch (error) {
       console.error('[LenQuant] Validation error:', error);
+
+      // Network error - don't invalidate, but warn
+      this.notifyWarning('Could not verify license. Some features may be limited.');
       return {
         valid: lic.tier !== 'expired',
         tier: lic.tier || 'expired',
         features: lic.features || ['basic_analysis'],
       };
     }
+  }
+
+  async handleValidationFailure(reason) {
+    console.warn('[LenQuant] License validation failed:', reason);
+
+    // Store the reason for UI
+    this.validationError = reason;
+
+    // Downgrade to expired/free
+    if (this.license) {
+      this.license.tier = 'expired';
+      this.license.features = ['basic_analysis'];
+      await this._saveToStorage(this.license);
+    }
+
+    // Notify user
+    this.notifyExpired(reason);
+  }
+
+  notifyExpired(reason) {
+    // Dispatch event for UI to handle
+    window.dispatchEvent(new CustomEvent('lq:license-expired', {
+      detail: { reason }
+    }));
+  }
+
+  notifyWarning(message) {
+    window.dispatchEvent(new CustomEvent('lq:license-warning', {
+      detail: { message }
+    }));
+  }
+
+  notifyUpdate() {
+    window.dispatchEvent(new CustomEvent('lq:license-updated'));
   }
 
   /**
@@ -283,21 +328,49 @@ class LicenseManager {
     }
   }
 
-  async _getDeviceFingerprint() {
+  async getDeviceId() {
+    // Check for stored device ID first
+    const result = await chrome.storage.local.get(['device_id']);
+
+    if (result.device_id) {
+      // Verify it's still valid
+      const currentFingerprint = await this.generateFingerprint();
+      const storedPrefix = result.device_id.slice(0, 8);
+      const currentPrefix = currentFingerprint.slice(0, 8);
+
+      // If fingerprint changed significantly, log warning but keep old ID
+      // This prevents issues when user changes display settings
+      if (storedPrefix !== currentPrefix) {
+        console.warn('[LenQuant] Device fingerprint changed, keeping original device_id');
+      }
+
+      return result.device_id;
+    }
+
+    // Generate new device ID
+    const fingerprint = await this.generateFingerprint();
+    await chrome.storage.local.set({ device_id: fingerprint });
+
+    return fingerprint;
+  }
+
+  async generateFingerprint() {
+    // Stable fingerprint components (avoid screen dimensions - too volatile)
     const components = [
       navigator.userAgent,
       navigator.language,
-      screen.width,
-      screen.height,
-      new Date().getTimezoneOffset(),
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
     ];
 
-    const fingerprint = components.join('|');
-    const encoder = new TextEncoder();
-    const data = encoder.encode(fingerprint);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const data = components.join('|');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+  }
+
+  // Legacy method for backwards compatibility
+  async _getDeviceFingerprint() {
+    return this.getDeviceId();
   }
 
   _formatTrialRemaining(hours) {

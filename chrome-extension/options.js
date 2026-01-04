@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   autoExplain: false,
   maxLeverage: 20,
   soundAlerts: false,
+  debugMode: false,
 };
 
 // Toggle handling
@@ -33,6 +34,7 @@ async function loadSettings() {
     setToggle('toggle-behavior-alerts', settings.behaviorAlerts);
     setToggle('toggle-auto-explain', settings.autoExplain);
     setToggle('toggle-sound', settings.soundAlerts);
+    setToggle('toggle-debug', settings.debugMode);
     
   } catch (error) {
     console.error('Failed to load settings:', error);
@@ -62,6 +64,7 @@ async function saveSettings() {
     behaviorAlerts: getToggle('toggle-behavior-alerts'),
     autoExplain: getToggle('toggle-auto-explain'),
     soundAlerts: getToggle('toggle-sound'),
+    debugMode: getToggle('toggle-debug'),
   };
   
   try {

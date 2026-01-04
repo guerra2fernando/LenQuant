@@ -30,17 +30,31 @@ class FeatureGate {
       return true;
     }
 
-    // User doesn't have access - show appropriate UI
     const tier = this.licenseManager.getTier();
 
-    if (!tier || tier === 'free' || tier === 'expired') {
-      // Show paywall with upgrade options
+    // NEW: If not logged in at all, prompt registration first with trial emphasis
+    if (!tier || tier === 'free') {
+      // Check if there's actually no license (not logged in)
+      if (!this.licenseManager.license?.email) {
+        // Show trial registration modal first
+        this.authUI.showTrialPrompt(feature, async (registered) => {
+          if (registered) {
+            // After registration, re-check access
+            await this.checkAccess(feature, callback);
+          }
+        });
+        if (callback) callback(false);
+        return false;
+      }
+    }
+
+    // Existing flow: Show paywall for expired/limited users
+    if (tier === 'expired' || (tier === 'free' && this.licenseManager.license?.email)) {
       this.authUI.showPaywall(feature, async (plan) => {
-        // User selected a plan - redirect to checkout
         await this._createCheckout(plan);
       });
     } else if (tier === 'trial') {
-      // Trial user - show trial-specific message
+      // Trial user trying to access feature not in their plan
       this.authUI.showPaywall(feature, async (plan) => {
         await this._createCheckout(plan);
       });
